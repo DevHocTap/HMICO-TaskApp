@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== LÕI TỔ CHỨC =====
+
+model Department {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  parentId  String?
+  parent    Department?  @relation("DeptTree", fields: [parentId], references: [id])
+  children  Department[] @relation("DeptTree")
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  assignments KpiAssignment[]
+
+  @@index([parentId])
+}
+
+enum Role {
+  ADMIN
+  EXECUTIVE
+  MANAGER
+  STAFF
+}
+
+model User {
+  id           String  @id @default(uuid())
+  employeeCode String  @unique
+  email        String  @unique
+  fullName     String
+  passwordHash String
+  role         Role    @default(STAFF)
+
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  managerId    String?
+  manager      User?   @relation("ReportsTo", fields: [managerId], references: [id])
+  reports      User[]  @relation("ReportsTo")
+
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignments      KpiAssignment[] @relation("AssignmentOwner")
+  createdKpis      KpiAssignment[] @relation("AssignmentCreator")
+  submittedResults KpiResult[]
+  approvals        Approval[]
+  auditLogs        AuditLog[]
+
+  @@index([departmentId])
+  @@index([managerId])
+}
+
+// ===== NGHIỆP VỤ KPI =====
+
+enum Perspective {
+  FINANCIAL
+  CUSTOMER
+  INTERNAL_PROCESS
+  LEARNING_GROWTH
+}
+
+enum KpiDirection {
+  HIGHER_BETTER
+  LOWER_BETTER
+  RANGE
+}
+
+model KpiDefinition {
+  id          String       @id @default(uuid())
+  code        String       @unique
+  name        String
+  description String?
+  perspective Perspective
+  unit        String
+  direction   KpiDirection @default(HIGHER_BETTER)
+  formula     Json?
+
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments KpiAssignment[]
+}
+
+enum PeriodType {
+  MONTH
+  QUARTER
+  YEAR
+}
+
+model Period {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  type      PeriodType
+  startDate DateTime   @db.Date
+  endDate   DateTime   @db.Date
+  isLocked  Boolean    @default(false)
+
+  assignments KpiAssignment[]
+
+  @@index([startDate, endDate])
+}
+
+enum OwnerType {
+  COMPANY
+  DEPARTMENT
+  USER
+}
+
+enum AssignmentStatus {
+  DRAFT
+  ASSIGNED
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model KpiAssignment {
+  id       String @id @default(uuid())
+
+  kpiDefinitionId String
+  kpiDefinition   KpiDefinition @relation(fields: [kpiDefinitionId], references: [id])
+
+  periodId String
+  period   Period @relation(fields: [periodId], references: [id])
+
+  ownerType    OwnerType
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  ownerUserId  String?
+  ownerUser    User?       @relation("AssignmentOwner", fields: [ownerUserId], references: [id])
+
+  parentId String?
+  parent   KpiAssignment?  @relation("KpiCascade", fields: [parentId], references: [id])
+  children KpiAssignment[] @relation("KpiCascade")
+
+  targetValue  Decimal  @db.Decimal(18, 4)
+  minValue     Decimal? @db.Decimal(18, 4)
+  weight       Decimal  @db.Decimal(5, 2)
+
+  status       AssignmentStatus @default(DRAFT)
+  finalScore   Decimal? @db.Decimal(6, 2)
+
+  createdById  String
+  createdBy    User     @relation("AssignmentCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  results   KpiResult[]
+  approvals Approval[]
+
+  @@index([periodId, ownerType])
+  @@index([departmentId, periodId])
+  @@index([ownerUserId, periodId])
+  @@index([parentId])
+}
+
+model KpiResult {
+  id           String @id @default(uuid())
+  assignmentId String
+  assignment   KpiAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  actualValue  Decimal  @db.Decimal(18, 4)
+  note         String?
+  evidenceUrl  String?
+
+  recordedAt    DateTime @default(now())
+  submittedById String
+  submittedBy   User    @relation(fields: [submittedById], references: [id])
+
+  @@index([assignmentId, recordedAt])
+}
+
+enum ApprovalAction {
+  SUBMIT
+  APPROVE
+  REJECT
+  REOPEN
+}
+
+model Approval {
+  id           String @id @default(uuid())
+  assignmentId String
+  assignment   KpiAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  action    ApprovalAction
+  actorId   String
+  actor     User     @relation(fields: [actorId], references: [id])
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@index([assignmentId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+
+  entityType String
+  entityId   String
+  action     String
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

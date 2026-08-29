@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kpi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kpi_dev
+      POSTGRES_PASSWORD: dev_local_only
+      POSTGRES_DB: kpi_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
