@@ -52,7 +52,7 @@ export class DepartmentScopeService {
    * khoảng vài chục phòng, một truy vấn phẳng nhanh hơn và dễ kiểm thử hơn.
    * Khi cây lên tới hàng nghìn nút mới cần đổi.
    */
-  private async getSubtreeIds(rootId: string): Promise<string[]> {
+  async getSubtreeIds(rootId: string): Promise<string[]> {
     const all = await this.prisma.department.findMany({
       where: { isActive: true },
       select: { id: true, parentId: true },

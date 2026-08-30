@@ -53,6 +53,8 @@ export class RateLimitGuard implements CanActivate, OnModuleDestroy {
     );
     if (!options) return true;
 
+    const limit = this.docHanMuc(options);
+
     const request = context.switchToHttp().getRequest<{ ip?: string }>();
     // Sau này chạy sau nginx phải bật `trust proxy`, nếu không mọi request
     // đều mang cùng một IP và cả công ty dùng chung hạn mức.
@@ -67,13 +69,20 @@ export class RateLimitGuard implements CanActivate, OnModuleDestroy {
     }
 
     counter.count += 1;
-    if (counter.count > options.limit) {
+    if (counter.count > limit) {
       throw new HttpException(
         'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
     return true;
+  }
+
+  /** Biến môi trường ghi đè hạn mức; giá trị không hợp lệ thì dùng mặc định. */
+  private docHanMuc(options: RateLimitOptions): number {
+    if (!options.envVar) return options.limit;
+    const thoDaiSo = Number(process.env[options.envVar]);
+    return Number.isInteger(thoDaiSo) && thoDaiSo > 0 ? thoDaiSo : options.limit;
   }
 
   private cleanup() {

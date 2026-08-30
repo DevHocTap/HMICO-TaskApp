@@ -37,9 +37,13 @@
       nghi bị chiếm tài khoản thì kẻ tấn công vẫn thao tác được trong
       khoảng đó. Cách xử lý: `JwtAuthGuard` đối chiếu `iat` của token với
       `User.passwordChangedAt` — đổi lấy một truy vấn database mỗi request.
-- [ ] `AuditService` đã có nhưng **CHƯA CÓ NƠI NÀO GỌI**. Nối vào các
-      thao tác của module `org` ở giai đoạn 2. Đăng xuất cũng chưa ghi log.
+- [ ] `AuditService` đã nối vào module `org` (tạo/sửa/vô hiệu hoá phòng
+      ban, chức danh, nhân viên, đổi vai trò, đặt lại mật khẩu). **Chưa
+      nối vào `auth`** — đăng nhập, đăng xuất, đổi mật khẩu chưa ghi log.
 - [ ] Chưa có giao diện xem `AuditLog`. Hiện chỉ tra được bằng SQL.
+- [ ] Module `org` gọi `audit.log()` KHÔNG kèm transaction. Chấp nhận được
+      với thao tác nhân sự, nhưng `Scorecard` thì bắt buộc phải kèm — xem
+      `docs/kien-truc.md` mục Nhật ký thao tác.
 - [ ] **`RateLimitGuard` và `LoginAttemptService` đều đếm trong BỘ NHỚ
       TIẾN TRÌNH.** Chỉ đúng khi chạy MỘT tiến trình, và mất sạch khi khởi
       động lại. Chạy nhiều tiến trình (PM2 cluster, nhiều container) phải
@@ -47,8 +51,19 @@
       tiến trình và khoá tạm gần như vô hiệu.
       Tự viết thay vì dùng `@nestjs/throttler` vì bản mới nhất (6.5.0) chỉ
       hỗ trợ NestJS tới 11, chưa có bản nào cho NestJS 12.
+- [ ] **Hạn mức đăng nhập theo IP sẽ chặn nhầm cả công ty.** 200 nhân sự
+      sau NAT dùng chung MỘT địa chỉ IP công cộng; mặc định 5 lần/phút
+      nghĩa là sáng thứ Hai người thứ sáu đăng nhập đã bị chặn.
+
+      Đã cho cấu hình qua `LOGIN_RATE_LIMIT_PER_MINUTE`, nhưng **nâng số
+      lên chỉ là vá tạm** — cách đúng là khoá theo `email + IP` thay vì
+      chỉ IP. Lớp khoá tạm theo email (`LoginAttemptService`) mới là thứ
+      thật sự chặn dò mật khẩu; hạn mức IP chỉ chống một máy hoá điên.
+
+      **Phải chốt con số trước khi mở cho toàn công ty.**
+
 - [ ] Chưa bật `trust proxy`. Khi chạy sau nginx, mọi request sẽ mang cùng
-      một IP và cả công ty dùng chung hạn mức tần suất.
+      một IP — làm vấn đề trên tệ thêm, vì đến cả IP nội bộ cũng gộp làm một.
 - [ ] `GET /departments/tree` trả cây RỖNG cho STAFF. Đúng theo quy ước
       của `getAccessibleDepartmentIds` — **đừng nới lỏng hàm phân quyền**
       chỉ vì giao diện cần hiển thị tên phòng ban.
@@ -72,6 +87,21 @@
       theo Excel.
 - [ ] **Import nhân sự từ Excel chưa làm** — chưa có file mẫu của HR nên
       chưa biết định dạng cột. Làm ở lát cắt riêng, đừng đoán cấu trúc.
+
+## Chờ HR xác nhận
+
+- [ ] **Hai chi nhánh Hà Nội và HCM đang CÁCH LY hoàn toàn.** Trưởng phòng
+      Kỹ thuật HCM không thấy bất kỳ dữ liệu nào của Hà Nội, và ngược lại.
+
+      Đây là mặc định theo `docs/quy-tac-nghiep-vu.md` mục 7, **nhưng chưa
+      được HR xác nhận**. Thực tế có thể cần: giám đốc chi nhánh xem được
+      cả hai, hoặc một số phòng dùng chung.
+
+      **Nếu phải sửa, chỉ là thêm một điều kiện trong
+      `getAccessibleDepartmentIds()`** (`src/modules/org/department-scope.service.ts`)
+      — không đụng tới schema, không đụng tới bất kỳ endpoint nào, vì mọi
+      nơi lọc dữ liệu đều đi qua đúng hàm đó. Đây chính là lợi ích của việc
+      chỉ có MỘT hàm phân quyền.
 
 ## Ưu tiên trung bình
 

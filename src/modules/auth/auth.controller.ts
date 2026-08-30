@@ -36,7 +36,11 @@ export class AuthController {
    */
   @Public()
   @UseGuards(RateLimitGuard)
-  @RateLimit({ limit: 5, windowMs: 60_000 })
+  @RateLimit({
+    limit: 5,
+    windowMs: 60_000,
+    envVar: 'LOGIN_RATE_LIMIT_PER_MINUTE',
+  })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto, @Req() req: RequestInfo) {

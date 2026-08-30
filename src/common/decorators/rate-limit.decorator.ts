@@ -7,6 +7,14 @@ export interface RateLimitOptions {
   limit: number;
   /** Độ dài cửa sổ, tính bằng mili giây. */
   windowMs: number;
+  /**
+   * Tên biến môi trường ghi đè `limit`.
+   *
+   * Cần thiết vì hạn mức đúng phụ thuộc cách triển khai: cả công ty sau
+   * NAT dùng chung một IP, nên con số hợp lý ở máy dev lại quá chặt ở
+   * văn phòng 200 người.
+   */
+  envVar?: string;
 }
 
 /** Giới hạn số lần một địa chỉ IP được gọi endpoint này. */

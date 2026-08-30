@@ -74,8 +74,23 @@ Trình duyệt
   → PostgreSQL
 ```
 
+### Nhật ký thao tác
+
 Mọi thao tác sửa `Scorecard` hoặc `ScorecardItem` phải ghi `AuditLog` trong
 cùng service đó.
+
+**Nguyên tắc: log và thao tác phải nằm CÙNG MỘT TRANSACTION.** Truyền client
+của transaction vào `AuditService.log(entry, tx)` — khi đó thao tác bị
+rollback thì log cũng biến mất, và log ghi hỏng thì thao tác cũng không
+thành.
+
+Với `Scorecard` đây là **bắt buộc**, không phải khuyến nghị: nhật ký chấm
+điểm là bằng chứng khi có tranh cãi về lương thưởng. Một bản ghi log mô tả
+việc chưa từng xảy ra, hoặc một thao tác đã xảy ra mà không có log, đều làm
+hỏng giá trị bằng chứng của cả bảng.
+
+Với các thao tác nhẹ hơn (`org`), gọi `log(entry)` không kèm transaction là
+chấp nhận được: mất một dòng log không đáng để huỷ thao tác đã thành công.
 
 ## Frontend — `web/`
 
