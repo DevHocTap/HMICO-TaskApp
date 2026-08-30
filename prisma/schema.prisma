@@ -99,6 +99,7 @@ model User {
   updatedAt          DateTime  @updatedAt
 
   managedDepartments   Department[]     @relation("DeptManager")
+  createdKpiTemplates  KpiTemplate[]    @relation("KpiTemplateCreator")
   refreshTokens        RefreshToken[]
   scorecards           Scorecard[]      @relation("ScorecardOwner")
   evaluatingScorecards Scorecard[]      @relation("ScorecardEvaluator")
@@ -186,19 +187,34 @@ enum ScoringMode {
   CALCULATED
 }
 
+enum TemplateStatus {
+  DRAFT
+  PUBLISHED
+}
+
 model KpiTemplate {
-  id   String @id @default(uuid())
-  code String @unique
-  name String
+  id          String  @id @default(uuid())
+  code        String  @unique
+  name        String
+  description String?
 
   jobTitleId String?
   jobTitle   JobTitle? @relation(fields: [jobTitleId], references: [id])
 
-  // Mẫu hệ thống (3 tiêu chí Mục 2) — tự nối vào mọi phiếu, không cho xoá
+  // Mẫu hệ thống (3 tiêu chí Mục 2 "Chấp hành nội quy") — tự nối vào mọi
+  // phiếu, chỉ ADMIN sửa được qua endpoint riêng, không cho xoá.
   isSystem Boolean @default(false)
 
-  // Tăng mỗi lần sửa mẫu. Phiếu chốt lại số này ở templateVersion.
+  // PUBLISHED nghĩa là "nội dung này đã qua kiểm tra trọng số". Sửa cây
+  // item của mẫu đã PUBLISHED sẽ tự đưa nó về DRAFT — nếu không, trạng
+  // thái sẽ nói dối về nội dung bên trong.
+  status TemplateStatus @default(DRAFT)
+
+  // Tăng mỗi lần xuất bản lại. Phiếu chốt lại số này ở templateVersion.
   version Int @default(1)
+
+  createdById String?
+  createdBy   User?   @relation("KpiTemplateCreator", fields: [createdById], references: [id])
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -208,6 +224,7 @@ model KpiTemplate {
   scorecards Scorecard[]
 
   @@index([jobTitleId])
+  @@index([status])
 }
 
 // Tự chứa toàn bộ nội dung — không còn bảng KpiDefinition.
@@ -223,16 +240,21 @@ model KpiTemplateItem {
   parent   KpiTemplateItem?  @relation("TemplateItemTree", fields: [parentId], references: [id])
   children KpiTemplateItem[] @relation("TemplateItemTree")
 
-  section     KpiSection
-  orderIndex  Int
-  name        String
-  description String?
+  section      KpiSection
+  displayOrder Int
+  name         String
+  description  String?
 
-  // Mục tiêu dạng chuỗi tự do: "≥ 95%", "≤ 1 lỗi/tháng", "Đạt", "0".
-  // Giai đoạn 1 chỉ hiển thị cho người chấm tham khảo.
-  measurementUnit String?
+  // Mục tiêu, NGUYÊN VĂN như biểu mẫu Excel: "≥ 95%", "≤ 1 lỗi/tháng",
+  // "2 giờ", "0", "Đạt". Cố ý là chuỗi tự do, không chuẩn hoá — ép mọi
+  // mục tiêu về số tốn rất nhiều công mà giai đoạn 1 chưa dùng tới.
+  measurementText String?
 
-  // Chỉ bắt buộc khi scoringMode = CALCULATED (chưa dùng ở giai đoạn 1)
+  // Cột "Cách đo" trong biểu mẫu.
+  measureMethod String?
+
+  // Ba cột dưới chỉ dùng khi scoringMode = CALCULATED (hướng B, chưa bật).
+  // Giữ sẵn vì công thức hướng B cần chúng; thiếu thì CALCULATED vô nghĩa.
   targetValue Decimal?     @db.Decimal(18, 4)
   minValue    Decimal?     @db.Decimal(18, 4)
   direction   KpiDirection @default(HIGHER_BETTER)
@@ -243,7 +265,7 @@ model KpiTemplateItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([templateId, section, orderIndex])
+  @@index([templateId, section, displayOrder])
   @@index([parentId])
 }
 

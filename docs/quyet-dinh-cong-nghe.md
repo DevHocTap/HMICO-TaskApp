@@ -77,3 +77,25 @@ Không có Passport thì `JwtAuthGuard` chỉ còn khoảng 40 dòng đọc th�
 trên xuống: lấy header, verify, gán `request.user`. Làm một mình, ít lớp
 trung gian dễ dò lỗi hơn.
 
+## Bỏ hẳn bảng `KpiDefinition`
+
+Thiết kế ban đầu tách "định nghĩa KPI" (thư viện dùng lại) khỏi "lần giao
+KPI". Đúng ở tầng công ty và phòng ban, sai ở tầng cá nhân.
+
+Ở tầng cá nhân, tiêu chí gắn chặt với **chức danh**: "Tiến độ hoàn thành
+Shop Drawing" chỉ có nghĩa với nhân viên Shop Drawing. Gần như không có
+tiêu chí nào dùng chéo giữa các chức danh, nên vai trò "thư viện dùng lại"
+đã chuyển hẳn sang `KpiTemplate` — mẫu mới là thứ được dùng lại nhiều kỳ.
+
+Giữ cả hai bảng có một cái giá rất cụ thể: người tạo mẫu phải qua **hai
+bước** — tạo định nghĩa KPI trước, rồi mới tạo dòng trong mẫu trỏ vào nó.
+Tài liệu ghi rõ các phòng ngoài phòng Kỹ thuật chưa có biểu mẫu và sẽ xây
+lần đầu ngay trên phần mềm này, người dùng là trưởng phòng không rành máy
+tính. Hai bước là đúng chỗ họ bỏ cuộc.
+
+Vậy `KpiTemplateItem` tự chứa toàn bộ nội dung. Bớt một bảng, bớt một màn
+hình, bớt một lớp join.
+
+Khi nào mở rộng lên tầng phòng ban để thay BSCkpi thì thêm lại thư viện —
+lúc đó tiêu chí cấp công ty mới thật sự được dùng lại nhiều nơi.
+

@@ -9,7 +9,8 @@ thiết kế như vậy — phần schema không nói ra được.
 |---|---|
 | `Department` | Cây phòng ban, `parentId` tự trỏ |
 | `User` | Nhân viên, có `departmentId` và `managerId` |
-| `KpiDefinition` | Thư viện KPI — định nghĩa một lần, dùng lại nhiều kỳ |
+| `KpiTemplate` | Mẫu KPI theo chức danh — thứ được dùng lại nhiều kỳ |
+| `KpiTemplateItem` | Dòng trong mẫu, hai cấp qua `parentId`, **tự chứa nội dung** |
 | `Period` | Kỳ đánh giá (tháng/quý/năm), có cờ khoá kỳ |
 | `KpiAssignment` | **Bảng trung tâm** — một lần giao KPI cụ thể |
 | `KpiResult` | Số liệu thực tế nhập vào theo thời gian |
@@ -18,13 +19,22 @@ thiết kế như vậy — phần schema không nói ra được.
 
 ## Ba quyết định thiết kế cốt lõi
 
-### 1. Tách định nghĩa KPI khỏi lần giao KPI
+### 1. Mẫu KPI tách khỏi phiếu KPI
 
-"Doanh thu quý" là một **định nghĩa**, dùng lại mãi mãi.
-"Giao doanh thu 5 tỷ cho phòng Sales quý 1/2026" là một **lần giao**.
+Mẫu *"Kỹ sư triển khai"* dùng lại mãi mãi. *"Phiếu KPI tháng 08/2026 của
+anh A"* là một lần giao cụ thể.
 
-Gộp hai thứ này là lỗi phổ biến nhất. Gộp rồi thì mỗi kỳ phải khai lại
+Gộp hai thứ này là lỗi phổ biến nhất — gộp rồi thì mỗi kỳ phải khai lại
 toàn bộ KPI từ đầu.
+
+**Không còn bảng `KpiDefinition`.** `KpiTemplateItem` tự chứa toàn bộ nội
+dung: tên, mô tả, mục tiêu, cách đo, trọng số. Lý do ở
+`docs/quyet-dinh-cong-nghe.md`.
+
+`maxScale` **không phải là cột** — suy ra từ `section` bằng hằng số trong
+`src/modules/kpi-template/kpi-scale.constants.ts` (`BSC_WORK` → 10,
+`COMPLIANCE` → 3). Để thành cột thì database cho phép tồn tại dữ liệu vô
+nghĩa và kéo theo ràng buộc "cha con phải cùng thang".
 
 ### 2. `KpiAssignment.parentId` tạo phân cấp
 

@@ -1,4 +1,10 @@
-import { PrismaClient, Role, KpiSection, PeriodType } from '@prisma/client';
+import {
+  PrismaClient,
+  Role,
+  KpiSection,
+  PeriodType,
+  TemplateStatus,
+} from '@prisma/client';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
@@ -374,7 +380,11 @@ async function seedComplianceTemplate() {
     data: {
       code: 'SYS-COMPLIANCE',
       name: 'Chấp hành nội quy (áp dụng mọi chức danh)',
+      description:
+        'Ba tiêu chí giống nhau ở mọi chức danh, hệ thống tự nối vào mọi phiếu.',
       isSystem: true,
+      // Mẫu hệ thống xuất bản sẵn: nội dung cố định, đã đúng tổng 30
+      status: TemplateStatus.PUBLISHED,
       version: 1,
     },
   });
@@ -384,7 +394,7 @@ async function seedComplianceTemplate() {
       data: {
         templateId: template.id,
         section: KpiSection.COMPLIANCE,
-        orderIndex: i + 1,
+        displayOrder: i + 1,
         name,
         weight: 10,
       },

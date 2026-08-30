@@ -105,13 +105,27 @@ Ba tiêu chí Mục 2 (`COMPLIANCE`) đều là tiêu chí lá.
 Service phải chặn: nhập điểm vào tiêu chí có con → lỗi; tiêu chí lá mà lại
 có con → lỗi.
 
-### Ràng buộc trọng số
+### Ràng buộc trọng số — kiểm theo LOẠI MẪU
 
-1. Σ trọng số tiêu chí cấp 1 thuộc `BSC_WORK` = **70**
-2. Σ trọng số tiêu chí cấp 1 thuộc `COMPLIANCE` = **30**
-3. Σ trọng số KPI con trong mỗi tiêu chí **có con** = **100**
+Mục 2 nằm ở một **mẫu hệ thống riêng**, không nằm chung mẫu chức danh. Nên
+ràng buộc trọng số phải áp theo loại mẫu, không áp chung cho mọi mẫu:
 
-Kiểm cả ba khi chuyển `DRAFT` → `PROPOSED`. Lúc nháp cho phép lệch.
+| Loại mẫu | Kiểm khi xuất bản |
+|---|---|
+| **Mẫu chức danh** (`isSystem = false`) | Σ tiêu chí cấp 1 = **70** · chỉ chứa `BSC_WORK` · có ít nhất 1 tiêu chí |
+| **Mẫu hệ thống** (`isSystem = true`) | Σ tiêu chí cấp 1 = **30** · chỉ chứa `COMPLIANCE` |
+| **Cả hai** | Σ trọng số KPI con trong mỗi tiêu chí **có con** = **100** |
+
+> **Ràng buộc "tổng phiếu = 100" thuộc về lúc GHÉP hai mẫu thành phiếu, KHÔNG
+> phải lúc xuất bản từng mẫu.**
+>
+> Đặt nhầm cấp là mọi mẫu đều không xuất bản được: mẫu chức danh có
+> `COMPLIANCE` = 0 nên trượt ràng buộc "= 30", còn mẫu hệ thống có
+> `BSC_WORK` = 0 nên trượt ràng buộc "phải có ít nhất một tiêu chí
+> BSC_WORK". Hai điều kiện không thể cùng đúng trên một mẫu.
+
+Với **phiếu KPI** (lát cắt sau), kiểm khi chuyển `DRAFT` → `PROPOSED`:
+tổng đóng góp của cả hai mục cộng lại = 100. Lúc nháp cho phép lệch.
 
 **Kiểm ở tầng service, không dùng CHECK constraint.** CHECK của PostgreSQL
 chỉ xét trong phạm vi một dòng, không kiểm được tổng qua nhiều dòng — muốn
