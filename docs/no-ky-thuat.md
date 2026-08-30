@@ -3,6 +3,29 @@
 > Mỗi khi tạm bỏ qua điều gì, ghi vào đây ngay. Làm một mình rất dễ quên
 > những chỗ để tạm.
 
+## Quy tắc rút ra — đọc trước khi làm
+
+- **Đổi tên cột hoặc bảng: BẮT BUỘC đọc file SQL Prisma sinh ra trước khi
+  chạy.**
+
+  Prisma không biết đó là đổi tên. Nó sinh `DROP COLUMN` + `ADD COLUMN`,
+  nghĩa là **xoá sạch dữ liệu của cột đó**. Trên máy dev nó còn dừng lại
+  cảnh báo vì bảng có dữ liệu; chạy `migrate deploy` trên máy chủ thật thì
+  không hỏi gì cả.
+
+  Quy trình đúng:
+  1. `npx prisma migrate dev --create-only --name <ten>`
+  2. **Mở `migration.sql` ra đọc.** Thấy `DROP COLUMN` mà mình chỉ định đổi
+     tên thì sửa tay thành `ALTER TABLE ... RENAME COLUMN ... TO ...`
+  3. Chạy `npx prisma migrate deploy` rồi kiểm dữ liệu còn nguyên
+
+  (`--create-only` cần TTY; trong môi trường không có TTY thì tự tạo thư
+  mục migration và viết `migration.sql` bằng tay, xem
+  `20260830154536_kpi_template` làm mẫu.)
+
+  Lần này chỉ suýt mất 3 dòng seed. Với dữ liệu KPI thật của 200 người thì
+  không có cách nào cứu — điểm đã chấm là căn cứ tính lương.
+
 ## Ưu tiên cao — phải xử lý trước khi lên chạy thật
 
 - [ ] **Refresh token nằm ở `localStorage` — nợ kỹ thuật CÓ CHỦ Ý.**
@@ -87,6 +110,50 @@
       theo Excel.
 - [ ] **Import nhân sự từ Excel chưa làm** — chưa có file mẫu của HR nên
       chưa biết định dạng cột. Làm ở lát cắt riêng, đừng đoán cấu trúc.
+
+## Chờ HCNS xác nhận — dữ liệu gốc trong bốn file Excel
+
+> Đã nhập **nguyên văn**, chưa sửa chỗ nào. Liệt kê ở đây để hỏi lại.
+
+- [ ] **Cả BỐN file đều ghi `Chức danh: Kỹ sư triển khai`** — không riêng
+      file Shop Drawing. Nhiều khả năng ba file sau tạo bằng cách copy file
+      đầu rồi quên sửa ô chức danh. Seed đã gán đúng chức danh theo tên
+      file; cần HCNS xác nhận.
+
+- [ ] **Tên tiêu chí lệch giữa hai sheet** ở hai file *kỹ sư triển khai* và
+      *kỹ sư cấu hình*: sheet biểu mẫu ghi `Tiến độ thi công/ triển khai`,
+      sheet chi tiết ghi `Tiến độ triển khai`. Seed lấy tên ở **sheet biểu
+      mẫu** vì đó là bản in chính thức (BM.01).
+
+- [ ] **Cột "Cách đo" bị chép trùng cho mọi KPI con trong cùng một nhóm**
+      — 12 nhóm bị. Nặng nhất là file Shop Drawing: **cả 6/6 nhóm** đều có
+      mọi KPI con dùng chung một câu cách đo. Ví dụ nhóm "Tính khả thi thi
+      công" có 5 KPI con khác hẳn nhau nhưng cùng một cách đo *"Tỷ lệ bản
+      vẽ không phát sinh lỗi thi công..."*.
+      **Nếu đúng như vậy thì 5 KPI con đó thực chất là một** — cần HCNS
+      xác nhận từng nhóm có cách đo riêng hay không.
+
+- [ ] **44 KPI con không có "Cách đo"**, tập trung ở hai file *kỹ sư triển
+      khai* và *kỹ sư cấu hình*: các nhóm "Chất lượng thi công công trình"
+      (6/6), "Xử lý hồ sơ dự án" (3/3), "Phối hợp & xử lý vấn đề" (6/6),
+      "An toàn, kỷ luật trên công trường" (4/4), "Đánh giá cải tiến" (2/2)
+      đều trống hoàn toàn.
+
+- [ ] **Định dạng "Mục tiêu" lẫn lộn bốn kiểu**, chưa chuẩn hoá:
+      | Kiểu | Số lần | Ví dụ |
+      |---|---|---|
+      | Có toán tử | 77 | `≥ 95%`, `≤ 3%`, `≤ 1 lỗi/tháng`, `≥ 2` |
+      | Số nguyên trần | 29 | `0`, `1`, `2` |
+      | Số thập phân | 4 | `0.95`, `0.03` |
+      | Chữ | 4 | `Đạt`, `Không mất/hư hỏng do chủ quan` |
+      Đáng chú ý: `0.95` và `≥ 95%` xuất hiện trong cùng một file, nhiều
+      khả năng cùng nghĩa. `1` có thể là `100%`.
+      Giai đoạn 1 chấm tay nên chỉ hiển thị, chưa ảnh hưởng. **Nhưng phải
+      chuẩn hoá trước khi bật `scoringMode = CALCULATED`** — công thức
+      hướng B cần số, không đọc được `Đạt`.
+
+- [ ] **4 KPI con không có Mục tiêu**, đều ở nhóm "Đánh giá cải tiến" của
+      hai file *kỹ sư triển khai* và *kỹ sư cấu hình*.
 
 ## Chờ HR xác nhận
 

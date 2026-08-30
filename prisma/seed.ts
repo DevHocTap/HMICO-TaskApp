@@ -6,6 +6,9 @@ import {
   TemplateStatus,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
+// Đuôi .ts (không phải .js): file này chỉ do node chạy trực tiếp bằng cơ chế
+// bóc kiểu của Node 22, không đi qua tsc nên không có bản .js được sinh ra.
+import { MAU_KPI_PHONG_KY_THUAT } from './kpi-templates.data.ts';
 
 const prisma = new PrismaClient();
 
@@ -405,6 +408,64 @@ async function seedComplianceTemplate() {
   // phòng Kỹ thuật (docs mục 9.2).
 }
 
+/**
+ * Bốn mẫu KPI thật của phòng Kỹ thuật, đọc từ file Excel.
+ *
+ * Tạo ở trạng thái PUBLISHED: nội dung lấy nguyên từ biểu mẫu công ty đang
+ * dùng, đã đúng tổng 70 và mỗi nhóm con đúng 100.
+ */
+async function seedMauKyThuat(
+  jobTitle: Map<string, string>,
+  createdById: string,
+): Promise<number> {
+  let soMau = 0;
+
+  for (const mau of MAU_KPI_PHONG_KY_THUAT) {
+    const template = await prisma.kpiTemplate.create({
+      data: {
+        code: mau.code,
+        name: mau.name,
+        description: `Nhập từ ${mau.sourceFile}`,
+        jobTitleId: jobTitle.get(mau.jobTitleCode) ?? null,
+        isSystem: false,
+        status: TemplateStatus.PUBLISHED,
+        version: 1,
+        createdById,
+      },
+    });
+
+    for (const [i, tieuChi] of mau.criteria.entries()) {
+      const cha = await prisma.kpiTemplateItem.create({
+        data: {
+          templateId: template.id,
+          section: KpiSection.BSC_WORK,
+          displayOrder: i + 1,
+          name: tieuChi.name,
+          description: tieuChi.description ?? null,
+          weight: tieuChi.weight,
+        },
+      });
+
+      for (const [j, con] of (tieuChi.children ?? []).entries()) {
+        await prisma.kpiTemplateItem.create({
+          data: {
+            templateId: template.id,
+            parentId: cha.id,
+            section: KpiSection.BSC_WORK,
+            displayOrder: j + 1,
+            name: con.name,
+            measurementText: con.measurementText ?? null,
+            measureMethod: con.measureMethod ?? null,
+            weight: con.weight,
+          },
+        });
+      }
+    }
+    soMau += 1;
+  }
+  return soMau;
+}
+
 async function main() {
   await resetData();
 
@@ -413,6 +474,7 @@ async function main() {
   const users = await seedUsers(dept, jobTitle);
   await seedPeriods();
   await seedComplianceTemplate();
+  const soMauKyThuat = await seedMauKyThuat(jobTitle, users.get('HM001')!);
 
   const soTruongBoPhan = await prisma.department.count({
     where: { managerId: { not: null } },
@@ -425,6 +487,7 @@ async function main() {
   console.log(`  ${soTruongBoPhan} phòng đã gán trưởng bộ phận`);
   console.log('  4 kỳ (năm -> quý -> 2 tháng)');
   console.log('  1 mẫu hệ thống COMPLIANCE (3 tiêu chí, tổng 30)');
+  console.log(`  ${soMauKyThuat} mẫu KPI phòng Kỹ thuật, nhập từ Excel thật`);
   console.log(`\n  Mật khẩu dev: ${SEED_PASSWORD}  (đặt lại qua SEED_PASSWORD)`);
   console.log('  Mọi tài khoản đều mustChangePassword = true');
 }
