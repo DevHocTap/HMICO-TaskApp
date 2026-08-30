@@ -17,8 +17,11 @@ function taoUser(overrides: Partial<User> = {}): User {
     fullName: 'Quản trị hệ thống',
     role: Role.ADMIN,
     departmentId: 'hmico',
+    level: 'M2',
     isActive: true,
     mustChangePassword: true,
+    department: { name: 'Công ty HMICO' },
+    jobTitle: { name: 'Quản trị hệ thống' },
     ...overrides,
   } as User;
 }
@@ -76,6 +79,9 @@ describe('AuthService', () => {
 
       expect(result.accessToken).toBe('access');
       expect(result.user.mustChangePassword).toBe(true);
+      // Thanh điều hướng lấy phòng ban và chức danh từ đây, không từ chỗ khác
+      expect(result.user.departmentName).toBe('Công ty HMICO');
+      expect(result.user.jobTitleName).toBe('Quản trị hệ thống');
       // Không được lộ hash mật khẩu ra ngoài
       expect(JSON.stringify(result)).not.toContain('$argon2');
     });
@@ -85,9 +91,9 @@ describe('AuthService', () => {
 
       await service.login({ email: '  ADMIN@HMICO.VN  ', password: MAT_KHAU });
 
-      expect(user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'admin@hmico.vn' },
-      });
+      expect(user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { email: 'admin@hmico.vn' } }),
+      );
     });
 
     it('sai mật khẩu thì từ chối, không cấp token', async () => {

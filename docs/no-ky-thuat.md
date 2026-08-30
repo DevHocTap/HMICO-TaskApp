@@ -17,9 +17,15 @@
 - [ ] Chưa bật `trust proxy`. Khi chạy sau nginx, mọi request sẽ mang cùng
       một IP và cả công ty dùng chung hạn mức tần suất.
 - [ ] `GET /departments/tree` trả cây RỖNG cho STAFF. Đúng theo quy ước
-      của `getAccessibleDepartmentIds`, nhưng nếu sau này giao diện của
-      STAFF cần tên phòng ban thì phải lấy từ nơi khác (snapshot trên
-      phiếu KPI), đừng nới lỏng hàm phân quyền.
+      của `getAccessibleDepartmentIds` — **đừng nới lỏng hàm phân quyền**
+      chỉ vì giao diện cần hiển thị tên phòng ban.
+
+      **Thông tin phòng ban và chức danh của CHÍNH người dùng — hiện trên
+      thanh điều hướng, trang cá nhân — phải lấy từ `GET /auth/me`.**
+      Không lấy từ cây phòng ban (STAFF nhận cây rỗng), cũng không lấy từ
+      snapshot trên phiếu KPI (lúc đăng nhập lần đầu chưa có phiếu nào).
+      `/auth/me` và `/auth/login` đã trả `departmentName`, `jobTitleName`,
+      `level` sẵn cho việc này.
 - [ ] Khoá tạm theo email không kiểm được bằng curl từ một máy: hạn mức
       5 lần/phút theo IP chặn trước khi đủ 11 lần. Phủ bằng test unit
       (`login-attempt.service.spec.ts`).

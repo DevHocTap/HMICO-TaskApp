@@ -13,16 +13,40 @@ import { LoginAttemptService } from './login-attempt.service.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { ChangePasswordDto } from './dto/change-password.dto.js';
 
-export interface LoginResult extends TokenPair {
-  user: {
-    id: string;
-    email: string;
-    fullName: string;
-    role: User['role'];
-    departmentId: string | null;
-    mustChangePassword: boolean;
-  };
+/**
+ * Hồ sơ người dùng hiện tại.
+ *
+ * Đây là NGUỒN DUY NHẤT cho thông tin phòng ban/chức danh của chính người
+ * dùng (thanh điều hướng, trang cá nhân). Không lấy từ cây phòng ban —
+ * STAFF nhận cây rỗng; cũng không lấy từ snapshot trên phiếu KPI — lúc
+ * đăng nhập lần đầu chưa có phiếu nào.
+ */
+export interface UserProfile {
+  id: string;
+  email: string;
+  fullName: string;
+  role: User['role'];
+  departmentId: string | null;
+  departmentName: string | null;
+  jobTitleName: string | null;
+  level: string | null;
+  mustChangePassword: boolean;
 }
+
+export interface LoginResult extends TokenPair {
+  user: UserProfile;
+}
+
+/** Quan hệ cần nạp kèm để dựng được hồ sơ. */
+const PROFILE_INCLUDE = {
+  department: { select: { name: true } },
+  jobTitle: { select: { name: true } },
+} as const;
+
+type UserWithProfile = User & {
+  department: { name: string } | null;
+  jobTitle: { name: string } | null;
+};
 
 interface ClientInfo {
   userAgent?: string;
@@ -54,7 +78,10 @@ export class AuthService {
       );
     }
 
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: PROFILE_INCLUDE,
+    });
 
     // Vẫn băm một lần khi không tìm thấy người dùng, để thời gian phản hồi
     // của "sai email" và "sai mật khẩu" không chênh nhau — nếu không, kẻ
@@ -141,21 +168,27 @@ export class AuthService {
     await this.logoutAll(userId);
   }
 
-  async getProfile(userId: string): Promise<LoginResult['user']> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  async getProfile(userId: string): Promise<UserProfile> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: PROFILE_INCLUDE,
+    });
     if (!user) {
       throw new UnauthorizedException('Tài khoản không tồn tại');
     }
     return this.toProfile(user);
   }
 
-  private toProfile(user: User): LoginResult['user'] {
+  private toProfile(user: UserWithProfile): UserProfile {
     return {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
       role: user.role,
       departmentId: user.departmentId,
+      departmentName: user.department?.name ?? null,
+      jobTitleName: user.jobTitle?.name ?? null,
+      level: user.level,
       mustChangePassword: user.mustChangePassword,
     };
   }
