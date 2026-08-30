@@ -37,8 +37,9 @@
       nghi bị chiếm tài khoản thì kẻ tấn công vẫn thao tác được trong
       khoảng đó. Cách xử lý: `JwtAuthGuard` đối chiếu `iat` của token với
       `User.passwordChangedAt` — đổi lấy một truy vấn database mỗi request.
-- [ ] Chưa có `AuditLog` cho bất kỳ thao tác nào — **kể cả đăng xuất**.
-      Yêu cầu ghi log đăng xuất phải hoãn tới khi có module `audit`.
+- [ ] `AuditService` đã có nhưng **CHƯA CÓ NƠI NÀO GỌI**. Nối vào các
+      thao tác của module `org` ở giai đoạn 2. Đăng xuất cũng chưa ghi log.
+- [ ] Chưa có giao diện xem `AuditLog`. Hiện chỉ tra được bằng SQL.
 - [ ] **`RateLimitGuard` và `LoginAttemptService` đều đếm trong BỘ NHỚ
       TIẾN TRÌNH.** Chỉ đúng khi chạy MỘT tiến trình, và mất sạch khi khởi
       động lại. Chạy nhiều tiến trình (PM2 cluster, nhiều container) phải
@@ -65,8 +66,12 @@
 - [ ] `prisma/seed.ts` để mật khẩu dev mặc định `Hmico@2026` (đổi qua biến
       `SEED_PASSWORD`). Mọi tài khoản có `mustChangePassword = true`, nhưng
       **không được chạy seed trên môi trường thật**.
-- [ ] Tên bốn chức danh phòng Kỹ thuật trong seed đang là tạm — sửa lại khi
-      có `BM.01-KPI.KYTHUAT` thật
+- [ ] Chức danh các phòng NGOÀI phòng Kỹ thuật trong seed là tạm (Trưởng
+      phòng, Tổ trưởng, Giám đốc, Chuyên viên HCNS, Nhân viên Kinh doanh)
+      — chưa đối chiếu biểu mẫu thật. Bốn chức danh phòng Kỹ thuật đã đúng
+      theo Excel.
+- [ ] **Import nhân sự từ Excel chưa làm** — chưa có file mẫu của HR nên
+      chưa biết định dạng cột. Làm ở lát cắt riêng, đừng đoán cấu trúc.
 
 ## Ưu tiên trung bình
 

@@ -38,9 +38,10 @@ model Department {
 }
 
 model JobTitle {
-  id   String @id @default(uuid())
-  code String @unique
-  name String
+  id          String  @id @default(uuid())
+  code        String  @unique
+  name        String
+  description String?
 
   // Phòng ban áp dụng. Null = dùng chung toàn công ty.
   departmentId String?
