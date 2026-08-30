@@ -70,6 +70,10 @@
 
 ## Ưu tiên trung bình
 
+- [ ] `CORS_ORIGINS` ở dev đang cho cả `localhost:5173` lẫn
+      `127.0.0.1:5173`. Khi triển khai thật phải thay bằng ĐÚNG tên miền
+      của công ty, không để lại hai dòng localhost này.
+
 - [ ] `web/` chưa có test nào — chưa cài bộ chạy test. Hàm
       `danhGiaMatKhau` và logic hàng đợi refresh trong `api/client.ts` là
       hai chỗ đáng phủ trước nhất.

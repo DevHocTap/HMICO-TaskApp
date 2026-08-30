@@ -25,9 +25,10 @@ export function LoginPage() {
         replace: true,
       });
     } catch (error) {
-      // Backend đã cố ý trả cùng một câu cho "sai mật khẩu" và "email không
-      // tồn tại". Không thêm thắt gì để khỏi lộ email nào có thật.
-      setLoi(layThongBaoLoi(error, 'Email hoặc mật khẩu không đúng'));
+      // KHÔNG đặt mặc định là "Email hoặc mật khẩu không đúng": câu đó do
+      // backend trả về khi thực sự sai thông tin. Dùng nó làm mặc định thì
+      // lỗi mạng và CORS cũng hiện y hệt, không ai biết hỏng ở đâu.
+      setLoi(layThongBaoLoi(error));
     } finally {
       setDangGui(false);
     }

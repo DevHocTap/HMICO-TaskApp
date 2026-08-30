@@ -89,13 +89,26 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * Các endpoint mà 401 là câu trả lời hợp lệ, không phải dấu hiệu token hết
+ * hạn. Sai mật khẩu ở /auth/login mà đi làm mới token là vô nghĩa, lại còn
+ * kích hoạt nhầm luồng "phiên hết hạn".
+ */
+const KHONG_LAM_MOI = ['/auth/login', '/auth/refresh'];
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const config = error.config as RetriableConfig | undefined;
+    const laEndpointXacThuc = KHONG_LAM_MOI.some((duong) =>
+      config?.url?.startsWith(duong),
+    );
 
     const canThuLai =
-      error.response?.status === 401 && config !== undefined && !config.daThuLai;
+      error.response?.status === 401 &&
+      config !== undefined &&
+      !config.daThuLai &&
+      !laEndpointXacThuc;
 
     if (!canThuLai) {
       return Promise.reject(error);
@@ -116,20 +129,38 @@ apiClient.interceptors.response.use(
   },
 );
 
+const LOI_KHONG_KET_NOI =
+  'Không kết nối được máy chủ. Kiểm tra máy chủ đã chạy chưa rồi thử lại.';
+const LOI_KHONG_RO = 'Có lỗi xảy ra. Vui lòng thử lại.';
+
 /**
  * Lấy thông báo lỗi để hiện cho người dùng.
  *
- * Chỉ nhận thông báo do backend cố ý trả về (đã viết bằng tiếng Việt).
- * Mọi thứ khác — lỗi mạng, 500, stack trace — quy về một câu chung, không
- * để chi tiết kỹ thuật lọt ra giao diện.
+ * Phân biệt rạch ròi ba trường hợp — KHÔNG gộp chúng vào một câu:
+ *
+ *   1. Không nhận được phản hồi nào (mất mạng, máy chủ chưa chạy, CORS
+ *      chặn) -> báo lỗi kết nối.
+ *   2. Máy chủ trả về thông báo -> hiện đúng câu đó (backend viết sẵn
+ *      tiếng Việt).
+ *   3. Máy chủ trả lỗi nhưng không kèm thông báo (500, lỗi hạ tầng) ->
+ *      câu chung, không để chi tiết kỹ thuật lọt ra giao diện.
+ *
+ * VÌ SAO QUAN TRỌNG: trước đây mọi lỗi đều hiện "Email hoặc mật khẩu
+ * không đúng". CORS chặn cũng hiện y hệt sai mật khẩu, khiến không thể
+ * biết hỏng ở đâu. Thông báo sai còn tệ hơn không có thông báo.
  */
-export function layThongBaoLoi(error: unknown, macDinh: string): string {
-  if (axios.isAxiosError(error)) {
-    const message = (error.response?.data as { message?: unknown } | undefined)
-      ?.message;
-    if (typeof message === 'string' && message.length > 0) return message;
-    // class-validator trả mảng chuỗi khi DTO không hợp lệ
-    if (Array.isArray(message) && typeof message[0] === 'string') return message[0];
-  }
+export function layThongBaoLoi(error: unknown, macDinh = LOI_KHONG_RO): string {
+  if (!axios.isAxiosError(error)) return macDinh;
+
+  // Không có response nghĩa là request chưa từng tới nơi, hoặc trình duyệt
+  // đã chặn phản hồi vì CORS
+  if (!error.response) return LOI_KHONG_KET_NOI;
+
+  const message = (error.response.data as { message?: unknown } | undefined)
+    ?.message;
+  if (typeof message === 'string' && message.length > 0) return message;
+  // class-validator trả mảng chuỗi khi DTO không hợp lệ
+  if (Array.isArray(message) && typeof message[0] === 'string') return message[0];
+
   return macDinh;
 }
