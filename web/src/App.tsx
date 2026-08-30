@@ -9,7 +9,7 @@ import { HomePage } from './pages/HomePage';
 import { DepartmentsPage } from './pages/admin/DepartmentsPage';
 import { JobTitlesPage } from './pages/admin/JobTitlesPage';
 import { UsersPage } from './pages/admin/UsersPage';
-import { coTheQuanTri, coTheXemNhanVien } from './auth/permissions';
+import { coTheXemNhanVien, coTheXemToChuc } from './auth/permissions';
 
 export function App() {
   return (
@@ -26,7 +26,7 @@ export function App() {
         <Route element={<AdminLayout />}>
           <Route path="/" element={<HomePage />} />
 
-          <Route element={<RoleRoute duocPhep={coTheQuanTri} />}>
+          <Route element={<RoleRoute duocPhep={coTheXemToChuc} />}>
             <Route path="/admin/departments" element={<DepartmentsPage />} />
             <Route path="/admin/job-titles" element={<JobTitlesPage />} />
           </Route>

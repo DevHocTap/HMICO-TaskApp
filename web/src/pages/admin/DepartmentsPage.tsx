@@ -31,6 +31,9 @@ import {
 } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import type { DepartmentNode } from '../../types/org';
+import { useAuth } from '../../auth/useAuth';
+import { coTheGhiToChuc } from '../../auth/permissions';
+import { ReadOnlyNotice } from '../../components/ReadOnlyNotice';
 
 interface FormValues {
   code: string;
@@ -53,6 +56,8 @@ export function DepartmentsPage() {
   const queryClient = useQueryClient();
   const { message, modal } = App.useApp();
   const [form] = Form.useForm<FormValues>();
+  const { user: nguoiDangDangNhap } = useAuth();
+  const coQuyenGhi = coTheGhiToChuc(nguoiDangDangNhap?.role);
 
   const [dangChon, setDangChon] = useState<DepartmentNode | null>(null);
   const [modalMo, setModalMo] = useState(false);
@@ -189,31 +194,35 @@ export function DepartmentsPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           Cây phòng ban
         </Typography.Title>
-        <Space>
-          <Button
-            icon={<PlusOutlined />}
-            onClick={() => moThemMoi(dangChon)}
-            type="primary"
-          >
-            {dangChon ? `Thêm phòng con của "${dangChon.name}"` : 'Thêm phòng ban'}
-          </Button>
-          <Button
-            icon={<EditOutlined />}
-            disabled={!dangChon}
-            onClick={() => dangChon && moSua(dangChon)}
-          >
-            Sửa
-          </Button>
-          <Button
-            icon={<DeleteOutlined />}
-            danger
-            disabled={!dangChon}
-            onClick={() => dangChon && xacNhanVoHieuHoa(dangChon)}
-          >
-            Vô hiệu hoá
-          </Button>
-        </Space>
+        {coQuyenGhi && (
+          <Space>
+            <Button
+              icon={<PlusOutlined />}
+              onClick={() => moThemMoi(dangChon)}
+              type="primary"
+            >
+              {dangChon ? `Thêm phòng con của "${dangChon.name}"` : 'Thêm phòng ban'}
+            </Button>
+            <Button
+              icon={<EditOutlined />}
+              disabled={!dangChon}
+              onClick={() => dangChon && moSua(dangChon)}
+            >
+              Sửa
+            </Button>
+            <Button
+              icon={<DeleteOutlined />}
+              danger
+              disabled={!dangChon}
+              onClick={() => dangChon && xacNhanVoHieuHoa(dangChon)}
+            >
+              Vô hiệu hoá
+            </Button>
+          </Space>
+        )}
       </Space>
+
+      {!coQuyenGhi && <ReadOnlyNotice role={nguoiDangDangNhap?.role} />}
 
       {soPhongThieuTruong > 0 && (
         <Alert
@@ -227,7 +236,9 @@ export function DepartmentsPage() {
       <Card loading={isLoading}>
         {cay.length === 0 && !isLoading ? (
           <Typography.Text type="secondary">
-            Chưa có phòng ban nào. Bấm "Thêm phòng ban" để bắt đầu.
+            {coQuyenGhi
+              ? 'Chưa có phòng ban nào. Bấm "Thêm phòng ban" để bắt đầu.'
+              : 'Chưa có phòng ban nào.'}
           </Typography.Text>
         ) : (
           <Tree

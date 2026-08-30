@@ -1,19 +1,40 @@
 import type { Role } from '../types/auth';
 
 /**
- * Ai thấy mục nào trong menu quản trị.
+ * Ai thấy màn hình nào, và ai được bấm nút ghi.
  *
- * ẨN MENU KHÔNG PHẢI BẢO MẬT. Backend chặn độc lập bằng RolesGuard và
- * getAccessibleDepartmentIds — người dùng gõ thẳng URL vẫn bị chặn ở đó.
- * Mấy hàm dưới đây chỉ để giao diện không bày ra thứ bấm vào sẽ báo lỗi.
+ * ẨN MENU VÀ ẨN NÚT KHÔNG PHẢI BẢO MẬT. Backend chặn độc lập bằng
+ * RolesGuard và getAccessibleDepartmentIds — gõ thẳng URL hay gọi API trực
+ * tiếp đều bị chặn ở đó. Mấy hàm dưới đây chỉ để giao diện không bày ra
+ * thứ bấm vào sẽ báo lỗi.
+ *
+ * Cố ý TÁCH quyền xem khỏi quyền ghi. Gộp làm một là nguyên nhân khiến
+ * EXECUTIVE từng không thấy màn quản trị nào, dù backend vẫn cho họ đọc
+ * toàn công ty.
  */
 
-/** ADMIN và HR toàn quyền quản trị nhân sự. */
-export function coTheQuanTri(role: Role | undefined): boolean {
+/** Ghi được vào module org: tạo, sửa, vô hiệu hoá, đặt lại mật khẩu. */
+export function coTheGhiToChuc(role: Role | undefined): boolean {
   return role === 'ADMIN' || role === 'HR';
 }
 
-/** MANAGER xem được danh sách nhân viên trong phạm vi của mình, chỉ đọc. */
+/**
+ * Xem được cơ cấu tổ chức (phòng ban, chức danh).
+ *
+ * EXECUTIVE xem toàn công ty ở MỌI màn hình, kể cả màn quản trị — xem
+ * docs/quy-tac-nghiep-vu.md mục 7. Chỉ khác là không ghi được gì.
+ */
+export function coTheXemToChuc(role: Role | undefined): boolean {
+  return coTheGhiToChuc(role) || role === 'EXECUTIVE';
+}
+
+/**
+ * Xem được danh sách nhân viên.
+ *
+ * MANAGER cũng xem được, nhưng bị giới hạn trong phạm vi phòng ban của
+ * mình — giới hạn đó do backend áp qua getAccessibleDepartmentIds, không
+ * phải do giao diện.
+ */
 export function coTheXemNhanVien(role: Role | undefined): boolean {
-  return coTheQuanTri(role) || role === 'MANAGER';
+  return coTheXemToChuc(role) || role === 'MANAGER';
 }

@@ -56,12 +56,30 @@ sql "DELETE FROM \"RefreshToken\" WHERE \"userId\" IN (SELECT id FROM \"User\" W
 sql "DELETE FROM \"AuditLog\" WHERE \"entityId\" IN (SELECT id FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%');" > /dev/null
 sql "DELETE FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%';" > /dev/null
 
+# Kiểm điều kiện tiên quyết TRƯỚC KHI chạy gì khác.
+# Đăng nhập bằng trình duyệt rồi đổi mật khẩu sẽ làm mọi bước sau hỏng
+# hàng loạt với thông báo vô nghĩa. Thà dừng ngay và nói rõ lý do.
+if [ -z "$(token_cua admin@hmico.vn)" ]; then
+  echo
+  echo "Không đăng nhập được bằng tài khoản seed (admin@hmico.vn)."
+  echo
+  echo "Thường là do đã đổi mật khẩu qua trình duyệt khi kiểm thử tay."
+  echo "Chạy lại seed rồi thử lại:"
+  echo
+  echo "    npx prisma db seed"
+  echo
+  echo "Lưu ý: seed xoá sạch dữ liệu và đặt lại mật khẩu tất cả tài khoản"
+  echo "về $MAT_KHAU."
+  exit 1
+fi
+
 AT_ADMIN=$(token_cua admin@hmico.vn)
 AT_HR=$(token_cua hcns@hmico.vn)
 AT_RND=$(token_cua truongphong.rnd@hmico.vn)
 AT_KT=$(token_cua truongphong.kythuat@hmico.vn)
 AT_STAFF=$(token_cua sd.nhanvien1@hmico.vn)
 AT_HCM=$(token_cua hcm.nhanvien1@hmico.vn)
+AT_BGD=$(token_cua giamdoc@hmico.vn)
 
 ID_RND=$(sql "SELECT id FROM \"Department\" WHERE code='RND';")
 ID_KT=$(sql "SELECT id FROM \"Department\" WHERE code='KT';")
@@ -123,6 +141,68 @@ MA=$(ma -X PATCH -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: applicat
 MA=$(ma -X PATCH -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' \
   -d '{"fullName":"HR sửa admin"}' "$API/users/$U_ADMIN")
 [ "$MA" = "403" ] && pass "HR sửa tài khoản ADMIN -> 403" || fail "HR sửa ADMIN -> $MA (mong đợi 403)"
+
+# ============================================== EXECUTIVE: XEM ĐƯỢC, GHI KHÔNG
+buoc "EXECUTIVE — xem toàn công ty nhưng KHÔNG ghi được gì"
+# Ban giám đốc phải xem được mọi màn hình quản trị. Giao diện từng giấu
+# sạch menu của họ trong khi backend vẫn cho đọc — giám đốc đăng nhập vào
+# chỉ thấy trang trống.
+CAY_BGD=$(curl -s -H "Authorization: Bearer $AT_BGD" "$API/departments/tree")
+SO_PHONG=$(echo "$CAY_BGD" | python3 -c "
+import json,sys
+def d(ns):
+    for n in ns:
+        yield n
+        yield from d(n['children'])
+print(len(list(d(json.load(sys.stdin)))))" 2>/dev/null)
+[ "$SO_PHONG" = "16" ] && pass "EXECUTIVE thấy đủ 16 phòng ban" \
+  || fail "EXECUTIVE thấy $SO_PHONG phòng (mong đợi 16)"
+
+for EP in "/job-titles" "/users?limit=100"; do
+  MA=$(ma -H "Authorization: Bearer $AT_BGD" "$API$EP")
+  [ "$MA" = "200" ] && pass "EXECUTIVE đọc $EP -> 200" || fail "EXECUTIVE đọc $EP -> $MA"
+done
+
+MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' \
+  -d '{"code":"BGD-TEST","name":"Thử"}' "$API/departments")
+[ "$MA" = "403" ] && pass "EXECUTIVE tạo phòng ban -> 403" || fail "tạo phòng ban -> $MA (mong đợi 403)"
+
+MA=$(ma -X PATCH -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' \
+  -d '{"name":"Đổi tên"}' "$API/departments/$ID_RND")
+[ "$MA" = "403" ] && pass "EXECUTIVE sửa phòng ban -> 403" || fail "sửa phòng ban -> $MA (mong đợi 403)"
+
+MA=$(ma -X DELETE -H "Authorization: Bearer $AT_BGD" "$API/departments/$ID_MKT")
+[ "$MA" = "403" ] && pass "EXECUTIVE vô hiệu hoá phòng ban -> 403" || fail "vô hiệu hoá phòng -> $MA (mong đợi 403)"
+
+MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' \
+  -d '{"code":"BGD-JT","name":"Thử"}' "$API/job-titles")
+[ "$MA" = "403" ] && pass "EXECUTIVE tạo chức danh -> 403" || fail "tạo chức danh -> $MA (mong đợi 403)"
+
+ID_JT_BGD=$(sql "SELECT id FROM \"JobTitle\" WHERE code='TP';")
+MA=$(ma -X PATCH -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' \
+  -d '{"name":"Đổi tên"}' "$API/job-titles/$ID_JT_BGD")
+[ "$MA" = "403" ] && pass "EXECUTIVE sửa chức danh -> 403" || fail "sửa chức danh -> $MA (mong đợi 403)"
+
+MA=$(ma -X DELETE -H "Authorization: Bearer $AT_BGD" "$API/job-titles/$ID_JT_BGD")
+[ "$MA" = "403" ] && pass "EXECUTIVE vô hiệu hoá chức danh -> 403" || fail "vô hiệu hoá chức danh -> $MA (mong đợi 403)"
+
+MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' \
+  -d '{"employeeCode":"BGDTEST","email":"bgdtest@hmico.vn","fullName":"Thử","role":"STAFF"}' \
+  "$API/users")
+[ "$MA" = "403" ] && pass "EXECUTIVE tạo nhân viên -> 403" || fail "tạo nhân viên -> $MA (mong đợi 403)"
+
+MA=$(ma -X PATCH -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' \
+  -d '{"fullName":"Đổi tên"}' "$API/users/$U_SD1")
+[ "$MA" = "403" ] && pass "EXECUTIVE sửa nhân viên -> 403" || fail "sửa nhân viên -> $MA (mong đợi 403)"
+
+MA=$(ma -X PATCH -H "Authorization: Bearer $AT_BGD" "$API/users/$U_SD1/reset-password")
+[ "$MA" = "403" ] && pass "EXECUTIVE đặt lại mật khẩu -> 403" || fail "đặt lại mật khẩu -> $MA (mong đợi 403)"
+
+MA=$(ma -X PATCH -H "Authorization: Bearer $AT_BGD" "$API/users/$U_SD1/deactivate")
+[ "$MA" = "403" ] && pass "EXECUTIVE vô hiệu hoá nhân viên -> 403" || fail "vô hiệu hoá nhân viên -> $MA (mong đợi 403)"
+
+MA=$(ma -X PATCH -H "Authorization: Bearer $AT_BGD" "$API/users/$U_SD1/activate")
+[ "$MA" = "403" ] && pass "EXECUTIVE kích hoạt nhân viên -> 403" || fail "kích hoạt nhân viên -> $MA (mong đợi 403)"
 
 # ===================================================== RÀNG BUỘC CÂY
 buoc "RÀNG BUỘC PHÒNG BAN"

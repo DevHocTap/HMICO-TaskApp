@@ -23,6 +23,9 @@ import {
 } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import type { DepartmentNode, JobTitle } from '../../types/org';
+import { useAuth } from '../../auth/useAuth';
+import { coTheGhiToChuc } from '../../auth/permissions';
+import { ReadOnlyNotice } from '../../components/ReadOnlyNotice';
 
 interface FormValues {
   code: string;
@@ -39,6 +42,8 @@ export function JobTitlesPage() {
   const queryClient = useQueryClient();
   const { message, modal } = App.useApp();
   const [form] = Form.useForm<FormValues>();
+  const { user: nguoiDangDangNhap } = useAuth();
+  const coQuyenGhi = coTheGhiToChuc(nguoiDangDangNhap?.role);
 
   const [locPhongBan, setLocPhongBan] = useState<string | undefined>();
   const [modalMo, setModalMo] = useState(false);
@@ -133,11 +138,15 @@ export function JobTitlesPage() {
             onChange={setLocPhongBan}
             options={luaChonPhongBan}
           />
-          <Button icon={<PlusOutlined />} type="primary" onClick={moThemMoi}>
-            Thêm chức danh
-          </Button>
+          {coQuyenGhi && (
+            <Button icon={<PlusOutlined />} type="primary" onClick={moThemMoi}>
+              Thêm chức danh
+            </Button>
+          )}
         </Space>
       </Space>
+
+      {!coQuyenGhi && <ReadOnlyNotice role={nguoiDangDangNhap?.role} />}
 
       <Table<JobTitle>
         rowKey="id"
@@ -171,26 +180,34 @@ export function JobTitlesPage() {
                 <Tag>Ngừng dùng</Tag>
               ),
           },
-          {
-            title: '',
-            key: 'thao-tac',
-            width: 160,
-            render: (_, row) => (
-              <Space>
-                <Button size="small" icon={<EditOutlined />} onClick={() => moSua(row)}>
-                  Sửa
-                </Button>
-                {row.isActive && (
-                  <Button
-                    size="small"
-                    danger
-                    icon={<StopOutlined />}
-                    onClick={() => xacNhanVoHieuHoa(row)}
-                  />
-                )}
-              </Space>
-            ),
-          },
+          ...(coQuyenGhi
+            ? [
+                {
+                  title: '',
+                  key: 'thao-tac',
+                  width: 160,
+                  render: (_: unknown, row: JobTitle) => (
+                    <Space>
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => moSua(row)}
+                      >
+                        Sửa
+                      </Button>
+                      {row.isActive && (
+                        <Button
+                          size="small"
+                          danger
+                          icon={<StopOutlined />}
+                          onClick={() => xacNhanVoHieuHoa(row)}
+                        />
+                      )}
+                    </Space>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
 

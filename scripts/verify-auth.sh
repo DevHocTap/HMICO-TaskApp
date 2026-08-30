@@ -47,6 +47,12 @@ don_dep() {
 }
 trap don_dep EXIT
 
+token_cua() {
+  curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$1\",\"password\":\"$MAT_KHAU\"}" \
+    | python3 -c "import json,sys;print(json.load(sys.stdin).get('accessToken',''))" 2>/dev/null
+}
+
 doi_san_sang() {
   local url=$1 ten=$2
   for _ in $(seq 1 40); do
@@ -69,6 +75,23 @@ doi_san_sang "$API" normal
 doi_san_sang "$API_SHORT" short
 doi_san_sang "$API_RATE" rate
 echo "Sẵn sàng (cổng $PORT_NORMAL bình thường, $PORT_SHORT token 5 giây, $PORT_RATE thử hạn mức)"
+
+# Kiểm điều kiện tiên quyết TRƯỚC KHI chạy gì khác.
+# Đăng nhập bằng trình duyệt rồi đổi mật khẩu sẽ làm mọi bước sau hỏng
+# hàng loạt với thông báo vô nghĩa. Thà dừng ngay và nói rõ lý do.
+if [ -z "$(token_cua admin@hmico.vn)" ]; then
+  echo
+  echo "Không đăng nhập được bằng tài khoản seed (admin@hmico.vn)."
+  echo
+  echo "Thường là do đã đổi mật khẩu qua trình duyệt khi kiểm thử tay."
+  echo "Chạy lại seed rồi thử lại:"
+  echo
+  echo "    npx prisma db seed"
+  echo
+  echo "Lưu ý: seed xoá sạch dữ liệu và đặt lại mật khẩu tất cả tài khoản"
+  echo "về $MAT_KHAU."
+  exit 1
+fi
 
 # ---------------------------------------------------------------- bước 1
 buoc "BƯỚC 1 — Đăng nhập bằng tài khoản seed"

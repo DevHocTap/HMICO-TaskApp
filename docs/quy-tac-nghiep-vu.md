@@ -404,10 +404,18 @@ còn — đó chính là lúc cần tra cứu nhất.
 | Vai trò | Quyền |
 |---|---|
 | `ADMIN` | Toàn quyền, khoá/mở kỳ, quản lý mẫu KPI và chức danh |
-| `EXECUTIVE` | Xem toàn công ty. Không sửa, không chấm |
+| `EXECUTIVE` | **Xem toàn công ty ở mọi màn hình, bao gồm cả màn quản trị. Không có quyền ghi ở module `org`.** Không chấm điểm |
 | `HR` | Xem toàn công ty + quản lý nhân sự, chức danh, tiếp nhận kết quả, xuất Excel |
 | `MANAGER` | Giao KPI, chấm điểm, xem trong phạm vi phòng mình |
 | `STAFF` | Chỉ KPI bản thân, tự chấm |
+
+> **Về `EXECUTIVE`:** ban giám đốc phải xem được cơ cấu tổ chức, chức danh
+> và danh sách nhân sự toàn công ty — giấu những màn hình đó đi thì họ đăng
+> nhập vào chỉ thấy trang trống. Backend vốn đã cho họ đọc toàn công ty;
+> giao diện chỉ ẩn nút ghi, không ẩn màn hình.
+>
+> Quyền **nghiệp vụ** của EXECUTIVE (ký duyệt, soát xét, khoá kỳ) là chuyện
+> khác, chưa chốt — xem `docs/no-ky-thuat.md`.
 
 ### Phạm vi dữ liệu — quy tắc quan trọng nhất
 

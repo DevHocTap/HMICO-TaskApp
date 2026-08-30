@@ -90,6 +90,30 @@
 
 ## Chờ HR xác nhận
 
+- [ ] **Quyền NGHIỆP VỤ của `EXECUTIVE` gồm những gì — chốt khi làm module
+      `kpi`.**
+
+      Quyền *quản trị* đã rõ: xem toàn công ty ở mọi màn hình, không ghi
+      được gì ở module `org` (xem `docs/quy-tac-nghiep-vu.md` mục 7).
+      Quyền *nghiệp vụ* thì chưa.
+
+      **Gần như chắc chắn có:**
+      - Ký duyệt KPI cấp phòng ban đầu kỳ (`DRAFT → PROPOSED → ACCEPTED`
+        ở cấp BGĐ ↔ trưởng phòng). Giai đoạn 1 đã cắt luồng này vì BSCkpi
+        đang làm, nhưng khi mở rộng thì EXECUTIVE là người ký.
+      - Soát xét phiếu ngoại lệ (mục 5.2 ghi "Ban giám đốc chỉ ký khi có
+        soát xét").
+      - Xem dashboard tổng hợp toàn công ty.
+
+      **Cần cân nhắc — khoá/mở kỳ đánh giá.** Tài liệu hiện ghi *chỉ
+      `ADMIN`* (mục 5.6). Nhưng khoá kỳ là quyết định **nghiệp vụ** — chốt
+      sổ tháng này, không cho sửa điểm nữa — chứ không phải thao tác kỹ
+      thuật. Người quyết định thời điểm chốt sổ hợp lý hơn là ban giám đốc
+      hoặc HCNS, không phải người quản trị hệ thống.
+
+      Nếu chuyển, cân nhắc tách hai quyền: `EXECUTIVE` khoá kỳ (chốt sổ),
+      `ADMIN` mở lại kỳ đã khoá (sửa sai sót, luôn ghi `AuditLog`).
+
 - [ ] **Hai chi nhánh Hà Nội và HCM đang CÁCH LY hoàn toàn.** Trưởng phòng
       Kỹ thuật HCM không thấy bất kỳ dữ liệu nào của Hà Nội, và ngược lại.
 

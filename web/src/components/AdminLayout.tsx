@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import { coTheQuanTri, coTheXemNhanVien } from '../auth/permissions';
+import { coTheXemNhanVien, coTheXemToChuc } from '../auth/permissions';
 import { ROLE_LABELS } from '../types/auth';
 
 /** Khung chung cho mọi trang sau khi đăng nhập: thanh trên + menu trái. */
@@ -27,7 +27,7 @@ export function AdminLayout() {
   // Menu dựng theo vai trò. Xem permissions.ts — đây chỉ là giao diện,
   // backend chặn độc lập.
   const mucMenu = [];
-  if (coTheQuanTri(user?.role)) {
+  if (coTheXemToChuc(user?.role)) {
     mucMenu.push(
       {
         key: '/admin/departments',

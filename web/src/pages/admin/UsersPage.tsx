@@ -36,10 +36,11 @@ import {
 } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
-import { coTheQuanTri } from '../../auth/permissions';
+import { coTheGhiToChuc } from '../../auth/permissions';
 import { ROLE_LABELS, type Role } from '../../types/auth';
 import type { DepartmentNode, ListUsersParams, OrgUser } from '../../types/org';
 import { TemporaryPasswordModal } from '../../components/TemporaryPasswordModal';
+import { ReadOnlyNotice } from '../../components/ReadOnlyNotice';
 
 const CAC_VAI_TRO: Role[] = ['ADMIN', 'EXECUTIVE', 'HR', 'MANAGER', 'STAFF'];
 const SO_DONG_MAC_DINH = 20;
@@ -78,7 +79,7 @@ export function UsersPage() {
   const { user: nguoiDangDangNhap } = useAuth();
   const [form] = Form.useForm<FormValues>();
 
-  const quanTri = coTheQuanTri(nguoiDangDangNhap?.role);
+  const coQuyenGhi = coTheGhiToChuc(nguoiDangDangNhap?.role);
 
   const [boLoc, setBoLoc] = useState<ListUsersParams>({
     page: 1,
@@ -222,21 +223,14 @@ export function UsersPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           Nhân viên
         </Typography.Title>
-        {quanTri && (
+        {coQuyenGhi && (
           <Button icon={<PlusOutlined />} type="primary" onClick={moThemMoi}>
             Thêm nhân viên
           </Button>
         )}
       </Space>
 
-      {!quanTri && (
-        <Alert
-          type="info"
-          showIcon
-          message="Chế độ chỉ xem"
-          description="Bạn xem được nhân viên trong phạm vi quản lý của mình. Việc thêm, sửa do quản trị viên hoặc Hành chính nhân sự thực hiện."
-        />
-      )}
+      {!coQuyenGhi && <ReadOnlyNotice role={nguoiDangDangNhap?.role} />}
 
       <Space wrap>
         <Input
@@ -356,7 +350,7 @@ export function UsersPage() {
             render: (hoatDong: boolean) =>
               hoatDong ? <Tag color="green">Hoạt động</Tag> : <Tag>Đã tắt</Tag>,
           },
-          ...(quanTri
+          ...(coQuyenGhi
             ? [
                 {
                   title: '',
