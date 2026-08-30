@@ -15,8 +15,13 @@ cd "$(dirname "$0")/.."
 
 PORT_NORMAL=3101
 PORT_SHORT=3102
+PORT_RATE=3103
 API="http://localhost:$PORT_NORMAL"
 API_SHORT="http://localhost:$PORT_SHORT"
+# Tiến trình riêng để thử hạn mức đăng nhập: RateLimitGuard đếm trong bộ nhớ
+# của từng tiến trình, nên cổng này có hạn mức sạch, không bị các bước
+# trước tiêu mất.
+API_RATE="http://localhost:$PORT_RATE"
 
 MAT_KHAU="${SEED_PASSWORD:-Hmico@2026}"
 TAI_KHOAN_ADMIN="admin@hmico.vn"
@@ -36,6 +41,7 @@ buoc() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 don_dep() {
   [ -n "${PID_NORMAL:-}" ] && kill "$PID_NORMAL" 2>/dev/null
   [ -n "${PID_SHORT:-}" ] && kill "$PID_SHORT" 2>/dev/null
+  [ -n "${PID_RATE:-}" ] && kill "$PID_RATE" 2>/dev/null
   wait 2>/dev/null
   rm -rf "$TMP"
 }
@@ -57,9 +63,12 @@ PORT=$PORT_NORMAL node dist/main.js > "$TMP/normal.log" 2>&1 &
 PID_NORMAL=$!
 PORT=$PORT_SHORT JWT_ACCESS_TTL=5s node dist/main.js > "$TMP/short.log" 2>&1 &
 PID_SHORT=$!
+PORT=$PORT_RATE node dist/main.js > "$TMP/rate.log" 2>&1 &
+PID_RATE=$!
 doi_san_sang "$API" normal
 doi_san_sang "$API_SHORT" short
-echo "Sẵn sàng (cổng $PORT_NORMAL bình thường, cổng $PORT_SHORT token 5 giây)"
+doi_san_sang "$API_RATE" rate
+echo "Sẵn sàng (cổng $PORT_NORMAL bình thường, $PORT_SHORT token 5 giây, $PORT_RATE thử hạn mức)"
 
 # ---------------------------------------------------------------- bước 1
 buoc "BƯỚC 1 — Đăng nhập bằng tài khoản seed"
@@ -211,6 +220,58 @@ for t in "$RT3" "$RT4"; do
   [ "$MA" = "401" ] && DEM_HET=$((DEM_HET+1))
 done
 [ "$DEM_HET" = "2" ] && pass "cả 2 phiên đều bị thu hồi" || fail "chỉ $DEM_HET/2 phiên bị thu hồi"
+
+buoc "BỔ SUNG — Cây phòng ban lọc theo phạm vi"
+CAY_RND=$(curl -s -H "Authorization: Bearer $AT_RND" "$API/departments/tree")
+echo "$CAY_RND" | grep -q '"code":"RND"' \
+  && pass "MANAGER R&D thấy phòng mình trong cây" \
+  || fail "MANAGER R&D không thấy phòng mình — $CAY_RND"
+echo "$CAY_RND" | grep -q '"code":"KT"' \
+  && fail "MANAGER R&D THẤY phòng Kỹ thuật — RÒ DỮ LIỆU" \
+  || pass "MANAGER R&D không thấy phòng Kỹ thuật"
+echo "$CAY_RND" | grep -q '"code":"HMICO"' \
+  && fail "MANAGER R&D THẤY phòng cha HMICO — RÒ DỮ LIỆU" \
+  || pass "MANAGER R&D không thấy phòng cha"
+
+# Dùng cổng $PORT_SHORT: mỗi tiến trình có hạn mức riêng nên lần đăng nhập
+# này không tiêu vào hạn mức của cổng chính.
+curl -s -X POST "$API_SHORT/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"sd.nhanvien1@hmico.vn\",\"password\":\"$MAT_KHAU\"}" > "$TMP/staff.json"
+AT_STAFF=$(python3 -c "import json;print(json.load(open('$TMP/staff.json')).get('accessToken',''))" 2>/dev/null)
+CAY_STAFF=$(curl -s -H "Authorization: Bearer $AT_STAFF" "$API_SHORT/departments/tree")
+[ "$CAY_STAFF" = "[]" ] && pass "STAFF nhận cây RỖNG" || fail "STAFF nhận: $CAY_STAFF (mong đợi [])"
+
+CAY_ADMIN=$(curl -s -H "Authorization: Bearer $AT" "$API/departments/tree")
+if echo "$CAY_ADMIN" | grep -q '"code":"HMICO"' && echo "$CAY_ADMIN" | grep -q '"code":"KT-SD"'; then
+  pass "đối chứng: ADMIN thấy toàn bộ cây"
+else
+  fail "ADMIN không thấy đủ cây"
+fi
+
+buoc "BỔ SUNG — Giới hạn tần suất /auth/login (5 lần/phút/IP, cổng $PORT_RATE)"
+DEM_TRUOC=0
+for i in $(seq 1 5); do
+  MA=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API_RATE/auth/login" \
+    -H 'Content-Type: application/json' -d '{"email":"ai-do@hmico.vn","password":"x"}')
+  [ "$MA" = "401" ] && DEM_TRUOC=$((DEM_TRUOC+1))
+done
+[ "$DEM_TRUOC" = "5" ] && pass "5 lần đầu vẫn qua (401 sai mật khẩu, chưa bị chặn)" \
+  || fail "chỉ $DEM_TRUOC/5 lần đầu qua được — hạn mức chặn quá sớm"
+
+MA=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API_RATE/auth/login" \
+  -H 'Content-Type: application/json' -d '{"email":"ai-do@hmico.vn","password":"x"}')
+[ "$MA" = "429" ] && pass "lần thứ 6 bị chặn -> 429" || fail "lần thứ 6 -> $MA (mong đợi 429)"
+
+printf '  \033[33mGHI CHÚ\033[0m  Khoá tạm theo email (10 lần sai / 15 phút) KHÔNG kiểm được
+'
+printf '           bằng curl từ một máy: hạn mức 5 lần/phút theo IP chặn trước khi
+'
+printf '           đủ 11 lần. Đó chính là hành vi đúng — khoá theo email dành cho
+'
+printf '           tấn công phân tán từ nhiều IP. Phần này phủ bằng 8 test unit
+'
+printf '           trong src/modules/auth/login-attempt.service.spec.ts
+'
 
 buoc "BỔ SUNG — Giới hạn tần suất /auth/logout (10 lần/phút/IP)"
 DEM_429=0

@@ -5,6 +5,7 @@ import * as argon2 from 'argon2';
 import { Role, type User } from '@prisma/client';
 import { AuthService } from './auth.service.js';
 import { TokenService } from './token.service.js';
+import { LoginAttemptService } from './login-attempt.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 const MAT_KHAU = 'Hmico@2026';
@@ -29,6 +30,9 @@ describe('AuthService', () => {
   const user = { findUnique: vi.fn(), update: vi.fn() };
   const issuePair = vi.fn();
   const revokeAllForUser = vi.fn();
+  const getLockRemainingMinutes = vi.fn();
+  const recordFailure = vi.fn();
+  const resetAttempts = vi.fn();
 
   beforeEach(async () => {
     // Băm một lần cho cả file: argon2 cố ý chậm, băm lại mỗi test rất tốn
@@ -41,12 +45,23 @@ describe('AuthService', () => {
       refreshToken: 'refresh',
     });
     revokeAllForUser.mockReset();
+    getLockRemainingMinutes.mockReset().mockReturnValue(0);
+    recordFailure.mockReset();
+    resetAttempts.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: { user } },
         { provide: TokenService, useValue: { issuePair, revokeAllForUser, rotate: vi.fn(), revoke: vi.fn() } },
+        {
+          provide: LoginAttemptService,
+          useValue: {
+            getLockRemainingMinutes,
+            recordFailure,
+            reset: resetAttempts,
+          },
+        },
       ],
     }).compile();
 
@@ -97,6 +112,65 @@ describe('AuthService', () => {
 
       // Khác nhau là kẻ tấn công dò được email nào có thật
       expect(loiKhongCoEmail).toBe(loiSaiMatKhau);
+    });
+
+    it('sai mật khẩu thì ghi nhận một lần sai', async () => {
+      user.findUnique.mockResolvedValue(taoUser({ passwordHash: hashMatKhau }));
+
+      await service
+        .login({ email: 'admin@hmico.vn', password: 'sai' })
+        .catch(() => undefined);
+
+      expect(recordFailure).toHaveBeenCalledWith('admin@hmico.vn');
+    });
+
+    it('email không tồn tại CŨNG ghi nhận một lần sai', async () => {
+      // Chỉ đếm email có thật thì thông báo khoá sẽ tiết lộ email nào có thật
+      user.findUnique.mockResolvedValue(null);
+
+      await service
+        .login({ email: 'khong-he-co@hmico.vn', password: 'x' })
+        .catch(() => undefined);
+
+      expect(recordFailure).toHaveBeenCalledWith('khong-he-co@hmico.vn');
+    });
+
+    it('đăng nhập đúng thì xoá lịch sử sai', async () => {
+      user.findUnique.mockResolvedValue(taoUser({ passwordHash: hashMatKhau }));
+
+      await service.login({ email: 'admin@hmico.vn', password: MAT_KHAU });
+
+      expect(resetAttempts).toHaveBeenCalledWith('admin@hmico.vn');
+      expect(recordFailure).not.toHaveBeenCalled();
+    });
+
+    it('đang bị khoá thì trả 429 và KHÔNG tra database', async () => {
+      getLockRemainingMinutes.mockReturnValue(12);
+
+      await expect(
+        service.login({ email: 'admin@hmico.vn', password: MAT_KHAU }),
+      ).rejects.toMatchObject({ status: 429 });
+
+      // Không được chạm database khi đang khoá — nếu không thì khoá vô nghĩa
+      expect(user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('thông báo khoá nói rõ còn bao nhiêu phút', async () => {
+      getLockRemainingMinutes.mockReturnValue(12);
+
+      const loi = await service
+        .login({ email: 'admin@hmico.vn', password: MAT_KHAU })
+        .catch((e: Error) => e.message);
+
+      expect(loi).toContain('12 phút');
+    });
+
+    it('kiểm khoá theo email đã chuẩn hoá', async () => {
+      user.findUnique.mockResolvedValue(taoUser({ passwordHash: hashMatKhau }));
+
+      await service.login({ email: '  ADMIN@HMICO.VN  ', password: MAT_KHAU });
+
+      expect(getLockRemainingMinutes).toHaveBeenCalledWith('admin@hmico.vn');
     });
 
     it('tài khoản bị vô hiệu hoá thì không đăng nhập được', async () => {

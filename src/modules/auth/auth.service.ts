@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -7,6 +9,7 @@ import * as argon2 from 'argon2';
 import type { User } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TokenService, type TokenPair } from './token.service.js';
+import { LoginAttemptService } from './login-attempt.service.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { ChangePasswordDto } from './dto/change-password.dto.js';
 
@@ -31,6 +34,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokenService: TokenService,
+    private readonly loginAttempts: LoginAttemptService,
   ) {}
 
   async hashPassword(plain: string): Promise<string> {
@@ -38,20 +42,32 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, client: ClientInfo = {}): Promise<LoginResult> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase().trim() },
-    });
+    const email = dto.email.toLowerCase().trim();
+
+    // Khoá tạm được kiểm cho MỌI email, kể cả email không tồn tại — nếu chỉ
+    // khoá email có thật thì thông báo này tiết lộ email nào có thật.
+    const conKhoa = this.loginAttempts.getLockRemainingMinutes(email);
+    if (conKhoa > 0) {
+      throw new HttpException(
+        `Tài khoản tạm khoá do nhập sai nhiều lần. Thử lại sau ${conKhoa} phút.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { email } });
 
     // Vẫn băm một lần khi không tìm thấy người dùng, để thời gian phản hồi
     // của "sai email" và "sai mật khẩu" không chênh nhau — nếu không, kẻ
     // tấn công dò được email nào có thật.
     if (!user) {
       await argon2.hash(dto.password);
+      this.loginAttempts.recordFailure(email);
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     const matched = await argon2.verify(user.passwordHash, dto.password);
     if (!matched) {
+      this.loginAttempts.recordFailure(email);
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
@@ -60,6 +76,10 @@ export class AuthService {
     if (!user.isActive) {
       throw new UnauthorizedException('Tài khoản đã bị vô hiệu hoá');
     }
+
+    // Mật khẩu đúng thì xoá lịch sử sai, kể cả khi tài khoản bị vô hiệu hoá
+    // ở bước trên — người dùng không có lỗi gì để bị tính.
+    this.loginAttempts.reset(email);
 
     await this.prisma.user.update({
       where: { id: user.id },

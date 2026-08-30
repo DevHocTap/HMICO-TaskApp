@@ -7,16 +7,22 @@
 
 - [ ] Chưa có `AuditLog` cho bất kỳ thao tác nào — **kể cả đăng xuất**.
       Yêu cầu ghi log đăng xuất phải hoãn tới khi có module `audit`.
-- [ ] **`POST /auth/login` chưa giới hạn tần suất.** Nguy hiểm hơn logout
-      nhiều (dò mật khẩu) nhưng chưa nằm trong phạm vi được giao. Dùng
-      `RateLimitGuard` sẵn có là đủ, chỉ cần gắn decorator.
-- [ ] `RateLimitGuard` đếm trong bộ nhớ tiến trình — chỉ đúng khi chạy MỘT
-      tiến trình. Chạy nhiều tiến trình phải chuyển sang Redis.
+- [ ] **`RateLimitGuard` và `LoginAttemptService` đều đếm trong BỘ NHỚ
+      TIẾN TRÌNH.** Chỉ đúng khi chạy MỘT tiến trình, và mất sạch khi khởi
+      động lại. Chạy nhiều tiến trình (PM2 cluster, nhiều container) phải
+      chuyển sang Redis — nếu không, hạn mức thực tế bị nhân lên theo số
+      tiến trình và khoá tạm gần như vô hiệu.
+      Tự viết thay vì dùng `@nestjs/throttler` vì bản mới nhất (6.5.0) chỉ
+      hỗ trợ NestJS tới 11, chưa có bản nào cho NestJS 12.
 - [ ] Chưa bật `trust proxy`. Khi chạy sau nginx, mọi request sẽ mang cùng
       một IP và cả công ty dùng chung hạn mức tần suất.
-- [ ] `GET /departments/tree` trả TOÀN BỘ cây cho mọi người đã đăng nhập,
-      chưa lọc theo `getAccessibleDepartmentIds`. Sơ đồ tổ chức thường
-      không phải bí mật, nhưng cần chốt lại khi làm module `org` tuần 3–4.
+- [ ] `GET /departments/tree` trả cây RỖNG cho STAFF. Đúng theo quy ước
+      của `getAccessibleDepartmentIds`, nhưng nếu sau này giao diện của
+      STAFF cần tên phòng ban thì phải lấy từ nơi khác (snapshot trên
+      phiếu KPI), đừng nới lỏng hàm phân quyền.
+- [ ] Khoá tạm theo email không kiểm được bằng curl từ một máy: hạn mức
+      5 lần/phút theo IP chặn trước khi đủ 11 lần. Phủ bằng test unit
+      (`login-attempt.service.spec.ts`).
 - [ ] Chưa cấu hình backup database (`pg_dump` hằng đêm + đẩy ra ngoài)
 - [ ] `prisma/seed.ts` để mật khẩu dev mặc định `Hmico@2026` (đổi qua biến
       `SEED_PASSWORD`). Mọi tài khoản có `mustChangePassword = true`, nhưng

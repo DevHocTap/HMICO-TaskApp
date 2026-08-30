@@ -8,8 +8,8 @@ export class OrgController {
   constructor(private readonly orgService: OrgService) {}
 
   @Get('tree')
-  getTree() {
-    return this.orgService.getDepartmentTree();
+  getTree(@CurrentUser() user: AuthenticatedUser) {
+    return this.orgService.getDepartmentTree(user);
   }
 
   @Get(':id')

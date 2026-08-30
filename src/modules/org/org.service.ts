@@ -3,6 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { DepartmentScopeService } from './department-scope.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 
+export interface DepartmentNode {
+  id: string;
+  code: string;
+  name: string;
+  parentId: string | null;
+  children: DepartmentNode[];
+}
+
 @Injectable()
 export class OrgService {
   constructor(
@@ -10,21 +18,39 @@ export class OrgService {
     private departmentScope: DepartmentScopeService,
   ) {}
 
-  async getDepartmentTree() {
+  /**
+   * Cây phòng ban, ĐÃ LỌC theo phạm vi dữ liệu của người gọi.
+   *
+   * MANAGER phòng Kỹ thuật nhận về cây gốc là phòng Kỹ thuật kèm hai tổ
+   * con — không thấy phòng cha lẫn phòng ngang cấp. Phòng nào có cha nằm
+   * ngoài phạm vi thì tự nó thành gốc.
+   *
+   * STAFF nhận mảng rỗng: getAccessibleDepartmentIds trả rỗng cho họ
+   * (xem DepartmentScopeService). Sai theo hướng an toàn.
+   */
+  async getDepartmentTree(user: AuthenticatedUser): Promise<DepartmentNode[]> {
+    const accessibleIds = new Set(
+      await this.departmentScope.getAccessibleDepartmentIds(user),
+    );
+    if (accessibleIds.size === 0) return [];
+
     const all = await this.prisma.department.findMany({
       where: { isActive: true },
       select: { id: true, code: true, name: true, parentId: true },
     });
 
-    // Dựng cây từ danh sách phẳng
-    const map = new Map<string, any>();
-    all.forEach((d) => map.set(d.id, { ...d, children: [] }));
+    const visible = all.filter((d) => accessibleIds.has(d.id));
 
-    const roots: any[] = [];
-    all.forEach((d) => {
-      const node = map.get(d.id);
-      if (d.parentId) {
-        map.get(d.parentId)?.children.push(node);
+    const map = new Map<string, DepartmentNode>();
+    visible.forEach((d) => map.set(d.id, { ...d, children: [] }));
+
+    const roots: DepartmentNode[] = [];
+    visible.forEach((d) => {
+      const node = map.get(d.id)!;
+      const parent = d.parentId ? map.get(d.parentId) : undefined;
+      // Cha nằm ngoài phạm vi (hoặc không có cha) thì node này là gốc
+      if (parent) {
+        parent.children.push(node);
       } else {
         roots.push(node);
       }

@@ -22,6 +22,15 @@ const manager: AuthenticatedUser = {
   departmentId: 'rnd',
 };
 
+const admin: AuthenticatedUser = {
+  id: 'u0',
+  email: 'admin@hmico.vn',
+  role: Role.ADMIN,
+  departmentId: 'hmico',
+};
+
+const TAT_CA = ['hmico', 'hn', 'kt', 'kt-sd'];
+
 describe('OrgService', () => {
   let service: OrgService;
   const findMany = vi.fn();
@@ -51,10 +60,11 @@ describe('OrgService', () => {
   });
 
   describe('getDepartmentTree', () => {
-    it('dựng cây bốn tầng đúng, không phụ thuộc thứ tự dòng trả về', async () => {
+    it('ADMIN: dựng cây bốn tầng đúng, không phụ thuộc thứ tự dòng trả về', async () => {
+      getAccessibleDepartmentIds.mockResolvedValue(TAT_CA);
       findMany.mockResolvedValue(departmentRows);
 
-      const tree = await service.getDepartmentTree();
+      const tree = await service.getDepartmentTree(admin);
 
       expect(tree).toHaveLength(1);
       expect(tree[0].code).toBe('HMICO');
@@ -63,17 +73,43 @@ describe('OrgService', () => {
       expect(tree[0].children[0].children[0].children[0].code).toBe('KT-SD');
     });
 
+    it('MANAGER: cây bắt đầu từ phòng mình, không thấy cha lẫn phòng ngang cấp', async () => {
+      getAccessibleDepartmentIds.mockResolvedValue(['kt', 'kt-sd']);
+      findMany.mockResolvedValue(departmentRows);
+
+      const tree = await service.getDepartmentTree(manager);
+
+      // KT có cha là HN nằm ngoài phạm vi -> KT tự thành gốc
+      expect(tree).toHaveLength(1);
+      expect(tree[0].code).toBe('KT');
+      expect(tree[0].children).toHaveLength(1);
+      expect(tree[0].children[0].code).toBe('KT-SD');
+
+      const codes = JSON.stringify(tree);
+      expect(codes).not.toContain('HMICO');
+      expect(codes).not.toContain('Hà Nội');
+    });
+
+    it('STAFF (phạm vi rỗng) nhận cây rỗng và KHÔNG truy vấn database', async () => {
+      getAccessibleDepartmentIds.mockResolvedValue([]);
+
+      expect(await service.getDepartmentTree({ ...manager, role: Role.STAFF })).toEqual([]);
+      expect(findMany).not.toHaveBeenCalled();
+    });
+
     it('chỉ lấy phòng ban đang hoạt động', async () => {
+      getAccessibleDepartmentIds.mockResolvedValue(TAT_CA);
       findMany.mockResolvedValue([]);
-      await service.getDepartmentTree();
+      await service.getDepartmentTree(admin);
       expect(findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { isActive: true } }),
       );
     });
 
     it('trả về mảng rỗng khi chưa có phòng ban nào', async () => {
+      getAccessibleDepartmentIds.mockResolvedValue(TAT_CA);
       findMany.mockResolvedValue([]);
-      expect(await service.getDepartmentTree()).toEqual([]);
+      expect(await service.getDepartmentTree(admin)).toEqual([]);
     });
   });
 

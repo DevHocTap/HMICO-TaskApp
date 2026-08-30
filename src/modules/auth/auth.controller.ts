@@ -28,7 +28,15 @@ interface RequestInfo {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  /**
+   * Đăng nhập. Hai lớp chống dò mật khẩu:
+   *   - 5 lần/phút theo IP  — chặn một máy dò nhiều mật khẩu
+   *   - khoá tạm theo email — chặn nhiều máy cùng dò một tài khoản
+   *     (xem LoginAttemptService)
+   */
   @Public()
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 5, windowMs: 60_000 })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto, @Req() req: RequestInfo) {
