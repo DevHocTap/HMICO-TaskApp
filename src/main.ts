@@ -17,10 +17,15 @@ async function bootstrap() {
     }),
   );
 
-  // Frontend React chạy khác cổng nên phải bật CORS
-  app.enableCors();
-
   const config = app.get(ConfigService<AppEnv, true>);
+
+  // Frontend React chạy khác cổng nên phải bật CORS. Chỉ mở cho danh sách
+  // địa chỉ khai trong CORS_ORIGINS — không dùng enableCors() trần, vì như
+  // vậy là cho phép mọi trang web gọi API này.
+  app.enableCors({
+    origin: config.get('CORS_ORIGINS', { infer: true }),
+    credentials: true,
+  });
   await app.listen(config.get('PORT', { infer: true }));
 }
 

@@ -10,6 +10,8 @@ export interface AppEnv {
   JWT_ACCESS_TTL: string;
   JWT_REFRESH_TTL_DAYS: number;
   PORT: number;
+  /** Danh sách địa chỉ frontend được phép gọi API, phân tách bằng dấu phẩy. */
+  CORS_ORIGINS: string[];
 }
 
 const MIN_SECRET_LENGTH = 32;
@@ -38,6 +40,14 @@ export function validateEnv(raw: Record<string, unknown>): AppEnv {
     loi.push('JWT_REFRESH_TTL_DAYS phải là số nguyên dương');
   }
 
+  const corsOrigins = String(raw.CORS_ORIGINS ?? 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0);
+  if (corsOrigins.length === 0) {
+    loi.push('CORS_ORIGINS phải có ít nhất một địa chỉ');
+  }
+
   const port = Number(raw.PORT ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     loi.push('PORT phải là số cổng hợp lệ');
@@ -57,5 +67,6 @@ export function validateEnv(raw: Record<string, unknown>): AppEnv {
     JWT_ACCESS_TTL: accessTtl,
     JWT_REFRESH_TTL_DAYS: refreshDays,
     PORT: port,
+    CORS_ORIGINS: corsOrigins,
   };
 }
