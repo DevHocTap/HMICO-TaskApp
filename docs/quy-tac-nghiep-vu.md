@@ -1,0 +1,534 @@
+# Quy tắc nghiệp vụ đã chốt
+
+> Nguồn sự thật cho mọi quyết định nghiệp vụ. Code mâu thuẫn với file này
+> thì file này đúng.
+>
+> Bản này viết lại dựa trên **biểu mẫu KPI thật** của công ty
+> (`BM.01-KPI.KYTHUAT`, bốn chức danh phòng Kỹ thuật, tháng 08/2026).
+> Mọi giả định trước đó không khớp biểu mẫu đã bị loại bỏ.
+>
+> Cập nhật: 30/08/2026 — chốt bảng `Scorecard`, bỏ `KpiDefinition`,
+> cắt phạm vi giai đoạn 1, đổi mốc bàn giao.
+
+---
+
+## 1. Bối cảnh và phạm vi
+
+### Hiện trạng
+- **Tầng công ty và phòng ban**: đã chạy trên phần mềm BSCkpi, chỉ ban
+  giám đốc và trưởng phòng dùng. **Đang chạy ổn — giai đoạn 1 không đụng vào.**
+- **Tầng cá nhân**: đang dùng file Excel rời cho từng nhân viên. Đây là
+  chỗ phần mềm này thay thế.
+- Về lâu dài phần mềm có thể thay luôn BSCkpi, nhưng **không phải mục
+  tiêu giai đoạn 1**.
+
+### Phạm vi giai đoạn 1
+- Quản lý phòng ban, chức danh, nhân viên (kèm import từ Excel)
+- Mẫu KPI theo chức danh
+- Giao KPI **cá nhân** theo tháng, có ký nhận đầu kỳ
+- Nhân viên tự chấm, trưởng bộ phận chấm, tự tính điểm và xếp loại
+- HCNS tiếp nhận, tổng hợp, xuất Excel
+- Trang "Việc của tôi" và bảng theo dõi tiến độ nộp
+
+### Không làm ở giai đoạn 1
+
+| Cắt | Lý do |
+|---|---|
+| Thay thế BSCkpi ở tầng công ty/phòng ban | Đang chạy ổn, BGĐ đang dùng |
+| **KPI cấp phòng ban** (`ownerType = DEPARTMENT`) | BSCkpi đang làm. Cắt luôn luồng ký nhận BGĐ ↔ trưởng phòng và phần cộng dồn KPI phòng |
+| **Bảng `KpiResult`** (nhập số liệu thô) | Tuỳ chọn mà chưa ai dùng. Thêm bảng mới sau không phá gì |
+| **Thông báo trong ứng dụng** | Thay bằng trang "Việc của tôi" — giá trị tương đương, một phần năm công sức |
+| Upload file minh chứng | Chỉ dán link |
+| Quên mật khẩu qua email, SSO Microsoft | Admin đặt lại mật khẩu |
+| Thông báo qua email / Zalo | |
+| Tính tiền thưởng | HCNS tự tính ngoài |
+| Kiêm nhiệm nhiều phòng, phó phòng | |
+| Kỳ quý / năm, biểu đồ nhiều kỳ | Không chặn việc chạy thật |
+
+Cột `ownerType` **vẫn giữ trong schema** cho tương lai, nhưng giai đoạn 1
+chỉ viết luồng cho `USER`.
+
+### Ràng buộc thời gian
+
+**Mốc bàn giao: một phòng Kỹ thuật chạy thật tháng 11/2026.**
+(Thay cho mốc cũ "toàn công ty ngày 31/12/2026".)
+
+Một lập trình viên duy nhất, đồng thời gánh KPI riêng của phòng R&D — tức
+khoảng hai tháng toàn thời gian. Mọi quyết định thiết kế phải ưu tiên
+**hoàn thành được** hơn là hoàn hảo. Có người dùng thật sớm quan trọng hơn
+đủ tính năng.
+
+---
+
+## 2. Cấu trúc phiếu KPI cá nhân
+
+Mỗi **phiếu** (`Scorecard`) gắn với **một nhân viên, một chức danh, một kỳ
+(tháng)**. Ràng buộc `@@unique([userId, periodId])` chặn tạo trùng.
+
+### Hai mục cố định
+
+| Mục | Mã | Trọng số | Thang điểm | Nội dung |
+|---|---|---|---|---|
+| BSC công việc | `BSC_WORK` | 70% | 10 | 6–7 tiêu chí theo chức danh |
+| Chấp hành nội quy | `COMPLIANCE` | 30% | 3 | 3 tiêu chí cố định |
+
+**Mục 2 giống nhau cho mọi chức danh.** Nằm trong một `KpiTemplate` có
+`isSystem = true`, hệ thống tự nối vào mọi phiếu:
+1. Số lần đi trễ / về sớm không phép (trên 30 phút) — 10%
+2. Vi phạm bộ phận chưa xử lý kịp thời — 10%
+3. Giữ gìn văn hoá doanh nghiệp, chấp hành nội quy lao động — 10%
+
+### Hai cấp KPI
+
+```
+Tiêu chí cấp 1  (VD: "Tiến độ hoàn thành Shop Drawing", trọng số 15%)
+└── KPI con      (VD: "Hoàn thành bản vẽ theo kế hoạch", trọng số 20%)
+```
+
+- Trọng số **tiêu chí cấp 1** tính trên tổng phiếu (cộng lại = 70 hoặc 30).
+- Trọng số **KPI con** tính trong nội bộ tiêu chí cha (cộng lại = 100).
+
+Dùng `ScorecardItem.parentId`. Ràng buộc tổng trọng số áp **theo từng cấp**,
+không phải cho toàn phiếu. **Chỉ hai cấp — KPI con không có con.**
+
+### Tiêu chí lá và tiêu chí có con — cấm trộn
+
+Đúng hai trường hợp, không có trường hợp thứ ba:
+
+| Loại | Cách chấm | Ràng buộc trọng số con |
+|---|---|---|
+| **Có con** | Điểm tính từ con theo công thức mục 3. **Không cho nhập trực tiếp** | Σ con = 100 |
+| **Lá** (không con) | Nhập điểm trực tiếp | không áp dụng |
+
+Ba tiêu chí Mục 2 (`COMPLIANCE`) đều là tiêu chí lá.
+
+Service phải chặn: nhập điểm vào tiêu chí có con → lỗi; tiêu chí lá mà lại
+có con → lỗi.
+
+### Ràng buộc trọng số
+
+1. Σ trọng số tiêu chí cấp 1 thuộc `BSC_WORK` = **70**
+2. Σ trọng số tiêu chí cấp 1 thuộc `COMPLIANCE` = **30**
+3. Σ trọng số KPI con trong mỗi tiêu chí **có con** = **100**
+
+Kiểm cả ba khi chuyển `DRAFT` → `PROPOSED`. Lúc nháp cho phép lệch.
+
+**Kiểm ở tầng service, không dùng CHECK constraint.** CHECK của PostgreSQL
+chỉ xét trong phạm vi một dòng, không kiểm được tổng qua nhiều dòng — muốn
+ép ở tầng database phải dùng trigger. Có `scorecardId` thì kiểm ở service
+là một lần tra theo index, đủ rẻ.
+
+---
+
+## 3. Chấm điểm — hướng A (số hoá cách làm hiện tại)
+
+Người chấm nhập **điểm từ 0 đến thang tối đa** cho từng tiêu chí lá. Hệ
+thống không tự suy ra điểm từ số liệu thô ở giai đoạn 1.
+
+### Công thức
+
+```
+điểm tiêu chí lá     = điểm nhập trực tiếp
+điểm tiêu chí có con = Σ (điểm con × trọng số con ÷ 100)
+
+đóng góp             = (điểm tiêu chí ÷ maxScale) × trọng số tiêu chí
+
+tổng điểm (%)        = Σ đóng góp của tất cả tiêu chí cấp 1
+```
+
+Kiểm chứng theo biểu mẫu Shop Drawing: tiêu chí "Tiến độ" có 5 KPI con mỗi
+cái trọng số 20%, đều đạt 10/10 → điểm tiêu chí = 10 → đóng góp
+= (10 ÷ 10) × 15 = 15. Cộng đủ 6 tiêu chí Mục 1 ra 70, cộng Mục 2 ra 30,
+tổng 100%.
+
+### Trần điểm — khác nhau theo mục
+
+| Mục | Thang | Trần cho phép | Tổng đóng góp tối đa |
+|---|---|---|---|
+| `BSC_WORK` | 10 | **12** (= maxScale × 1,2) | 84 |
+| `COMPLIANCE` | 3 | **3** (đúng bằng thang) | 30 |
+
+**Chỉ `BSC_WORK` được vượt thang.** Không ai "vượt chỉ tiêu" ở khoản chấp
+hành nội quy — trần đúng bằng 3.
+
+Nghĩa là điểm tiêu chí nằm trong khoảng `0 .. maxScale × 1,2` với
+`BSC_WORK`, và `0 .. maxScale` với `COMPLIANCE`. Tổng phiếu tối đa 114%.
+
+> Đừng viết `Math.min(score, maxScale)` — sẽ làm hỏng mức "Vượt chỉ tiêu".
+
+Khi điểm vượt thang thì **bắt buộc nhập ghi chú**.
+
+### Hai cột chấm song song
+
+Biểu mẫu có hai cột: **người lao động tự đánh giá** và **trưởng bộ phận
+đánh giá**. Cả hai cùng lưu, cùng hiển thị cạnh nhau.
+
+- `selfScore`, `selfComment` (trên từng dòng), `selfScoredAt` (trên phiếu)
+- `managerScore`, `managerComment` (trên từng dòng), `managerScoredAt` (trên phiếu)
+- Người chấm chốt ở `Scorecard.evaluatorId`
+
+**Điểm chính thức lấy theo cột trưởng bộ phận.** Biểu mẫu ghi rõ: xếp loại
+tính theo "Tổng điểm KPI - QL đánh giá".
+
+Cột tự đánh giá vẫn phải lưu — chênh lệch giữa hai cột là thông tin có giá
+trị khi trưởng phòng trao đổi với nhân viên.
+
+### Chuẩn bị sẵn cho hướng B
+
+`ScorecardItem.scoringMode`:
+
+| Giá trị | Ý nghĩa |
+|---|---|
+| `MANUAL` | Người chấm nhập điểm trực tiếp — **mặc định, và là cách duy nhất ở giai đoạn 1** |
+| `CALCULATED` | Hệ thống tính điểm từ số liệu thô — chưa dùng |
+
+Bảng `KpiResult` **không dựng ở giai đoạn 1** (xem mục 1). Nhưng hàm tính
+điểm hướng B **viết sẵn kèm test ngay** — một file, rất rẻ, và là chỗ dễ
+sai nhất khi cần đến.
+
+### Công thức hướng B (viết sẵn, có test, chưa bật)
+
+```
+HIGHER_BETTER:  tỷ lệ = thực tế ÷ mục tiêu
+LOWER_BETTER:   tỷ lệ = mục tiêu ÷ thực tế
+điểm = min(tỷ lệ, 1,2) × maxScale
+```
+
+**Ba ca đặc biệt bắt buộc có test** — mục tiêu trong biểu mẫu thật có cả
+giá trị `0`:
+
+| Ca | Quy tắc |
+|---|---|
+| `LOWER_BETTER`, mục tiêu = 0 | thực tế = 0 → **điểm tối đa**; thực tế > 0 → **0 điểm**. (Đúng cho "0 tai nạn lao động") |
+| `LOWER_BETTER`, mục tiêu > 0, thực tế = 0 | tốt hơn mục tiêu vô hạn → **chặn trần ở 1,2** |
+| `HIGHER_BETTER`, mục tiêu = 0 | **vô nghĩa — chặn lúc validate, không cho lưu** |
+
+Ngoài ra: `minValue` nếu có giá trị và thực tế < `minValue` → 0 điểm.
+
+`direction = RANGE` **không làm ở giai đoạn 1** (không thêm `maxValue`).
+
+---
+
+## 4. Xếp loại
+
+Tính trên tổng điểm cột trưởng bộ phận:
+
+| Xếp loại | Ngưỡng | Hằng số |
+|---|---|---|
+| Chưa đạt | < 80% | `NOT_MET` |
+| Cần cải thiện | 80 – 89% | `NEEDS_IMPROVEMENT` |
+| Hoàn thành | 90 – 100% | `COMPLETED` |
+| Vượt chỉ tiêu | > 100% (tham chiếu 100–120%) | `EXCEEDED` |
+
+Hệ thống **không tính tiền thưởng**. Chỉ cung cấp điểm và xếp loại, HCNS
+tự tính thưởng bên ngoài.
+
+---
+
+## 5. Luồng trạng thái
+
+Có **hai luồng độc lập** trên cùng một `Scorecard`.
+
+### 5.1 Luồng giao KPI (đầu kỳ)
+
+```
+DRAFT → PROPOSED → ACCEPTED
+                 ↘ DISPUTED → (quay lại DRAFT)
+```
+
+| Chuyển | Ai làm |
+|---|---|
+| `DRAFT` → `PROPOSED` | Trưởng bộ phận |
+| `PROPOSED` → `ACCEPTED` / `DISPUTED` | Người nhận KPI |
+
+Giai đoạn 1 chỉ có một cấp ký nhận: **trưởng phòng ↔ nhân viên**. Cấp
+BGĐ ↔ trưởng phòng để BSCkpi lo.
+
+Chỉ phiếu ở trạng thái `ACCEPTED` mới chấm điểm được.
+
+### 5.2 Luồng chấm điểm (cuối kỳ)
+
+```
+PENDING → SELF_SCORED → MANAGER_SCORED → RECEIVED
+                      ↘ REJECTED → (quay lại SELF_SCORED)
+```
+
+| Chuyển | Ai làm |
+|---|---|
+| `PENDING` → `SELF_SCORED` | Nhân viên tự chấm |
+| `SELF_SCORED` → `MANAGER_SCORED` | Trưởng bộ phận chấm |
+| `SELF_SCORED` → `REJECTED` | Trưởng bộ phận trả lại để chấm lại |
+| `MANAGER_SCORED` → `RECEIVED` | HCNS tiếp nhận |
+
+**HCNS chỉ tiếp nhận và tổng hợp, không có quyền trả lại.** Trạng thái
+`RECEIVED` chỉ đánh dấu đã nộp về HCNS, kèm `receivedAt` và `receivedById`.
+
+Tổng điểm và xếp loại chốt vào phiếu khi chuyển sang `MANAGER_SCORED`.
+
+### 5.3 Sửa KPI sau khi đã ký nhận
+
+Cho sửa, nhưng:
+- Phiếu **quay về `PROPOSED`** và phải **ký lại**
+- Ghi `AuditLog`
+- **Cấm sửa khi `resultStatus` đã khác `PENDING`** — đã bắt đầu chấm thì
+  không đổi đề bài nữa
+
+### 5.4 Nhân viên nghỉ việc giữa kỳ
+
+Giữ nguyên phiếu để tra cứu, đặt `User.isActive = false`. Không chuyển KPI
+cho người khác.
+
+Người đã vô hiệu hoá không đăng nhập tự chấm được, nên: **trưởng phòng chấm
+một cột `managerScore`**, `selfScore` để trống, **bắt buộc ghi lý do** vào
+`Scorecard.noSelfScoreReason`. Phiếu vẫn nộp về HCNS bình thường.
+
+### 5.5 Hạn nộp
+
+Kết quả phải về HCNS **trước ngày 02 của tháng kế tiếp** (lưu ở
+`Period.dueDate`, không hard-code). Hệ thống:
+- Nhắc nhân viên chưa tự chấm từ ngày 28
+- Nhắc trưởng bộ phận chưa chấm từ ngày 30
+- HCNS xem được phòng nào chưa nộp, không phải đi đòi từng phòng
+
+Giai đoạn 1 "nhắc" nghĩa là **hiện trên trang "Việc của tôi"**, không phải
+gửi thông báo.
+
+Đây là chỗ hệ thống tạo giá trị rõ nhất so với Excel.
+
+### 5.6 Khoá kỳ
+
+Chỉ `ADMIN` khoá/mở kỳ. Kỳ đã khoá thì không sửa được điểm. Mở lại phải ghi
+`AuditLog`.
+
+Kỳ tháng **tạo tự động trước 7 ngày**, không tạo tay — quên một lần là chặn
+cả công ty đúng hạn mùng 02.
+
+---
+
+## 6. Mô hình dữ liệu
+
+### 6.1 Quyết định lớn: bỏ `KpiDefinition`
+
+Ở tầng cá nhân, tiêu chí gắn chặt với chức danh, gần như không dùng chéo
+giữa các phòng. Vai trò "thư viện dùng lại nhiều kỳ" đã chuyển hẳn sang
+`KpiTemplate`.
+
+Giữ cả hai bảng nghĩa là người tạo mẫu phải qua hai bước — đúng chỗ người
+không rành máy tính bỏ cuộc (xem mục 9.2).
+
+**Vậy: `KpiTemplateItem` tự chứa toàn bộ nội dung** (tên, mô tả, cách đo,
+mục tiêu, trọng số, `section`). Bớt một bảng, bớt một màn hình, bớt một lớp
+join.
+
+Khi nào mở rộng lên tầng phòng ban thay BSCkpi thì thêm lại thư viện.
+
+### 6.2 Quyết định lớn: phiếu `Scorecard` chụp lại mọi thứ
+
+`ScorecardItem` **chụp lại (snapshot) toàn bộ nội dung** từ
+`KpiTemplateItem` tại thời điểm tạo phiếu, không trỏ FK để đọc ngược.
+
+**Lý do: sửa mẫu không được làm đổi phiếu đã chấm.** Sai ở đây là sai vào
+lương của người thật.
+
+Chụp lại gồm: `name`, `description`, `measurementUnit`, `targetValue`,
+`direction`, `scoringMode`, `weight`, `section`, và **`maxScale`** — nếu
+công ty đổi thang điểm sang 100 vào năm sau, phiếu cũ phải giữ nguyên thang 10.
+
+Phiếu cũng chụp `jobTitleName`, `departmentName`, `level` và chốt
+`templateVersion` — người đổi chức danh giữa năm thì phiếu tháng 03 phải
+giữ chức danh **lúc đó**.
+
+`maxScale` **suy ra từ `section`** bằng hằng số trong code
+(`BSC_WORK: 10`, `COMPLIANCE: 3`), không cho người dùng nhập — rồi chụp
+xuống `ScorecardItem`. Không để `maxScale` rải trên từng định nghĩa, tránh
+dữ liệu mâu thuẫn kiểu `section = COMPLIANCE` mà `maxScale = 10`.
+
+### 6.3 Mười một bảng
+
+| Bảng | Vai trò |
+|---|---|
+| `Department` | Cây phòng ban, `parentId` tự trỏ, `managerId` trỏ trưởng bộ phận |
+| `JobTitle` | Chức danh |
+| `User` | Nhân viên |
+| `RefreshToken` | Phiên đăng nhập |
+| `Period` | Kỳ đánh giá, `parentId` cho tháng → quý → năm |
+| `KpiTemplate` | Mẫu KPI theo chức danh, có `version` và cờ `isSystem` |
+| `KpiTemplateItem` | Dòng trong mẫu, `parentId` tạo hai cấp, **tự chứa nội dung** |
+| `Scorecard` | **Phiếu KPI** — một người, một kỳ. Trạng thái, tổng điểm, xếp loại |
+| `ScorecardItem` | Dòng trong phiếu, **snapshot** nội dung + hai cột điểm |
+| `ScorecardEvent` | Lịch sử ký nhận / chấm / trả lại, kèm lý do |
+| `AuditLog` | Nhật ký mọi thao tác sửa đổi, không có khoá ngoại |
+
+**Bảng bị bỏ so với bản trước:** `KpiDefinition`, `KpiAssignment`,
+`KpiResult`, `Approval`.
+
+`ScorecardEvent` thay `Approval`: một phiếu có thể bị trả lại nhiều lần, mỗi
+lần một lý do — một cột `comment` sẽ bị ghi đè.
+
+### 6.4 Vì sao trạng thái nằm trên phiếu chứ không trên từng dòng
+
+200 người × 12 tháng × ~35 dòng ≈ **80.000 dòng `ScorecardItem`/năm**,
+trong khi chỉ có **2.400 phiếu/năm**. Ký nhận, tiếp nhận, xếp loại đều là
+thao tác cấp phiếu — đặt ở đúng cấp là chênh lệch 33 lần, và tránh được
+trạng thái nửa vời (dòng `ACCEPTED`, dòng `DRAFT`).
+
+### 6.5 `AuditLog` không có khoá ngoại
+
+Cố ý không ràng buộc tới bảng nghiệp vụ. Khi một phiếu bị xoá, log vẫn phải
+còn — đó chính là lúc cần tra cứu nhất.
+
+---
+
+## 7. Xác thực và phân quyền
+
+### Đăng nhập
+- Bằng **email** (tên miền `hmico.vn`)
+- Mật khẩu băm bằng **argon2**
+- Admin đặt mật khẩu ban đầu, `mustChangePassword = true`, bắt đổi ở lần
+  đăng nhập đầu
+- Chưa làm "quên mật khẩu" ở giai đoạn 1
+- JWT **15 phút** + RefreshToken **7 ngày**
+
+### RefreshToken — quy tắc cụ thể
+
+- Lưu **SHA-256** của token, không lưu thô. Không cần argon2 vì token đã có
+  entropy cao (32 byte ngẫu nhiên)
+- **Xoay vòng**: mỗi lần refresh cấp token mới, thu hồi token cũ ngay
+  (`revokedAt`, `replacedById`)
+- Đổi mật khẩu hoặc `isActive = false` → **thu hồi toàn bộ** token của
+  người đó
+- **Bỏ qua phát hiện tái sử dụng token** ở giai đoạn 1, chưa cần
+
+### Năm vai trò
+
+| Vai trò | Quyền |
+|---|---|
+| `ADMIN` | Toàn quyền, khoá/mở kỳ, quản lý mẫu KPI và chức danh |
+| `EXECUTIVE` | Xem toàn công ty. Không sửa, không chấm |
+| `HR` | Xem toàn công ty + quản lý nhân sự, chức danh, tiếp nhận kết quả, xuất Excel |
+| `MANAGER` | Giao KPI, chấm điểm, xem trong phạm vi phòng mình |
+| `STAFF` | Chỉ KPI bản thân, tự chấm |
+
+### Phạm vi dữ liệu — quy tắc quan trọng nhất
+
+**Đi theo cây phòng ban (`Department.parentId`), KHÔNG theo
+`User.managerId`.**
+
+MANAGER thấy phòng mình và mọi phòng con. `User.managerId` chỉ dùng hiển thị
+quan hệ báo cáo, không quyết định quyền xem.
+
+Viết **một hàm duy nhất** `getAccessibleDepartmentIds(user)` dùng ở mọi nơi
+cần lọc dữ liệu. Không để mỗi module tự kiểm một kiểu — đây là chỗ dễ sinh
+lỗ hổng nhất của hệ thống này.
+
+### Cây tổ chức
+
+```
+Công ty HMICO
+├── Hà Nội (trụ sở)
+│   ├── Ban giám đốc
+│   ├── Phòng Truyền thông Marketing
+│   ├── Phòng Kinh doanh
+│   ├── Phòng Dự án
+│   ├── Phòng Mua hàng
+│   ├── Phòng R&D
+│   ├── Phòng Kỹ thuật
+│   │   ├── Tổ Bảo trì bảo hành
+│   │   └── Tổ Shop Drawing
+│   ├── Phòng Tài chính kế toán
+│   └── Phòng Hành chính nhân sự
+└── Chi nhánh HCM
+    └── (cơ cấu phòng ban tương tự Hà Nội)
+```
+
+Bốn tầng, `parentId` xử lý được. **Cần chốt**: trưởng chi nhánh HCM có xem
+được dữ liệu Hà Nội không (mặc định: không).
+
+---
+
+## 8. Kỳ đánh giá
+
+- **Kỳ vận hành: THÁNG.** Chấm và thưởng theo tháng.
+- Kỳ **QUÝ** và **NĂM** dùng `Period.parentId` để tổng hợp.
+  **Điểm quý = trung bình cộng ba tháng.** Không phải tổng.
+  (Cột `parentId` dựng sẵn, nhưng luồng tổng hợp quý/năm hoãn sau tháng 11.)
+- Kỳ tháng tạo tự động trước 7 ngày, `dueDate` = ngày 02 tháng kế tiếp.
+
+Chu kỳ tháng nghĩa là 200 người × 12 tháng = **2.400 phiếu mỗi năm**. Điều
+này khiến các tính năng ở mục 10 trở thành bắt buộc, không phải tuỳ chọn.
+
+---
+
+## 9. Chờ HR xác nhận — KHÔNG tự quyết
+
+### 9.1 Điểm vượt thang
+Bảng xếp loại có mức "> 100% Vượt chỉ tiêu (tham chiếu 100–120%)" nhưng
+thang tối đa là 10, về số học không vượt được 100%.
+
+Ba khả năng: (a) cho chấm quá thang, (b) có điểm thưởng riêng ngoài phiếu,
+(c) mức này chỉ có trên giấy, chưa ai dùng.
+
+Tạm thời: `BSC_WORK` cho nhập tới 12/10 và bắt buộc ghi chú khi vượt;
+`COMPLIANCE` trần đúng bằng 3.
+
+### 9.2 Mẫu KPI các phòng khác
+Mới có bốn chức danh phòng Kỹ thuật. Các phòng khác chưa rõ đã có biểu mẫu
+chưa. Nếu chưa, phần mềm sẽ là nơi họ xây lần đầu → công cụ tạo mẫu KPI
+phải dễ dùng cho người không rành máy tính. **Một màn hình duy nhất**, không
+bắt qua hai bước.
+
+### 9.3 Quyền xem giữa hai chi nhánh
+Trưởng chi nhánh HCM có xem được dữ liệu Hà Nội không?
+
+### 9.4 Số lượng nhân sự thực tế
+Chưa có con số từng phòng.
+
+### 9.5 File Excel nhân sự
+Cần xin file mẫu của HR **trước khi viết module `org`** — đừng đoán cột.
+
+---
+
+## 10. Bốn tính năng bắt buộc
+
+Không ai yêu cầu nhưng thiếu thì phần mềm sẽ bị bỏ dùng.
+
+1. **Sao chép KPI từ kỳ trước.** Nút "Tạo tháng 09 từ tháng 08" copy toàn
+   bộ, trưởng phòng chỉ sửa con số. Với chu kỳ tháng, thiếu nút này thì
+   trưởng phòng bỏ dùng sau tháng thứ hai.
+2. **Mẫu KPI theo chức danh.** Giao KPI cho người mới = chọn mẫu rồi chỉnh.
+   Bốn file Excel phòng Kỹ thuật chính là bốn mẫu đầu tiên.
+3. **Import nhân sự từ Excel.** Nhập tay 200 người mất cả tuần và chắc chắn
+   sai sót.
+4. **Trang "Việc của tôi"** — liệt kê phiếu chưa xử lý kèm số ngày còn lại.
+   Không cần bảng thông báo, không chuông đếm, không đánh dấu đã đọc.
+
+Thêm một tính năng nhỏ nhưng giá trị cao: **bảng theo dõi tiến độ nộp** cho
+HCNS — phòng nào đã nộp, phòng nào chưa, còn mấy ngày tới hạn.
+
+Hoãn sau tháng 11: biểu đồ điểm qua nhiều kỳ, tổng hợp quý/năm.
+
+---
+
+## 11. Lịch triển khai theo lát cắt dọc
+
+**Không làm backend trước frontend sau.** Mỗi lát cắt xong là có thứ mở lên
+xem được — nếu trễ vẫn có thứ để trình sếp.
+
+| Tuần | Lát cắt |
+|---|---|
+| 1–2 | **Auth**: backend + màn đăng nhập + đổi mật khẩu lần đầu |
+| 3–4 | **Org**: phòng ban, chức danh, nhân viên, import Excel + màn quản trị |
+| 5–6 | **Mẫu KPI**: một màn hình duy nhất tạo cây hai cấp + nhập 4 mẫu phòng Kỹ thuật |
+| 7–8 | **Giao KPI** tháng, ký nhận, sao chép từ kỳ trước + màn của trưởng phòng |
+| 9–10 | **Chấm điểm** hai cột, tính điểm, xếp loại + màn chấm |
+| **11** | **Đối chiếu với Excel tháng thật — số phải khớp tuyệt đối** |
+| 12 | Trang "Việc của tôi", theo dõi tiến độ nộp cho HCNS, xuất Excel |
+| 13+ | Chạy thật một phòng, sửa theo phản hồi |
+
+### Tuần 11 là mốc quan trọng nhất
+
+Lấy một phiếu KPI thật đã chấm tháng 08/2026 của phòng Kỹ thuật, nhập vào
+hệ thống, so tổng điểm với file Excel.
+
+**Lệch dù 0,05 cũng là công thức sai — và sai ở đây là sai vào lương của
+người thật.** Phải khớp tuyệt đối trước khi mở rộng ra phòng khác.

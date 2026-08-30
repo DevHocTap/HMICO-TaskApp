@@ -1,3 +1,7 @@
+// Nguồn sự thật nghiệp vụ: docs/quy-tac-nghiep-vu.md
+// Giai đoạn 1 chỉ làm KPI cá nhân (ownerType = USER).
+// Đã bỏ: KpiDefinition, KpiAssignment, KpiResult, Approval.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,91 +14,129 @@ datasource db {
 // ===== LÕI TỔ CHỨC =====
 
 model Department {
-  id        String   @id @default(uuid())
-  code      String   @unique
-  name      String
-  parentId  String?
-  parent    Department?  @relation("DeptTree", fields: [parentId], references: [id])
-  children  Department[] @relation("DeptTree")
+  id       String       @id @default(uuid())
+  code     String       @unique
+  name     String
+  parentId String?
+  parent   Department?  @relation("DeptTree", fields: [parentId], references: [id])
+  children Department[] @relation("DeptTree")
+
+  // Trưởng bộ phận — dùng để định tuyến duyệt.
+  // Nullable vì tạo phòng và tạo người là hai bước (phụ thuộc vòng).
+  managerId String?
+  manager   User?   @relation("DeptManager", fields: [managerId], references: [id])
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users       User[]
-  assignments KpiAssignment[]
+  users      User[]      @relation("UserDepartment")
+  jobTitles  JobTitle[]
+  scorecards Scorecard[]
 
   @@index([parentId])
+}
+
+model JobTitle {
+  id   String @id @default(uuid())
+  code String @unique
+  name String
+
+  // Phòng ban áp dụng. Null = dùng chung toàn công ty.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  templates KpiTemplate[]
+
+  @@index([departmentId])
 }
 
 enum Role {
   ADMIN
   EXECUTIVE
+  HR
   MANAGER
   STAFF
 }
 
 model User {
-  id           String  @id @default(uuid())
-  employeeCode String  @unique
-  email        String  @unique
+  id           String @id @default(uuid())
+  employeeCode String @unique
+  email        String @unique
   fullName     String
   passwordHash String
-  role         Role    @default(STAFF)
+  role         Role   @default(STAFF)
 
   departmentId String?
-  department   Department? @relation(fields: [departmentId], references: [id])
+  department   Department? @relation("UserDepartment", fields: [departmentId], references: [id])
 
-  managerId    String?
-  manager      User?   @relation("ReportsTo", fields: [managerId], references: [id])
-  reports      User[]  @relation("ReportsTo")
+  jobTitleId String?
+  jobTitle   JobTitle? @relation(fields: [jobTitleId], references: [id])
 
-  isActive     Boolean  @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  // Cấp bậc — biểu mẫu có ô "Cấp bậc (Level)", để chuỗi tự do
+  level String?
 
-  assignments      KpiAssignment[] @relation("AssignmentOwner")
-  createdKpis      KpiAssignment[] @relation("AssignmentCreator")
-  submittedResults KpiResult[]
-  approvals        Approval[]
-  auditLogs        AuditLog[]
+  // Quan hệ báo cáo. CHỈ để hiển thị — KHÔNG dùng quyết định quyền xem.
+  // Phạm vi dữ liệu đi theo cây Department (xem docs mục 7).
+  managerId String?
+  manager   User?   @relation("ReportsTo", fields: [managerId], references: [id])
+  reports   User[]  @relation("ReportsTo")
+
+  // Chuẩn bị SSO Microsoft, giai đoạn 1 để trống
+  azureAdObjectId String? @unique
+
+  mustChangePassword Boolean   @default(true)
+  passwordChangedAt  DateTime?
+  isActive           Boolean   @default(true)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  managedDepartments   Department[]     @relation("DeptManager")
+  refreshTokens        RefreshToken[]
+  scorecards           Scorecard[]      @relation("ScorecardOwner")
+  evaluatingScorecards Scorecard[]      @relation("ScorecardEvaluator")
+  createdScorecards    Scorecard[]      @relation("ScorecardCreator")
+  receivedScorecards   Scorecard[]      @relation("ScorecardReceiver")
+  scorecardEvents      ScorecardEvent[]
+  auditLogs            AuditLog[]
 
   @@index([departmentId])
   @@index([managerId])
+  @@index([jobTitleId])
 }
 
-// ===== NGHIỆP VỤ KPI =====
+// ===== PHIÊN ĐĂNG NHẬP =====
 
-enum Perspective {
-  FINANCIAL
-  CUSTOMER
-  INTERNAL_PROCESS
-  LEARNING_GROWTH
+model RefreshToken {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // SHA-256 dạng hex của token. Không lưu token thô.
+  // Không cần argon2: token đã là 32 byte ngẫu nhiên, entropy cao.
+  tokenHash String @unique
+
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  // Xoay vòng: trỏ tới token kế nhiệm khi refresh
+  replacedById String?
+
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
 }
 
-enum KpiDirection {
-  HIGHER_BETTER
-  LOWER_BETTER
-  RANGE
-}
-
-model KpiDefinition {
-  id          String       @id @default(uuid())
-  code        String       @unique
-  name        String
-  description String?
-  perspective Perspective
-  unit        String
-  direction   KpiDirection @default(HIGHER_BETTER)
-  formula     Json?
-
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  assignments KpiAssignment[]
-}
+// ===== KỲ ĐÁNH GIÁ =====
 
 enum PeriodType {
   MONTH
@@ -103,17 +145,108 @@ enum PeriodType {
 }
 
 model Period {
-  id        String     @id @default(uuid())
-  name      String     @unique
-  type      PeriodType
-  startDate DateTime   @db.Date
-  endDate   DateTime   @db.Date
-  isLocked  Boolean    @default(false)
+  id   String     @id @default(uuid())
+  name String     @unique
+  type PeriodType
 
-  assignments KpiAssignment[]
+  // Tháng thuộc quý, quý thuộc năm. Điểm quý = trung bình cộng ba tháng.
+  parentId String?
+  parent   Period?  @relation("PeriodTree", fields: [parentId], references: [id])
+  children Period[] @relation("PeriodTree")
+
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+
+  // Hạn nộp về HCNS — ngày 02 tháng kế tiếp. Không hard-code trong code.
+  dueDate DateTime? @db.Date
+
+  isLocked Boolean @default(false)
+
+  scorecards Scorecard[]
 
   @@index([startDate, endDate])
+  @@index([parentId])
 }
+
+// ===== MẪU KPI =====
+
+enum KpiSection {
+  BSC_WORK
+  COMPLIANCE
+}
+
+enum KpiDirection {
+  HIGHER_BETTER
+  LOWER_BETTER
+}
+
+enum ScoringMode {
+  MANUAL
+  CALCULATED
+}
+
+model KpiTemplate {
+  id   String @id @default(uuid())
+  code String @unique
+  name String
+
+  jobTitleId String?
+  jobTitle   JobTitle? @relation(fields: [jobTitleId], references: [id])
+
+  // Mẫu hệ thống (3 tiêu chí Mục 2) — tự nối vào mọi phiếu, không cho xoá
+  isSystem Boolean @default(false)
+
+  // Tăng mỗi lần sửa mẫu. Phiếu chốt lại số này ở templateVersion.
+  version Int @default(1)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items      KpiTemplateItem[]
+  scorecards Scorecard[]
+
+  @@index([jobTitleId])
+}
+
+// Tự chứa toàn bộ nội dung — không còn bảng KpiDefinition.
+// Lý do: ở tầng cá nhân tiêu chí gắn chặt với chức danh, gần như không
+// dùng chéo. Vai trò "thư viện" đã chuyển sang KpiTemplate.
+model KpiTemplateItem {
+  id         String      @id @default(uuid())
+  templateId String
+  template   KpiTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  // Hai cấp: tiêu chí cấp 1 (parentId = null) và KPI con.
+  parentId String?
+  parent   KpiTemplateItem?  @relation("TemplateItemTree", fields: [parentId], references: [id])
+  children KpiTemplateItem[] @relation("TemplateItemTree")
+
+  section     KpiSection
+  orderIndex  Int
+  name        String
+  description String?
+
+  // Mục tiêu dạng chuỗi tự do: "≥ 95%", "≤ 1 lỗi/tháng", "Đạt", "0".
+  // Giai đoạn 1 chỉ hiển thị cho người chấm tham khảo.
+  measurementUnit String?
+
+  // Chỉ bắt buộc khi scoringMode = CALCULATED (chưa dùng ở giai đoạn 1)
+  targetValue Decimal?     @db.Decimal(18, 4)
+  minValue    Decimal?     @db.Decimal(18, 4)
+  direction   KpiDirection @default(HIGHER_BETTER)
+  scoringMode ScoringMode  @default(MANUAL)
+
+  weight Decimal @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([templateId, section, orderIndex])
+  @@index([parentId])
+}
+
+// ===== PHIẾU KPI =====
 
 enum OwnerType {
   COMPANY
@@ -121,95 +254,173 @@ enum OwnerType {
   USER
 }
 
-enum AssignmentStatus {
+// Luồng giao KPI đầu kỳ
+enum AssignStatus {
   DRAFT
-  ASSIGNED
-  SUBMITTED
-  APPROVED
-  REJECTED
+  PROPOSED
+  ACCEPTED
+  DISPUTED
 }
 
-model KpiAssignment {
-  id       String @id @default(uuid())
+// Luồng chấm điểm cuối kỳ
+enum ResultStatus {
+  PENDING
+  SELF_SCORED
+  MANAGER_SCORED
+  REJECTED
+  RECEIVED
+}
 
-  kpiDefinitionId String
-  kpiDefinition   KpiDefinition @relation(fields: [kpiDefinitionId], references: [id])
+enum Grade {
+  NOT_MET
+  NEEDS_IMPROVEMENT
+  COMPLETED
+  EXCEEDED
+}
+
+model Scorecard {
+  id String @id @default(uuid())
+
+  // Giai đoạn 1 luôn là USER. Giữ cột cho tương lai (KPI phòng ban).
+  ownerType OwnerType @default(USER)
+
+  userId String
+  user   User   @relation("ScorecardOwner", fields: [userId], references: [id])
 
   periodId String
   period   Period @relation(fields: [periodId], references: [id])
 
-  ownerType    OwnerType
-  departmentId String?
-  department   Department? @relation(fields: [departmentId], references: [id])
-  ownerUserId  String?
-  ownerUser    User?       @relation("AssignmentOwner", fields: [ownerUserId], references: [id])
+  // --- Snapshot: người đổi chức danh giữa năm thì phiếu cũ giữ nguyên ---
+  departmentId   String
+  department     Department @relation(fields: [departmentId], references: [id])
+  departmentName String
+  jobTitleName   String
+  level          String?
+
+  templateId      String?
+  template        KpiTemplate? @relation(fields: [templateId], references: [id])
+  templateVersion Int?
+
+  // Người chấm được chốt từ đầu kỳ, không suy ra lúc chấm
+  evaluatorId String?
+  evaluator   User?   @relation("ScorecardEvaluator", fields: [evaluatorId], references: [id])
+
+  // --- Luồng 1: giao KPI ---
+  assignStatus AssignStatus @default(DRAFT)
+  proposedAt   DateTime?
+  acceptedAt   DateTime?
+
+  // --- Luồng 2: chấm điểm ---
+  resultStatus    ResultStatus @default(PENDING)
+  selfScoredAt    DateTime?
+  managerScoredAt DateTime?
+  receivedAt      DateTime?
+  receivedById    String?
+  receivedBy      User?        @relation("ScorecardReceiver", fields: [receivedById], references: [id])
+
+  // Nghỉ việc giữa kỳ: trưởng phòng chấm một cột, bắt buộc ghi lý do
+  noSelfScoreReason String?
+
+  // Chốt khi chuyển sang MANAGER_SCORED
+  totalSelfScore    Decimal? @db.Decimal(6, 2)
+  totalManagerScore Decimal? @db.Decimal(6, 2)
+  grade             Grade?
+
+  createdById String
+  createdBy   User     @relation("ScorecardCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items  ScorecardItem[]
+  events ScorecardEvent[]
+
+  // Chặn tạo trùng phiếu — nút "sao chép từ kỳ trước" chắc chắn sẽ bấm nhầm
+  @@unique([userId, periodId])
+  @@index([departmentId, periodId])
+  @@index([periodId, resultStatus])
+  @@index([evaluatorId, resultStatus])
+}
+
+// Snapshot nội dung KPI tại thời điểm tạo phiếu.
+// KHÔNG trỏ FK về KpiTemplateItem để đọc ngược: sửa mẫu không được làm
+// đổi phiếu đã chấm — sai ở đây là sai vào lương người thật.
+model ScorecardItem {
+  id          String    @id @default(uuid())
+  scorecardId String
+  scorecard   Scorecard @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
 
   parentId String?
-  parent   KpiAssignment?  @relation("KpiCascade", fields: [parentId], references: [id])
-  children KpiAssignment[] @relation("KpiCascade")
+  parent   ScorecardItem?  @relation("ItemTree", fields: [parentId], references: [id])
+  children ScorecardItem[] @relation("ItemTree")
 
-  targetValue  Decimal  @db.Decimal(18, 4)
-  minValue     Decimal? @db.Decimal(18, 4)
-  weight       Decimal  @db.Decimal(5, 2)
+  // Chỉ để truy vết nguồn gốc, không ràng buộc khoá ngoại
+  sourceTemplateItemId String?
 
-  status       AssignmentStatus @default(DRAFT)
-  finalScore   Decimal? @db.Decimal(6, 2)
+  section         KpiSection
+  orderIndex      Int
+  name            String
+  description     String?
+  measurementUnit String?
 
-  createdById  String
-  createdBy    User     @relation("AssignmentCreator", fields: [createdById], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  targetValue Decimal?     @db.Decimal(18, 4)
+  minValue    Decimal?     @db.Decimal(18, 4)
+  direction   KpiDirection @default(HIGHER_BETTER)
+  scoringMode ScoringMode  @default(MANUAL)
 
-  results   KpiResult[]
-  approvals Approval[]
+  // Chụp lại từ hằng số theo section (BSC_WORK: 10, COMPLIANCE: 3).
+  // Công ty đổi thang sang 100 năm sau thì phiếu cũ vẫn giữ thang 10.
+  maxScale Int
 
-  @@index([periodId, ownerType])
-  @@index([departmentId, periodId])
-  @@index([ownerUserId, periodId])
+  weight Decimal @db.Decimal(5, 2)
+
+  // Hai cột chấm. Chỉ tiêu chí lá mới được nhập; tiêu chí có con tính
+  // từ con trong service, không lưu.
+  selfScore      Decimal? @db.Decimal(6, 2)
+  selfComment    String?
+  managerScore   Decimal? @db.Decimal(6, 2)
+  managerComment String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scorecardId, section, orderIndex])
   @@index([parentId])
 }
 
-model KpiResult {
-  id           String @id @default(uuid())
-  assignmentId String
-  assignment   KpiAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-
-  actualValue  Decimal  @db.Decimal(18, 4)
-  note         String?
-  evidenceUrl  String?
-
-  recordedAt    DateTime @default(now())
-  submittedById String
-  submittedBy   User    @relation(fields: [submittedById], references: [id])
-
-  @@index([assignmentId, recordedAt])
-}
-
-enum ApprovalAction {
-  SUBMIT
-  APPROVE
+// Thay bảng Approval cũ: một phiếu có thể bị trả lại nhiều lần,
+// mỗi lần một lý do — một cột comment sẽ bị ghi đè.
+enum ScorecardAction {
+  PROPOSE
+  ACCEPT
+  DISPUTE
+  SELF_SCORE
+  MANAGER_SCORE
   REJECT
+  RECEIVE
   REOPEN
 }
 
-model Approval {
-  id           String @id @default(uuid())
-  assignmentId String
-  assignment   KpiAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+model ScorecardEvent {
+  id          String    @id @default(uuid())
+  scorecardId String
+  scorecard   Scorecard @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
 
-  action    ApprovalAction
-  actorId   String
-  actor     User     @relation(fields: [actorId], references: [id])
-  comment   String?
+  action  ScorecardAction
+  actorId String
+  actor   User            @relation(fields: [actorId], references: [id])
+  comment String?
+
   createdAt DateTime @default(now())
 
-  @@index([assignmentId, createdAt])
+  @@index([scorecardId, createdAt])
 }
 
+// Cố ý không có khoá ngoại tới bảng nghiệp vụ: phiếu bị xoá thì log
+// vẫn phải còn — đó chính là lúc cần tra cứu nhất.
 model AuditLog {
-  id         String   @id @default(uuid())
-  actorId    String?
-  actor      User?    @relation(fields: [actorId], references: [id])
+  id      String  @id @default(uuid())
+  actorId String?
+  actor   User?   @relation(fields: [actorId], references: [id])
 
   entityType String
   entityId   String
