@@ -46,15 +46,30 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   - Interceptor tự làm mới token, **single-flight** để nhiều 401 cùng lúc
     chỉ gọi `/auth/refresh` một lần
   - `/login`, `/change-password` (có thanh độ mạnh mật khẩu), `/` (tạm)
+- **Tuần 3–4 `org` XONG CẢ HAI ĐẦU** (30/08):
+  - 13 endpoint: phòng ban (CRUD, vô hiệu hoá mềm), chức danh, nhân viên
+    (phân trang, lọc, tìm kiếm, đặt lại mật khẩu, bật/tắt)
+  - Mọi endpoint đọc đều đi qua `getAccessibleDepartmentIds`
+  - `UserResponse` khai tường minh — không bao giờ lọt `passwordHash`
+  - Chặn vòng lặp cây phòng ban và vòng lặp `User.managerId`
+  - HR không thao tác được trên tài khoản ADMIN; không ai tự đổi vai trò
+    của chính mình
+  - Chặn vô hiệu hoá / chuyển phòng người đang là trưởng bộ phận
+  - `AuditService` nối vào toàn bộ thao tác của `org`
+  - `prisma/bootstrap.ts` — khởi tạo hệ thống thật, chỉ 1 ADMIN
+  - Ba màn hình quản trị: cây phòng ban (có cảnh báo thiếu trưởng bộ phận),
+    chức danh, nhân viên
+  - `scripts/verify-org.sh`: **46 kiểm tra bằng curl**
 - **Chuyển sang ESM + Vitest** (30/08): `"type": "module"`, import tương đối
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 55 test unit + 3 e2e + 35 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 108 test unit + 3 e2e + 35 + 46 kiểm tra curl.**
 
 ## Đang làm
 
-**Tuần 3–4: `org`** — chưa bắt đầu. Bị chặn bởi file Excel nhân sự của HR.
+**Tuần 5–6: `kpi-template`** — chưa bắt đầu. Bị chặn bởi bốn file Excel KPI
+phòng Kỹ thuật.
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 

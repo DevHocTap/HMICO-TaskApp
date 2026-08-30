@@ -142,8 +142,11 @@ web/
     ├── types/             # kiểu dùng chung, nhãn tiếng Việt cho vai trò
     ├── auth/              # giữ token, context, khôi phục phiên
     ├── api/               # axios client + interceptor, hàm gọi API
-    ├── routes/            # ProtectedRoute, PublicOnlyRoute
-    └── pages/             # từng màn hình
+    ├── routes/            # ProtectedRoute, PublicOnlyRoute, RoleRoute
+    ├── components/        # AdminLayout, TemporaryPasswordModal
+    └── pages/
+        ├── LoginPage, ChangePasswordPage, HomePage
+        └── admin/         # DepartmentsPage, JobTitlesPage, UsersPage
 ```
 
 ### Bộ công cụ đã chốt
@@ -198,3 +201,17 @@ hạn khi chính lời gọi refresh trả 401.
 `ProtectedRoute` gộp cả hai ràng buộc — chưa đăng nhập thì về `/login`, có
 cờ `mustChangePassword` thì về `/change-password` — để không thể quên khi
 thêm route mới.
+
+### Menu và route theo vai trò
+
+| Vai trò | Thấy menu |
+|---|---|
+| `ADMIN`, `HR` | Phòng ban · Chức danh · Nhân viên |
+| `MANAGER` | Nhân viên (chỉ xem, không có nút sửa) |
+| `EXECUTIVE`, `STAFF` | Không có menu quản trị |
+
+**Ẩn menu và chặn route ở giao diện KHÔNG PHẢI BẢO MẬT.** Chúng chỉ để
+người dùng không bấm vào thứ sẽ báo lỗi. Backend chặn độc lập bằng
+`RolesGuard` và `getAccessibleDepartmentIds` — gõ thẳng URL hay gọi API
+trực tiếp đều bị chặn ở đó. Logic hiển thị nằm ở `src/auth/permissions.ts`,
+cố ý tách riêng để không ai nhầm nó với lớp phân quyền thật.

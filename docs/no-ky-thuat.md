@@ -120,8 +120,11 @@
       tách chunk theo route.
 - [ ] Chưa có màn hình nào dẫn tới `/change-password` cho người muốn tự
       đổi mật khẩu. Route đã cho vào, chỉ thiếu đường dẫn trên giao diện.
-- [ ] Trang chủ mới là chỗ giữ chỗ ("Đang xây dựng"), chưa có menu điều
-      hướng thật.
+- [ ] Trang chủ vẫn là chỗ giữ chỗ ("Đang xây dựng"). Menu điều hướng đã
+      có, nhưng chưa có nội dung dashboard.
+- [ ] Màn nhân viên chưa cho sửa `managerId` (người quản lý trực tiếp).
+      Backend có sẵn, chỉ thiếu ô chọn trên form.
+- [ ] Chưa có import nhân sự từ Excel — chờ file mẫu của HR.
 
 - [ ] Chưa cấu hình Swagger để sinh tài liệu API
 - [ ] Độ phủ test: 35 unit + 3 e2e. Chưa có test cho Guard và controller `auth`
