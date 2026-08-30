@@ -26,13 +26,12 @@ export function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
+  // Ép đổi mật khẩu: người có cờ mustChangePassword bị kéo về đây từ mọi
+  // route khác. Chiều ngược lại KHÔNG chặn — người đã đổi rồi vẫn vào được
+  // /change-password để tự đổi lúc khác.
   const dangODoiMatKhau = location.pathname === '/change-password';
   if (user.mustChangePassword && !dangODoiMatKhau) {
     return <Navigate to="/change-password" replace />;
-  }
-  if (!user.mustChangePassword && dangODoiMatKhau) {
-    // Đã đổi rồi thì không cần ở lại màn hình bắt buộc nữa
-    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

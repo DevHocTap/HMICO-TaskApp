@@ -13,21 +13,32 @@ dễ đọc, dễ bảo trì hơn code ngắn gọn hay "thông minh".
 
 ## Stack (đã chốt)
 
-NestJS + TypeScript (CommonJS) · Prisma 6 · PostgreSQL 16 (Docker) · Jest
+**Backend:** NestJS 12 + TypeScript (**ESM**) · Prisma 6 · PostgreSQL 16
+(Docker) · **Vitest**
+**Frontend (`web/`):** Vite + React + TypeScript · **Ant Design** ·
+TanStack Query · React Router · axios
+
 Dev: WSL2 Ubuntu 24.04. Triển khai sau: Viettel Cloud, Ubuntu 24.04.
 
 - **Không nâng Prisma lên 7 hoặc 8** — CLI đã đổi cú pháp.
+- **Frontend dùng Ant Design. Không dùng Tailwind hay shadcn/ui.**
 - Luôn cố định số phiên bản khi cài gói. Không dùng bản rc/beta/alpha.
 - Không tự ý nâng cấp thư viện.
+- Dự án là **ESM**: import tương đối trong `src/` phải có đuôi `.js`.
+  NestJS 12 là ESM thuần nên không quay lại CommonJS được.
 
 ## Ràng buộc tuyệt đối
 
 - Mật khẩu băm bằng argon2. Không lưu dạng thường, kể cả trong seed/test.
 - Kiểm tra phân quyền ở backend (Guard), không chỉ ẩn nút ở giao diện.
 - Số liệu tiền và điểm dùng `Decimal`, không dùng `Float`.
-- Module `org/` (phòng ban + nhân viên) phải độc lập với `kpi/`.
-  Logic KPI không được rò rỉ vào `org/`.
+- Module `org/` (phòng ban, chức danh, nhân viên) phải độc lập với các
+  module KPI (`kpi-template/`, `scorecard/`, `scoring/`). Logic KPI không
+  được rò rỉ vào `org/` — giai đoạn 2 sẽ thêm `attendance/` dùng chung lõi.
 - Không commit `.env`.
+- **Không dùng `dangerouslySetInnerHTML`, không chèn HTML thô từ dữ liệu
+  người dùng.** Refresh token đang nằm ở `localStorage` nên một lỗ XSS là
+  mất phiên đăng nhập 7 ngày — xem `docs/no-ky-thuat.md`.
 
 ## Tài liệu
 

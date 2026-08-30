@@ -5,6 +5,38 @@
 
 ## Ưu tiên cao — phải xử lý trước khi lên chạy thật
 
+- [ ] **Refresh token nằm ở `localStorage` — nợ kỹ thuật CÓ CHỦ Ý.**
+
+      **Rủi ro:** XSS ở *bất kỳ màn hình nào* cũng đọc được refresh token,
+      và kẻ tấn công giữ được phiên **7 ngày** — kể cả sau khi người dùng
+      đóng trình duyệt hay đổi máy. Access token giữ trong bộ nhớ nên an
+      toàn hơn, nhưng refresh token mới là thứ đáng giá.
+
+      **Phương án đúng:** backend đặt refresh token vào cookie `httpOnly`
+      `Secure` `SameSite=Strict`, kèm chống CSRF (token đồng bộ hoặc kiểm
+      header `Origin`). Khi đó JavaScript không đọc được token nữa.
+
+      **Điều kiện xử lý: TRƯỚC KHI MỞ CHO TOÀN CÔNG TY.** Chạy thử một
+      phòng Kỹ thuật tháng 11 thì chấp nhận được; 200 người thì không.
+
+      **Kỷ luật XSS — áp dụng ngay từ bây giờ, mọi màn hình:**
+      - **Không dùng `dangerouslySetInnerHTML`.** Không có ngoại lệ.
+      - **Không chèn HTML thô từ dữ liệu người dùng** vào DOM. Tên nhân
+        viên, tên KPI, ghi chú chấm điểm, lý do trả lại — tất cả đều là
+        dữ liệu người dùng nhập, luôn để React tự escape.
+      - Không dùng `eval`, `new Function`, hay `href` nhận chuỗi từ dữ
+        liệu (`javascript:` là một URL hợp lệ).
+      - Thư viện nào cần render HTML (trình soạn thảo, xem trước Excel)
+        phải bàn lại trước khi đưa vào.
+
+      Chừng nào token còn ở `localStorage` thì một lỗ XSS duy nhất là mất
+      toàn bộ phiên đăng nhập của người dùng đó.
+
+- [ ] **Đổi mật khẩu KHÔNG vô hiệu hoá access token đang cầm.** Chỉ refresh
+      token bị thu hồi; JWT vẫn sống tới hết 15 phút. Ai đổi mật khẩu vì
+      nghi bị chiếm tài khoản thì kẻ tấn công vẫn thao tác được trong
+      khoảng đó. Cách xử lý: `JwtAuthGuard` đối chiếu `iat` của token với
+      `User.passwordChangedAt` — đổi lấy một truy vấn database mỗi request.
 - [ ] Chưa có `AuditLog` cho bất kỳ thao tác nào — **kể cả đăng xuất**.
       Yêu cầu ghi log đăng xuất phải hoãn tới khi có module `audit`.
 - [ ] **`RateLimitGuard` và `LoginAttemptService` đều đếm trong BỘ NHỚ
@@ -37,6 +69,17 @@
       có `BM.01-KPI.KYTHUAT` thật
 
 ## Ưu tiên trung bình
+
+- [ ] `web/` chưa có test nào — chưa cài bộ chạy test. Hàm
+      `danhGiaMatKhau` và logic hàng đợi refresh trong `api/client.ts` là
+      hai chỗ đáng phủ trước nhất.
+- [ ] Gói frontend 840 kB (276 kB gzip), gần hết là Ant Design. Chấp nhận
+      được với phần mềm nội bộ chạy trong mạng công ty; nếu cần giảm thì
+      tách chunk theo route.
+- [ ] Chưa có màn hình nào dẫn tới `/change-password` cho người muốn tự
+      đổi mật khẩu. Route đã cho vào, chỉ thiếu đường dẫn trên giao diện.
+- [ ] Trang chủ mới là chỗ giữ chỗ ("Đang xây dựng"), chưa có menu điều
+      hướng thật.
 
 - [ ] Chưa cấu hình Swagger để sinh tài liệu API
 - [ ] Độ phủ test: 35 unit + 3 e2e. Chưa có test cho Guard và controller `auth`
