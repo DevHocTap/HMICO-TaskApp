@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module.js';
 import type { AppEnv } from './config/env.validation.js';
+import { taoKiemTraOrigin } from './config/cors.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -19,11 +20,13 @@ async function bootstrap() {
 
   const config = app.get(ConfigService<AppEnv, true>);
 
-  // Frontend React chạy khác cổng nên phải bật CORS. Chỉ mở cho danh sách
-  // địa chỉ khai trong CORS_ORIGINS — không dùng enableCors() trần, vì như
-  // vậy là cho phép mọi trang web gọi API này.
+  // Frontend React chạy khác cổng nên phải bật CORS. KHÔNG dùng
+  // enableCors() trần — như vậy là cho phép mọi trang web gọi API này.
   app.enableCors({
-    origin: config.get('CORS_ORIGINS', { infer: true }),
+    origin: taoKiemTraOrigin(
+      config.get('CORS_ORIGINS', { infer: true }),
+      process.env.NODE_ENV !== 'production',
+    ),
     credentials: true,
   });
   await app.listen(config.get('PORT', { infer: true }));

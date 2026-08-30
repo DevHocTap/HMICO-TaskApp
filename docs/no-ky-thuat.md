@@ -70,9 +70,12 @@
 
 ## Ưu tiên trung bình
 
-- [ ] `CORS_ORIGINS` ở dev đang cho cả `localhost:5173` lẫn
-      `127.0.0.1:5173`. Khi triển khai thật phải thay bằng ĐÚNG tên miền
-      của công ty, không để lại hai dòng localhost này.
+- [ ] **CORS nới lỏng ở dev:** khi `NODE_ENV !== 'production'`, backend
+      chấp nhận mọi cổng của `localhost` và `127.0.0.1`
+      (`src/config/cors.ts`). Ở production KHÔNG nới lỏng — chỉ đúng địa
+      chỉ khai trong `CORS_ORIGINS`.
+      **Khi triển khai thật phải đặt `NODE_ENV=production`**, nếu quên thì
+      mọi trang chạy ở localhost của máy nạn nhân đều gọi được API.
 
 - [ ] `web/` chưa có test nào — chưa cài bộ chạy test. Hàm
       `danhGiaMatKhau` và logic hàng đợi refresh trong `api/client.ts` là
