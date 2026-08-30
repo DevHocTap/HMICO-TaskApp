@@ -55,6 +55,8 @@ describe('UsersService', () => {
     update: vi.fn(),
     count: vi.fn(),
   };
+  const departmentFindMany = vi.fn();
+  const departmentFindUnique = vi.fn();
   const getAccessibleDepartmentIds = vi.fn();
   const getSubtreeIds = vi.fn();
   const revokeAllForUser = vi.fn();
@@ -62,9 +64,17 @@ describe('UsersService', () => {
 
   beforeEach(async () => {
     Object.values(user).forEach((fn) => fn.mockReset());
-    [getAccessibleDepartmentIds, getSubtreeIds, revokeAllForUser, log].forEach((fn) =>
-      fn.mockReset(),
-    );
+    [
+      departmentFindMany,
+      departmentFindUnique,
+      getAccessibleDepartmentIds,
+      getSubtreeIds,
+      revokeAllForUser,
+      log,
+    ].forEach((fn) => fn.mockReset());
+    // Mặc định: người này không làm trưởng bộ phận của phòng nào
+    departmentFindMany.mockResolvedValue([]);
+    departmentFindUnique.mockResolvedValue({ id: 'phong-khac' });
     user.count.mockResolvedValue(0);
     user.findUnique.mockResolvedValue(null);
     getAccessibleDepartmentIds.mockResolvedValue(['kt-sd']);
@@ -76,7 +86,14 @@ describe('UsersService', () => {
         UsersService,
         {
           provide: PrismaService,
-          useValue: { user, department: { findUnique: vi.fn() }, jobTitle: { findUnique: vi.fn() } },
+          useValue: {
+            user,
+            department: {
+              findUnique: departmentFindUnique,
+              findMany: departmentFindMany,
+            },
+            jobTitle: { findUnique: vi.fn() },
+          },
         },
         {
           provide: DepartmentScopeService,
@@ -233,6 +250,58 @@ describe('UsersService', () => {
       await expect(service.setActive('admin', false, admin)).rejects.toThrow(
         /chính mình/,
       );
+    });
+  });
+
+  describe('bẫy phòng ban mất trưởng bộ phận', () => {
+    beforeEach(() => {
+      user.findUnique.mockResolvedValue(nhanVien('u1'));
+      user.update.mockResolvedValue(nhanVien('u1'));
+    });
+
+    it('chặn vô hiệu hoá người đang là trưởng bộ phận', async () => {
+      // Phòng mất trưởng bộ phận thì KPI không ai duyệt, và lỗi chỉ lộ ra
+      // cuối tháng khi nhân viên đã nộp kết quả
+      departmentFindMany.mockResolvedValue([{ name: 'Tổ Shop Drawing' }]);
+
+      await expect(service.setActive('u1', false, admin)).rejects.toThrow(
+        /Tổ Shop Drawing.*chỉ định người thay/s,
+      );
+      expect(user.update).not.toHaveBeenCalled();
+      expect(revokeAllForUser).not.toHaveBeenCalled();
+    });
+
+    it('nêu tên TẤT CẢ các phòng người đó đang phụ trách', async () => {
+      departmentFindMany.mockResolvedValue([
+        { name: 'Phòng Kỹ thuật' },
+        { name: 'Tổ Bảo trì bảo hành' },
+      ]);
+
+      await expect(service.setActive('u1', false, admin)).rejects.toThrow(
+        /Phòng Kỹ thuật, Tổ Bảo trì bảo hành/,
+      );
+    });
+
+    it('chặn chuyển phòng cho người đang là trưởng bộ phận', async () => {
+      departmentFindMany.mockResolvedValue([{ name: 'Tổ Shop Drawing' }]);
+
+      await expect(
+        service.update('u1', { departmentId: 'phong-khac' }, admin),
+      ).rejects.toThrow(/chuyển phòng cho người đang là trưởng bộ phận/);
+    });
+
+    it('người thường thì vô hiệu hoá bình thường', async () => {
+      user.update.mockResolvedValue(nhanVien('u1', { isActive: false }));
+
+      await expect(service.setActive('u1', false, admin)).resolves.toBeDefined();
+      expect(revokeAllForUser).toHaveBeenCalledWith('u1');
+    });
+
+    it('KÍCH HOẠT LẠI thì không bị chặn', async () => {
+      user.findUnique.mockResolvedValue(nhanVien('u1', { isActive: false }));
+      departmentFindMany.mockResolvedValue([{ name: 'Tổ Shop Drawing' }]);
+
+      await expect(service.setActive('u1', true, admin)).resolves.toBeDefined();
     });
   });
 

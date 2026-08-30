@@ -180,6 +180,15 @@ export class UsersService {
     if (dto.managerId !== undefined && dto.managerId !== null) {
       await this.assertNoManagerCycle(id, dto.managerId);
     }
+    if (dto.departmentId !== undefined && dto.departmentId !== before.departmentId) {
+      // Chuyển người này sang phòng khác sẽ khiến Department.managerId trỏ
+      // tới người không còn thuộc phòng đó — phá đúng ràng buộc mà
+      // assertManagerBelongsTo đang giữ.
+      await this.assertKhongPhaiTruongBoPhan(
+        id,
+        'Không thể chuyển phòng cho người đang là trưởng bộ phận',
+      );
+    }
 
     const updated = await this.prisma.user.update({
       where: { id },
@@ -267,6 +276,12 @@ export class UsersService {
         isActive ? 'Tài khoản đang hoạt động' : 'Tài khoản đã bị vô hiệu hoá',
       );
     }
+    if (!isActive) {
+      await this.assertKhongPhaiTruongBoPhan(
+        id,
+        'Không thể vô hiệu hoá người đang là trưởng bộ phận',
+      );
+    }
 
     const updated = await this.prisma.user.update({
       where: { id },
@@ -332,6 +347,31 @@ export class UsersService {
     if (role === Role.ADMIN && actor.role !== Role.ADMIN) {
       throw new ForbiddenException('Chỉ quản trị viên mới gán được vai trò quản trị');
     }
+  }
+
+  /**
+   * Chặn thao tác làm một phòng ban mất trưởng bộ phận.
+   *
+   * Phòng không có trưởng bộ phận thì KPI của phòng đó KHÔNG AI DUYỆT
+   * ĐƯỢC — và lỗi chỉ lộ ra vào cuối tháng, khi nhân viên đã nộp kết quả
+   * và không kịp xử lý. Bắt chỉ định người thay ngay tại thời điểm thao
+   * tác, không để phát hiện muộn.
+   */
+  private async assertKhongPhaiTruongBoPhan(
+    userId: string,
+    thongDiep: string,
+  ): Promise<void> {
+    const cacPhong = await this.prisma.department.findMany({
+      where: { managerId: userId, isActive: true },
+      select: { name: true },
+    });
+    if (cacPhong.length === 0) return;
+
+    const ten = cacPhong.map((p) => p.name).join(', ');
+    throw new BadRequestException(
+      `${thongDiep} của: ${ten}. ` +
+        'Hãy chỉ định người thay làm trưởng bộ phận trước.',
+    );
   }
 
   private async assertEmployeeCodeAvailable(employeeCode: string): Promise<void> {

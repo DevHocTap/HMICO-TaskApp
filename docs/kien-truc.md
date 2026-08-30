@@ -25,10 +25,43 @@ src/
 prisma/
 ├── schema.prisma
 ├── migrations/
-└── seed.ts
+├── seed.ts       # CHỈ dùng cho máy dev
+└── bootstrap.ts  # khởi tạo hệ thống THẬT
 scripts/
 └── verify-auth.sh    # kiểm chứng xác thực bằng curl trên hệ thống chạy thật
 ```
+
+### Hai script khởi tạo dữ liệu — đừng nhầm
+
+| | `prisma/seed.ts` | `prisma/bootstrap.ts` |
+|---|---|---|
+| Dùng ở đâu | **Chỉ máy dev** | **Chỉ hệ thống thật, chạy MỘT lần** |
+| Chạy bằng | `npx prisma db seed` | `npm run bootstrap` |
+| Tạo ra | 16 phòng ban, 9 chức danh, 14 người dùng giả | Đúng 1 tài khoản ADMIN |
+| Mật khẩu | `Hmico@2026` cố định, ai cũng biết | Lấy từ `BOOTSTRAP_ADMIN_PASSWORD` |
+| Chạy lại | Xoá sạch rồi tạo lại | **Từ chối** nếu đã có ADMIN |
+
+**Không bao giờ chạy `seed.ts` trên hệ thống thật.** Nó xoá sạch dữ liệu
+rồi tạo 14 tài khoản có mật khẩu ai cũng đoán được.
+
+`bootstrap.ts` cố ý KHÔNG tạo phòng ban hay chức danh: cơ cấu tổ chức thật
+do quản trị viên tự dựng qua giao diện, không sinh ra từ mã nguồn.
+
+### Ràng buộc trưởng bộ phận
+
+`Department.managerId` là thứ quyết định ai duyệt KPI của phòng đó. Phòng
+thiếu trưởng bộ phận thì **KPI không ai duyệt được, và lỗi chỉ lộ ra vào
+cuối tháng** khi nhân viên đã nộp kết quả.
+
+Nên hệ thống chặn ở ba chỗ:
+
+1. **Backend** — không cho vô hiệu hoá, cũng không cho chuyển phòng, một
+   người đang là `Department.managerId` của phòng nào đó. Lỗi nêu rõ tên
+   phòng và yêu cầu chỉ định người thay trước.
+2. **Form nhân viên** — chọn vai trò MANAGER cho người thuộc phòng chưa có
+   trưởng bộ phận thì hiện gợi ý đặt luôn.
+3. **Cây phòng ban** — phòng chưa có trưởng bộ phận mang dấu cảnh báo màu
+   vàng, nhìn một lượt là thấy chỗ nào còn thiếu.
 
 ### Ba lớp bắt buộc, không được nhảy cóc
 

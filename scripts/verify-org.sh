@@ -253,6 +253,33 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_RND" -H 'Content-Type: application
   -d '{"code":"TEST-JT","name":"Thử"}' "$API/job-titles")
 [ "$MA" = "403" ] && pass "MANAGER tạo chức danh -> 403" || fail "MANAGER tạo chức danh -> $MA (mong đợi 403)"
 
+# ============================================ BẪY PHÒNG MẤT TRƯỞNG BỘ PHẬN
+buoc "BẪY PHÒNG BAN MẤT TRƯỞNG BỘ PHẬN"
+# Phòng không có trưởng bộ phận thì KPI không ai duyệt, và lỗi chỉ lộ ra
+# cuối tháng khi nhân viên đã nộp kết quả.
+U_TT_SD=$(sql "SELECT id FROM \"User\" WHERE email='totruong.shopdrawing@hmico.vn';")
+KQ=$(curl -s -X PATCH -H "Authorization: Bearer $AT_ADMIN" "$API/users/$U_TT_SD/deactivate")
+echo "$KQ" | grep -q "trưởng bộ phận" \
+  && pass "vô hiệu hoá trưởng bộ phận -> bị chặn, nêu tên phòng" \
+  || fail "vô hiệu hoá trưởng bộ phận không bị chặn — $KQ"
+echo "$KQ" | grep -q "Tổ Shop Drawing" \
+  && pass "thông báo nêu đúng tên phòng đang phụ trách" \
+  || fail "thông báo không nêu tên phòng — $KQ"
+
+KQ=$(curl -s -X PATCH -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d "{\"departmentId\":\"$ID_RND\"}" "$API/users/$U_TT_SD")
+echo "$KQ" | grep -q "chuyển phòng" \
+  && pass "chuyển phòng cho trưởng bộ phận -> bị chặn" \
+  || fail "chuyển phòng không bị chặn — $KQ"
+
+# Giao diện dựa vào managerId=null để hiện cảnh báo phòng thiếu trưởng
+CAY=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/departments/tree")
+echo "$CAY" | grep -q '"managerId"' \
+  && pass "cây phòng ban trả managerId (giao diện dùng để cảnh báo)" \
+  || fail "cây phòng ban thiếu managerId"
+echo "$CAY" | grep -q '"userCount"' \
+  && pass "cây phòng ban trả userCount" || fail "cây phòng ban thiếu userCount"
+
 # ===================================================== VÒNG LẶP QUẢN LÝ
 buoc "VÒNG LẶP QUAN HỆ QUẢN LÝ"
 U_KT=$(sql "SELECT id FROM \"User\" WHERE email='truongphong.kythuat@hmico.vn';")
