@@ -1,0 +1,251 @@
+#!/usr/bin/env bash
+#
+# Kiểm chứng module kpi-template bằng curl trên hệ thống chạy thật.
+#
+# Chạy:  ./scripts/verify-kpi-template.sh
+# Yêu cầu: PostgreSQL đang chạy, đã `npm run build` và `npx prisma db seed`.
+#
+# Tự khởi động API ở cổng 3151 và tự tắt khi xong. Không đụng cổng 3000.
+# Mọi thao tác phá huỷ chạy trên mẫu thử do script tự tạo, không đụng bốn
+# mẫu thật đã seed từ Excel.
+
+set -uo pipefail
+cd "$(dirname "$0")/.."
+
+PORT=3151
+API="http://localhost:$PORT"
+MAT_KHAU="${SEED_PASSWORD:-Hmico@2026}"
+
+TMP=$(mktemp -d)
+SO_PASS=0
+SO_FAIL=0
+
+pass() { SO_PASS=$((SO_PASS+1)); printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
+fail() { SO_FAIL=$((SO_FAIL+1)); printf '  \033[31mFAIL\033[0m  %s\n' "$1"; }
+buoc() { printf '\n\033[1m%s\033[0m\n' "$1"; }
+
+don_dep() {
+  [ -n "${PID_API:-}" ] && kill "$PID_API" 2>/dev/null
+  wait 2>/dev/null
+  rm -rf "$TMP"
+}
+trap don_dep EXIT
+
+sql() { docker exec kpi-postgres psql -U kpi_dev -d kpi_db -t -A -c "$1" 2>/dev/null; }
+token_cua() {
+  curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$1\",\"password\":\"$MAT_KHAU\"}" \
+    | python3 -c "import json,sys;print(json.load(sys.stdin).get('accessToken',''))" 2>/dev/null
+}
+ma() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+json() { python3 -c "import json,sys;d=json.load(sys.stdin);print($1)" 2>/dev/null; }
+
+echo "Khởi động API cổng $PORT..."
+PORT=$PORT LOGIN_RATE_LIMIT_PER_MINUTE=200 node dist/main.js > "$TMP/api.log" 2>&1 &
+PID_API=$!
+for _ in $(seq 1 40); do curl -sf -o /dev/null "$API/" 2>/dev/null && break; sleep 0.5; done
+if ! curl -sf -o /dev/null "$API/"; then
+  echo "Không khởi động được API:"; tail -20 "$TMP/api.log"; exit 1
+fi
+
+# Dọn mẫu thử của lần chạy trước — KHÔNG đụng bốn mẫu thật
+sql "DELETE FROM \"KpiTemplateItem\" WHERE \"templateId\" IN (SELECT id FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%');" >/dev/null
+sql "DELETE FROM \"AuditLog\" WHERE \"entityId\" IN (SELECT id FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%');" >/dev/null
+sql "DELETE FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%';" >/dev/null
+
+if [ -z "$(token_cua admin@hmico.vn)" ]; then
+  echo; echo "Không đăng nhập được bằng tài khoản seed (admin@hmico.vn)."
+  echo "Thường là do đã đổi mật khẩu qua trình duyệt. Chạy: npx prisma db seed"; exit 1
+fi
+
+AT_ADMIN=$(token_cua admin@hmico.vn)
+AT_HR=$(token_cua hcns@hmico.vn)
+AT_BGD=$(token_cua giamdoc@hmico.vn)
+AT_RND=$(token_cua truongphong.rnd@hmico.vn)
+AT_KT=$(token_cua truongphong.kythuat@hmico.vn)
+AT_STAFF=$(token_cua sd.nhanvien1@hmico.vn)
+
+ID_SYS=$(sql "SELECT id FROM \"KpiTemplate\" WHERE code='SYS-COMPLIANCE';")
+ID_SD=$(sql "SELECT id FROM \"KpiTemplate\" WHERE code='TPL-KT-SD';")
+JT_KSTK=$(sql "SELECT id FROM \"JobTitle\" WHERE code='KT-KSTK';")
+
+# --------------------------------------------------------------- PHÂN QUYỀN
+buoc "PHÂN QUYỀN"
+MA=$(ma -H "Authorization: Bearer $AT_STAFF" "$API/kpi-templates")
+[ "$MA" = "403" ] && pass "STAFF gọi GET /kpi-templates -> 403" || fail "STAFF đọc -> $MA (mong đợi 403)"
+
+MA=$(ma -X POST -H "Authorization: Bearer $AT_RND" -H 'Content-Type: application/json' \
+  -d '{"code":"ZTESTX","name":"Thử"}' "$API/kpi-templates")
+[ "$MA" = "403" ] && pass "MANAGER gọi POST /kpi-templates -> 403" || fail "MANAGER tạo -> $MA (mong đợi 403)"
+
+SO_BGD=$(curl -s -H "Authorization: Bearer $AT_BGD" "$API/kpi-templates" | json "len(d)")
+[ "$SO_BGD" = "5" ] && pass "EXECUTIVE xem được toàn bộ 5 mẫu" || fail "EXECUTIVE thấy $SO_BGD mẫu (mong đợi 5)"
+for M in "POST|$API/kpi-templates|{\"code\":\"ZTESTB\",\"name\":\"Thử\"}" "POST|$API/kpi-templates/$ID_SD/publish|" ; do
+  IFS='|' read -r VERB URL BODY <<< "$M"
+  if [ -n "$BODY" ]; then
+    MA=$(ma -X "$VERB" -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' -d "$BODY" "$URL")
+  else
+    MA=$(ma -X "$VERB" -H "Authorization: Bearer $AT_BGD" "$URL")
+  fi
+  [ "$MA" = "403" ] && pass "EXECUTIVE $VERB $(basename "$URL") -> 403" || fail "EXECUTIVE ghi -> $MA (mong đợi 403)"
+done
+MA=$(ma -X DELETE -H "Authorization: Bearer $AT_BGD" "$API/kpi-templates/$ID_SD")
+[ "$MA" = "403" ] && pass "EXECUTIVE DELETE -> 403" || fail "EXECUTIVE xoá -> $MA (mong đợi 403)"
+
+# MANAGER phòng R&D không thấy mẫu của chức danh phòng Kỹ thuật
+KQ=$(curl -s -H "Authorization: Bearer $AT_RND" "$API/kpi-templates")
+echo "$KQ" | grep -q 'TPL-KT-SD' \
+  && fail "MANAGER R&D THẤY mẫu phòng Kỹ thuật trong danh sách — RÒ DỮ LIỆU" \
+  || pass "MANAGER R&D không thấy mẫu phòng Kỹ thuật trong danh sách"
+MA=$(ma -H "Authorization: Bearer $AT_RND" "$API/kpi-templates/$ID_SD")
+[ "$MA" = "403" ] && pass "MANAGER R&D xem mẫu chức danh phòng Kỹ thuật -> 403" \
+  || fail "MANAGER R&D xem mẫu phòng khác -> $MA (mong đợi 403)"
+MA=$(ma -H "Authorization: Bearer $AT_KT" "$API/kpi-templates/$ID_SD")
+[ "$MA" = "200" ] && pass "đối chứng: MANAGER phòng Kỹ thuật xem được -> 200" \
+  || fail "MANAGER Kỹ thuật -> $MA (mong đợi 200)"
+
+# --------------------------------------------------------- MẪU HỆ THỐNG
+buoc "MẪU HỆ THỐNG"
+MA=$(ma -X PATCH -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' \
+  -d '{"name":"Đổi tên"}' "$API/kpi-templates/$ID_SYS")
+[ "$MA" = "403" ] && pass "HR sửa mẫu hệ thống qua endpoint thường -> 403" \
+  || fail "HR sửa mẫu hệ thống -> $MA (mong đợi 403)"
+MA=$(ma -X PUT -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' \
+  -d '{"items":[]}' "$API/kpi-templates/$ID_SYS/items")
+[ "$MA" = "403" ] && pass "HR lưu item mẫu hệ thống -> 403" || fail "HR lưu item -> $MA (mong đợi 403)"
+MA=$(ma -X PUT -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' \
+  -d '{"items":[]}' "$API/kpi-templates/$ID_SYS/system-items")
+[ "$MA" = "403" ] && pass "HR gọi endpoint riêng của mẫu hệ thống -> 403" \
+  || fail "HR gọi system-items -> $MA (mong đợi 403)"
+MA=$(ma -X DELETE -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_SYS")
+[ "$MA" = "403" ] && pass "ngay cả ADMIN cũng không xoá được mẫu hệ thống -> 403" \
+  || fail "ADMIN xoá mẫu hệ thống -> $MA (mong đợi 403)"
+
+# ------------------------------------------------------ KIỂM TRA TRỌNG SỐ
+buoc "KIỂM TRA TRỌNG SỐ KHI XUẤT BẢN"
+tao_mau() {
+  curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+    -d "{\"code\":\"$1\",\"name\":\"$2\",\"jobTitleId\":\"$JT_KSTK\"}" "$API/kpi-templates" | json "d['id']"
+}
+luu_items() {
+  curl -s -o /dev/null -w '%{http_code}' -X PUT -H "Authorization: Bearer $AT_ADMIN" \
+    -H 'Content-Type: application/json' -d "$2" "$API/kpi-templates/$1/items"
+}
+
+ID_T1=$(tao_mau ZTEST-W60 "Thử tổng 60")
+BODY='{"items":[
+ {"key":"a","parentKey":null,"name":"Tiến độ","section":"BSC_WORK","weight":60,"displayOrder":1}]}'
+MA=$(luu_items "$ID_T1" "$BODY")
+[ "$MA" = "200" ] && pass "lưu nháp mẫu trọng số lệch (60/70) -> 200" \
+  || fail "lưu nháp lệch -> $MA (mong đợi 200)"
+
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_T1/publish")
+MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_T1/publish")
+[ "$MA" = "400" ] && pass "xuất bản mẫu tổng 60 -> 400" || fail "publish tổng 60 -> $MA (mong đợi 400)"
+echo "$KQ" | grep -q '60' && echo "$KQ" | grep -q '70' \
+  && pass "thông báo nêu rõ con số 60 và 70" || fail "thông báo không nêu số: $KQ"
+echo "$KQ" | grep -q 'thiếu 10' && pass "thông báo nói rõ thiếu 10" || fail "không nói phần thiếu"
+
+ID_T2=$(tao_mau ZTEST-C90 "Thử con 90")
+BODY='{"items":[
+ {"key":"a","parentKey":null,"name":"Tiến độ hoàn thành Shop Drawing","section":"BSC_WORK","weight":40,"displayOrder":1},
+ {"key":"a1","parentKey":"a","name":"Con 1","section":"BSC_WORK","weight":50,"displayOrder":1},
+ {"key":"a2","parentKey":"a","name":"Con 2","section":"BSC_WORK","weight":40,"displayOrder":2},
+ {"key":"b","parentKey":null,"name":"Chất lượng","section":"BSC_WORK","weight":30,"displayOrder":2}]}'
+luu_items "$ID_T2" "$BODY" >/dev/null
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_T2/publish")
+echo "$KQ" | grep -q 'Tiến độ hoàn thành Shop Drawing' \
+  && pass "lỗi tổng con nêu ĐÚNG TÊN tiêu chí sai" || fail "không nêu tên tiêu chí: $KQ"
+echo "$KQ" | grep -q '90' && pass "nêu đúng tổng thực tế 90" || fail "không nêu 90"
+echo "$KQ" | grep -q 'Chất lượng' \
+  && fail "đổ lỗi nhầm sang tiêu chí đúng" || pass "không đổ lỗi sang tiêu chí đúng"
+
+# ------------------------------------------------------------ CẤU TRÚC
+buoc "RÀNG BUỘC CẤU TRÚC"
+ID_T3=$(tao_mau ZTEST-L3 "Thử ba cấp")
+BODY='{"items":[
+ {"key":"a","parentKey":null,"name":"A","section":"BSC_WORK","weight":70,"displayOrder":1},
+ {"key":"a1","parentKey":"a","name":"A1","section":"BSC_WORK","weight":100,"displayOrder":1},
+ {"key":"a1x","parentKey":"a1","name":"Cháu","section":"BSC_WORK","weight":100,"displayOrder":1}]}'
+KQ=$(curl -s -X PUT -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d "$BODY" "$API/kpi-templates/$ID_T3/items")
+echo "$KQ" | grep -q 'hai cấp' \
+  && pass "item cấp 3 bị chặn NGAY LÚC LƯU, nêu rõ chỉ hai cấp" \
+  || fail "cấp 3 không bị chặn: $KQ"
+
+ID_T4=$(tao_mau ZTEST-MIX "Thử cấm trộn")
+BODY='{"items":[
+ {"key":"a","parentKey":null,"name":"A","section":"BSC_WORK","weight":70,"scoringMode":"CALCULATED","displayOrder":1},
+ {"key":"a1","parentKey":"a","name":"A1","section":"BSC_WORK","weight":100,"displayOrder":1}]}'
+luu_items "$ID_T4" "$BODY" >/dev/null
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_T4/publish")
+echo "$KQ" | grep -q 'điểm tính từ các con' \
+  && pass "tiêu chí vừa có con vừa chấm trực tiếp -> báo cấm trộn" || fail "cấm trộn không bị chặn: $KQ"
+
+ID_T5=$(tao_mau ZTEST-SEC "Thử khác mục")
+BODY='{"items":[
+ {"key":"a","parentKey":null,"name":"A","section":"BSC_WORK","weight":70,"displayOrder":1},
+ {"key":"a1","parentKey":"a","name":"A1","section":"COMPLIANCE","weight":100,"displayOrder":1}]}'
+luu_items "$ID_T5" "$BODY" >/dev/null
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_T5/publish")
+echo "$KQ" | grep -qE 'cùng mục|BSC công việc' \
+  && pass "KPI con khác mục với cha -> báo lỗi" || fail "khác mục không bị chặn: $KQ"
+
+# ------------------------------------------------------------ SAO CHÉP
+buoc "SAO CHÉP MẪU"
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d '{"code":"ZTEST-COPY","name":"Bản sao Shop Drawing"}' "$API/kpi-templates/$ID_SD/duplicate")
+ID_COPY=$(echo "$KQ" | json "d['id']")
+TT=$(echo "$KQ" | json "d['status']")
+[ "$TT" = "DRAFT" ] && pass "bản sao ở trạng thái DRAFT" || fail "bản sao status=$TT (mong đợi DRAFT)"
+SO_GOC=$(sql "SELECT count(*) FROM \"KpiTemplateItem\" WHERE \"templateId\"='$ID_SD';")
+SO_COPY=$(sql "SELECT count(*) FROM \"KpiTemplateItem\" WHERE \"templateId\"='$ID_COPY';")
+[ "$SO_GOC" = "$SO_COPY" ] && pass "bản sao đủ $SO_COPY item như bản gốc" \
+  || fail "bản sao có $SO_COPY item, gốc có $SO_GOC"
+# Sửa bản sao không được đụng bản gốc
+luu_items "$ID_COPY" '{"items":[{"key":"x","parentKey":null,"name":"Chỉ một dòng","section":"BSC_WORK","weight":70,"displayOrder":1}]}' >/dev/null
+SO_GOC2=$(sql "SELECT count(*) FROM \"KpiTemplateItem\" WHERE \"templateId\"='$ID_SD';")
+[ "$SO_GOC2" = "$SO_GOC" ] && pass "sửa bản sao KHÔNG đụng tới mẫu gốc" \
+  || fail "mẫu gốc bị đổi từ $SO_GOC thành $SO_GOC2 — RÒ RỈ GIỮA HAI MẪU"
+
+# ------------------------------------------- DỮ LIỆU THẬT + VERSION + AUDIT
+buoc "DỮ LIỆU THẬT TỪ EXCEL"
+sql "DELETE FROM \"AuditLog\";" >/dev/null
+V_TRUOC=$(sql "SELECT version FROM \"KpiTemplate\" WHERE code='TPL-KT-SD';")
+MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_SD/publish")
+[ "$MA" = "200" ] && pass "xuất bản mẫu Shop Drawing thật -> 200 (file gốc đúng 70/100)" \
+  || fail "publish mẫu thật -> $MA (mong đợi 200)"
+V_SAU=$(sql "SELECT version FROM \"KpiTemplate\" WHERE code='TPL-KT-SD';")
+[ "$V_SAU" -gt "$V_TRUOC" ] && pass "version tăng $V_TRUOC -> $V_SAU" || fail "version không tăng"
+TT=$(sql "SELECT status FROM \"KpiTemplate\" WHERE code='TPL-KT-SD';")
+[ "$TT" = "PUBLISHED" ] && pass "trạng thái PUBLISHED" || fail "status=$TT"
+sleep 0.3
+SO=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE action='PUBLISH' AND \"entityId\"='$ID_SD';")
+[ "$SO" = "1" ] && pass "có bản ghi AuditLog PUBLISH" || fail "có $SO bản ghi audit (mong đợi 1)"
+
+for MAU in TPL-KT-KSTK TPL-KT-KSCH TPL-KT-BH; do
+  ID=$(sql "SELECT id FROM \"KpiTemplate\" WHERE code='$MAU';")
+  MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID/publish")
+  [ "$MA" = "200" ] && pass "xuất bản $MAU -> 200" || fail "$MAU -> $MA (mong đợi 200)"
+done
+
+buoc "SỬA MẪU ĐÃ XUẤT BẢN THÌ VỀ NHÁP"
+ID_T6=$(tao_mau ZTEST-REPUB "Thử xuất bản lại")
+luu_items "$ID_T6" '{"items":[{"key":"a","parentKey":null,"name":"A","section":"BSC_WORK","weight":70,"displayOrder":1}]}' >/dev/null
+ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_T6/publish" >/dev/null
+TT=$(sql "SELECT status FROM \"KpiTemplate\" WHERE code='ZTEST-REPUB';")
+[ "$TT" = "PUBLISHED" ] && pass "xuất bản lần đầu -> PUBLISHED" || fail "status=$TT"
+luu_items "$ID_T6" '{"items":[{"key":"a","parentKey":null,"name":"A đổi","section":"BSC_WORK","weight":65,"displayOrder":1}]}' >/dev/null
+TT=$(sql "SELECT status FROM \"KpiTemplate\" WHERE code='ZTEST-REPUB';")
+[ "$TT" = "DRAFT" ] && pass "sửa item mẫu đã xuất bản -> tự về DRAFT" \
+  || fail "status sau khi sửa=$TT (mong đợi DRAFT)"
+
+echo
+printf '%.0s=' {1..60}; echo
+if [ "$SO_FAIL" -eq 0 ]; then
+  printf '\033[32mTẤT CẢ %d KIỂM TRA ĐỀU PASS\033[0m\n' "$SO_PASS"
+else
+  printf '\033[31m%d PASS, %d FAIL\033[0m\n' "$SO_PASS" "$SO_FAIL"
+fi
+printf '%.0s=' {1..60}; echo
+exit "$([ "$SO_FAIL" -eq 0 ] && echo 0 || echo 1)"

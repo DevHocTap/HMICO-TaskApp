@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { OrgModule } from './modules/org/org.module.js';
+import { KpiTemplateModule } from './modules/kpi-template/kpi-template.module.js';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { OrgModule } from './modules/org/org.module.js';
     AuditModule,
     AuthModule,
     OrgModule,
+    KpiTemplateModule,
   ],
   controllers: [AppController],
   providers: [AppService],

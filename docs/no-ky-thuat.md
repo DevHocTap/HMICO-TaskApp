@@ -111,49 +111,118 @@
 - [ ] **Import nhân sự từ Excel chưa làm** — chưa có file mẫu của HR nên
       chưa biết định dạng cột. Làm ở lát cắt riêng, đừng đoán cấu trúc.
 
-## Chờ HCNS xác nhận — dữ liệu gốc trong bốn file Excel
+## Câu hỏi chờ HCNS trả lời về mẫu KPI
 
-> Đã nhập **nguyên văn**, chưa sửa chỗ nào. Liệt kê ở đây để hỏi lại.
+> Mang mục này đi họp. Sáu câu, kèm số liệu đếm được từ chính bốn file
+> Excel trong `docs/mau-kpi/`.
+>
+> **Dữ liệu đã nhập NGUYÊN VĂN vào hệ thống, chưa sửa chỗ nào.** Sửa trước
+> khi HCNS xác nhận là làm hỏng mốc đối chiếu tuần 11 — mốc đó yêu cầu điểm
+> hệ thống tính ra khớp tuyệt đối với file Excel đang dùng.
 
-- [ ] **Cả BỐN file đều ghi `Chức danh: Kỹ sư triển khai`** — không riêng
-      file Shop Drawing. Nhiều khả năng ba file sau tạo bằng cách copy file
-      đầu rồi quên sửa ô chức danh. Seed đã gán đúng chức danh theo tên
-      file; cần HCNS xác nhận.
+### Câu 1 — Cả bốn file đều ghi sai chức danh
 
-- [ ] **Tên tiêu chí lệch giữa hai sheet** ở hai file *kỹ sư triển khai* và
-      *kỹ sư cấu hình*: sheet biểu mẫu ghi `Tiến độ thi công/ triển khai`,
-      sheet chi tiết ghi `Tiến độ triển khai`. Seed lấy tên ở **sheet biểu
-      mẫu** vì đó là bản in chính thức (BM.01).
+Ô "Chức danh" ở cả **bốn** file đều ghi `Kỹ sư triển khai`, kể cả file
+Shop Drawing và file bảo hành. Nhiều khả năng ba file sau được tạo bằng
+cách copy file đầu rồi quên sửa ô đó.
 
-- [ ] **Cột "Cách đo" bị chép trùng cho mọi KPI con trong cùng một nhóm**
-      — 12 nhóm bị. Nặng nhất là file Shop Drawing: **cả 6/6 nhóm** đều có
-      mọi KPI con dùng chung một câu cách đo. Ví dụ nhóm "Tính khả thi thi
-      công" có 5 KPI con khác hẳn nhau nhưng cùng một cách đo *"Tỷ lệ bản
-      vẽ không phát sinh lỗi thi công..."*.
-      **Nếu đúng như vậy thì 5 KPI con đó thực chất là một** — cần HCNS
-      xác nhận từng nhóm có cách đo riêng hay không.
+Hệ thống đã gán đúng chức danh theo tên file. **Xin xác nhận cách gán này
+đúng**, và nhờ HCNS sửa lại bốn file gốc.
 
-- [ ] **44 KPI con không có "Cách đo"**, tập trung ở hai file *kỹ sư triển
-      khai* và *kỹ sư cấu hình*: các nhóm "Chất lượng thi công công trình"
-      (6/6), "Xử lý hồ sơ dự án" (3/3), "Phối hợp & xử lý vấn đề" (6/6),
-      "An toàn, kỷ luật trên công trường" (4/4), "Đánh giá cải tiến" (2/2)
-      đều trống hoàn toàn.
+### Câu 2 — Tên tiêu chí lệch giữa hai sheet
 
-- [ ] **Định dạng "Mục tiêu" lẫn lộn bốn kiểu**, chưa chuẩn hoá:
-      | Kiểu | Số lần | Ví dụ |
-      |---|---|---|
-      | Có toán tử | 77 | `≥ 95%`, `≤ 3%`, `≤ 1 lỗi/tháng`, `≥ 2` |
-      | Số nguyên trần | 29 | `0`, `1`, `2` |
-      | Số thập phân | 4 | `0.95`, `0.03` |
-      | Chữ | 4 | `Đạt`, `Không mất/hư hỏng do chủ quan` |
-      Đáng chú ý: `0.95` và `≥ 95%` xuất hiện trong cùng một file, nhiều
-      khả năng cùng nghĩa. `1` có thể là `100%`.
-      Giai đoạn 1 chấm tay nên chỉ hiển thị, chưa ảnh hưởng. **Nhưng phải
-      chuẩn hoá trước khi bật `scoringMode = CALCULATED`** — công thức
-      hướng B cần số, không đọc được `Đạt`.
+Ở hai file *kỹ sư triển khai* và *kỹ sư cấu hình*, cùng một tiêu chí nhưng
+hai sheet ghi khác nhau:
 
-- [ ] **4 KPI con không có Mục tiêu**, đều ở nhóm "Đánh giá cải tiến" của
-      hai file *kỹ sư triển khai* và *kỹ sư cấu hình*.
+| Sheet | Tên ghi |
+|---|---|
+| Biểu mẫu (BM.01) | `Tiến độ thi công/ triển khai` |
+| Chi tiết | `Tiến độ triển khai` |
+
+Hệ thống lấy tên ở **sheet biểu mẫu** vì đó là bản in chính thức. Xin xác
+nhận.
+
+### Câu 3 — Cách đo bị chép trùng: CÂU QUAN TRỌNG NHẤT
+
+Nhiều nhóm có **mọi KPI con dùng chung một câu "Cách đo"**:
+
+| File | Nhóm chép trùng hoàn toàn | KPI con bị ảnh hưởng |
+|---|---|---|
+| **Shop Drawing** | **6/6 nhóm** | **31/31** |
+| Bảo hành | 2/7 nhóm | 7/29 |
+| Kỹ sư triển khai | 0 | 0 |
+| Kỹ sư cấu hình | 0 | 0 |
+
+Ví dụ cụ thể — nhóm *"Tính khả thi thi công"* (Shop Drawing) có 5 KPI con
+nội dung khác hẳn nhau:
+
+1. Bản vẽ phải phản ánh được phương án có thể triển khai thực tế
+2. Kiểm tra không gian lắp đặt, kích thước, cao độ, vị trí thiết bị...
+3. Thể hiện đầy đủ tuyến cáp, điểm đấu nối, giá đỡ...
+4. Kiểm tra sự phù hợp với hiện trạng và phối hợp với các bộ môn khác
+5. Chủ động phát hiện các điểm bất khả thi hoặc xung đột...
+
+...nhưng **cả 5 dùng chung một cách đo**: *"Tỷ lệ bản vẽ không phát sinh
+lỗi thi công = Số bản vẽ không gây lỗi / Tổng số bản vẽ × 100%"*.
+
+**Câu hỏi: 5 dòng này là 5 tiêu chí riêng, hay thực chất là MỘT tiêu chí
+được diễn giải thành 5 gạch đầu dòng?**
+
+**Hệ quả nếu là một:**
+
+| | Hiện tại | Nếu gộp |
+|---|---|---|
+| Số điểm trưởng phòng phải chấm, mỗi nhân viên mỗi tháng | **31** | **6** |
+| Với 5 nhân viên Shop Drawing | 155 lần chấm | 30 lần chấm |
+
+Đây không phải chuyện gọn gàng — **đây là chuyện hệ thống có được dùng
+thật hay không.** Bắt trưởng phòng chấm 31 điểm cho mỗi người mỗi tháng,
+trong khi 5 điểm liền nhau đo bằng đúng một công thức, là cách chắc chắn
+nhất để họ quay về dùng Excel.
+
+Nếu HCNS xác nhận là một, phần diễn giải nên chuyển vào ô **Mô tả** của
+tiêu chí cha thay vì tách thành KPI con có trọng số riêng.
+
+### Câu 4 — 42 KPI con không có "Cách đo"
+
+Hai file *kỹ sư triển khai* và *kỹ sư cấu hình* mỗi file có **5 nhóm trống
+hoàn toàn**, tổng **21 KPI con mỗi file**:
+
+- Chất lượng thi công công trình (6 con)
+- Xử lý hồ sơ dự án (3 con)
+- Phối hợp & xử lý vấn đề (6 con)
+- An toàn, kỷ luật trên công trường (4 con)
+- Đánh giá cải tiến (2 con)
+
+Thêm 4 con lẻ ở file bảo hành. **Không có cách đo thì người chấm dựa vào
+đâu để cho điểm?**
+
+### Câu 5 — Định dạng "Mục tiêu" lẫn bốn kiểu
+
+| Kiểu | Số lần | Ví dụ |
+|---|---|---|
+| Có toán tử | 77 | `≥ 95%`, `≤ 3%`, `≤ 1 lỗi/tháng`, `≥ 2` |
+| Số nguyên trần | 29 | `0`, `1`, `2` |
+| Số thập phân | 4 | `0.95`, `0.03` |
+| Chữ | 4 | `Đạt`, `Không mất/hư hỏng do chủ quan` |
+
+**`0.95` và `≥ 95%` xuất hiện trong CÙNG MỘT FILE và gần như chắc chắn
+cùng nghĩa** — chỉ khác cách gõ. Tương tự, `1` nhiều khả năng là `100%`.
+
+**Chuẩn hoá việc này KHÔNG phải làm cho đẹp — nó là điều kiện bắt buộc
+trước khi bật `scoringMode = CALCULATED`.** Công thức hướng B cần một con
+số để chia; nó không đọc được `Đạt`, và không phân biệt được `1` nghĩa là
+"1 lần" hay "100%". Chừng nào còn chấm tay (giai đoạn 1) thì chỉ là hiển
+thị, nên chưa gây lỗi — đó cũng là lý do dễ quên cho tới lúc bật tính điểm
+tự động rồi mới vỡ.
+
+### Câu 6 — 4 KPI con không có Mục tiêu
+
+Đều ở nhóm *"Đánh giá cải tiến"* của hai file *kỹ sư triển khai* và
+*kỹ sư cấu hình*:
+
+- Có báo cáo/đề xuất điều chỉnh giải pháp thiết kế
+- Đề xuất sản phẩm mới/ hãng mới cho các giải pháp cụ thể
 
 ## Chờ HR xác nhận
 
@@ -195,6 +264,15 @@
       chỉ có MỘT hàm phân quyền.
 
 ## Ưu tiên trung bình
+
+- [ ] `PUT /kpi-templates/:id/items` xoá sạch rồi tạo lại cả cây thay vì
+      đối chiếu từng dòng. Đúng với vài chục dòng như hiện nay, nhưng mọi
+      `id` của item đều đổi sau mỗi lần lưu. Lát cắt sau `ScorecardItem`
+      chụp lại nội dung nên không phụ thuộc `id` — **đừng để lát cắt nào
+      lưu tham chiếu tới `KpiTemplateItem.id`**.
+- [ ] Chưa có endpoint xem lịch sử phiên bản mẫu. `version` chỉ là số đếm;
+      nội dung của phiên bản cũ không lưu lại. Chấp nhận được vì phiếu KPI
+      chụp lại nội dung, nhưng không tra ngược được "tháng 8 mẫu ghi gì".
 
 - [ ] **CORS nới lỏng ở dev:** khi `NODE_ENV !== 'production'`, backend
       chấp nhận mọi cổng của `localhost` và `127.0.0.1`
