@@ -17,7 +17,7 @@ src/
 └── modules/
     ├── auth/         # ĐÃ XONG — đăng nhập, JWT, refresh token, đổi mật khẩu
     ├── org/          # LÕI: phòng ban, chức danh, nhân viên
-    ├── kpi-template/ # (tuần 5–6) mẫu KPI theo chức danh
+    ├── kpi-template/ # ĐÃ XONG — mẫu KPI theo chức danh, kiểm trọng số
     ├── scorecard/    # (tuần 7–8) giao KPI tháng, ký nhận
     ├── scoring/      # (tuần 9–10) hai cột chấm, tính điểm, xếp loại
     ├── dashboard/    # (tuần 12) tổng hợp, theo dõi tiến độ nộp
@@ -125,6 +125,25 @@ hỏng giá trị bằng chứng của cả bảng.
 Với các thao tác nhẹ hơn (`org`), gọi `log(entry)` không kèm transaction là
 chấp nhận được: mất một dòng log không đáng để huỷ thao tác đã thành công.
 
+### Trọng số: cộng bằng số nguyên, không dùng số thực
+
+Backend cộng bằng `Prisma.Decimal`. Frontend **phải ra cùng kết quả**, nếu
+không thanh tổng trọng số báo xanh mà API vẫn từ chối xuất bản.
+
+`web/src/utils/weight.ts` quy trọng số về số nguyên phần-trăm-của-trăm rồi
+cộng, thay vì dùng `+` của JavaScript. Lý do rất cụ thể:
+
+```
+28.4 + 35.8 + 35.8  ->  99.99999999999999
+28.6 + 35.7 + 35.7  -> 100.00000000000001
+```
+
+Cả hai mẫu này hợp lệ, nhưng cộng bằng số thực thì màn hình báo đỏ và
+người dùng không hiểu vì sao. Có 12 test phủ phần này.
+
+Nút "Chia đều trọng số" cũng dồn phần dư vào các phần đầu: chia 100 cho 3
+ra `33.34 / 33.33 / 33.33`, không phải `33.33` ba lần rồi lệch mất 0.01.
+
 ## Frontend — `web/`
 
 ```
@@ -146,7 +165,8 @@ web/
     ├── components/        # AdminLayout, TemporaryPasswordModal
     └── pages/
         ├── LoginPage, ChangePasswordPage, HomePage
-        └── admin/         # DepartmentsPage, JobTitlesPage, UsersPage
+        └── admin/         # DepartmentsPage, JobTitlesPage, UsersPage,
+                           # KpiTemplatesPage, KpiTemplateEditorPage
 ```
 
 ### Bộ công cụ đã chốt
@@ -204,11 +224,12 @@ thêm route mới.
 
 ### Menu và route theo vai trò
 
-| Vai trò | Thấy menu |
-|---|---|
-| `ADMIN`, `HR` | Phòng ban · Chức danh · Nhân viên |
-| `MANAGER` | Nhân viên (chỉ xem, không có nút sửa) |
-| `EXECUTIVE`, `STAFF` | Không có menu quản trị |
+| Vai trò | Thấy menu | Ghi được |
+|---|---|---|
+| `ADMIN`, `HR` | Phòng ban · Chức danh · Nhân viên · Mẫu KPI | có |
+| `EXECUTIVE` | cả bốn mục, toàn công ty | không |
+| `MANAGER` | Nhân viên · Mẫu KPI, trong phạm vi phòng mình | không |
+| `STAFF` | không có menu quản trị | không |
 
 **Ẩn menu và chặn route ở giao diện KHÔNG PHẢI BẢO MẬT.** Chúng chỉ để
 người dùng không bấm vào thứ sẽ báo lỗi. Backend chặn độc lập bằng

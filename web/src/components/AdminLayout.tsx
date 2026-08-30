@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Layout, Menu, Space, Tag, Typography } from 'antd';
 import {
   ApartmentOutlined,
+  FileTextOutlined,
   IdcardOutlined,
   LogoutOutlined,
   TeamOutlined,
@@ -46,6 +47,14 @@ export function AdminLayout() {
       key: '/admin/users',
       icon: <TeamOutlined />,
       label: <Link to="/admin/users">Nhân viên</Link>,
+    });
+  }
+  // Mẫu KPI: STAFF không truy cập, các vai trò còn lại xem được
+  if (coTheXemNhanVien(user?.role)) {
+    mucMenu.push({
+      key: '/admin/kpi-templates',
+      icon: <FileTextOutlined />,
+      label: <Link to="/admin/kpi-templates">Mẫu KPI</Link>,
     });
   }
 

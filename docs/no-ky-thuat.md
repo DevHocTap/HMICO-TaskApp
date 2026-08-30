@@ -281,9 +281,13 @@ tự động rồi mới vỡ.
       **Khi triển khai thật phải đặt `NODE_ENV=production`**, nếu quên thì
       mọi trang chạy ở localhost của máy nạn nhân đều gọi được API.
 
-- [ ] `web/` chưa có test nào — chưa cài bộ chạy test. Hàm
-      `danhGiaMatKhau` và logic hàng đợi refresh trong `api/client.ts` là
-      hai chỗ đáng phủ trước nhất.
+- [ ] `web/` đã có Vitest, mới phủ `utils/weight.ts` (12 test). Còn thiếu
+      test cho `danhGiaMatKhau` và logic hàng đợi refresh trong
+      `api/client.ts`.
+- [ ] Màn soạn mẫu chưa cảnh báo khi rời trang lúc còn thay đổi chưa lưu.
+- [ ] Màn soạn mẫu sắp xếp bằng nút lên/xuống, cố ý không làm kéo thả —
+      người dùng là trưởng phòng không rành máy tính. Xem lại sau khi có
+      phản hồi thật.
 - [ ] Gói frontend 840 kB (276 kB gzip), gần hết là Ant Design. Chấp nhận
       được với phần mềm nội bộ chạy trong mạng công ty; nếu cần giảm thì
       tách chunk theo route.

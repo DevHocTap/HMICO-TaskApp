@@ -60,16 +60,29 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   - Ba màn hình quản trị: cây phòng ban (có cảnh báo thiếu trưởng bộ phận),
     chức danh, nhân viên
   - `scripts/verify-org.sh`: **46 kiểm tra bằng curl**
+- **Tuần 5–6 `kpi-template` XONG CẢ HAI ĐẦU** (30/08):
+  - Bỏ hẳn `KpiDefinition`; `KpiTemplateItem` tự chứa nội dung
+  - Chín endpoint, kiểm trọng số dồn vào lúc xuất bản, nháp cho phép lệch
+  - Kiểm theo LOẠI MẪU: mẫu chức danh 70, mẫu hệ thống 30
+  - Mọi phép cộng dùng Decimal ở backend, số nguyên đơn vị ở frontend
+  - `PUT :id/items` lưu cả cây một transaction; sửa mẫu đã xuất bản thì
+    tự về DRAFT
+  - Mẫu hệ thống có endpoint riêng, chỉ ADMIN; không ai xoá được
+  - **Bốn mẫu thật của phòng Kỹ thuật đã nhập từ Excel**, cả bốn xuất bản
+    được (file gốc đúng 70/100)
+  - Màn danh sách mẫu + màn soạn cây hai cấp: thanh tổng trọng số cập nhật
+    ngay khi gõ, nút chia đều, xem trước theo bố cục biểu mẫu
+  - `scripts/verify-kpi-template.sh`: **35 kiểm tra**
 - **Chuyển sang ESM + Vitest** (30/08): `"type": "module"`, import tương đối
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 108 test unit + 3 e2e + 35 + 46 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 130 test backend + 12 test frontend + 3 e2e + 35 + 60 + 35 kiểm tra curl.**
 
 ## Đang làm
 
-**Tuần 5–6: `kpi-template`** — chưa bắt đầu. Bị chặn bởi bốn file Excel KPI
-phòng Kỹ thuật.
+**Tuần 7–8: `scorecard`** — chưa bắt đầu. Giao KPI theo tháng, ký nhận,
+sao chép từ kỳ trước.
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 

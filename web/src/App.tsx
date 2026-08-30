@@ -9,6 +9,8 @@ import { HomePage } from './pages/HomePage';
 import { DepartmentsPage } from './pages/admin/DepartmentsPage';
 import { JobTitlesPage } from './pages/admin/JobTitlesPage';
 import { UsersPage } from './pages/admin/UsersPage';
+import { KpiTemplatesPage } from './pages/admin/KpiTemplatesPage';
+import { KpiTemplateEditorPage } from './pages/admin/KpiTemplateEditorPage';
 import { coTheXemNhanVien, coTheXemToChuc } from './auth/permissions';
 
 export function App() {
@@ -33,6 +35,11 @@ export function App() {
 
           <Route element={<RoleRoute duocPhep={coTheXemNhanVien} />}>
             <Route path="/admin/users" element={<UsersPage />} />
+            <Route path="/admin/kpi-templates" element={<KpiTemplatesPage />} />
+            <Route
+              path="/admin/kpi-templates/:id/edit"
+              element={<KpiTemplateEditorPage />}
+            />
           </Route>
         </Route>
       </Route>
