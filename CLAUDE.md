@@ -58,3 +58,19 @@ Dev: WSL2 Ubuntu 24.04. Triển khai sau: Viettel Cloud, Ubuntu 24.04.
 - Tính năng lớn: trình bày hướng tiếp cận, chờ xác nhận rồi mới viết code.
 - Làm từng bước nhỏ, mỗi bước chạy được rồi mới sang bước sau.
 - Nếu thấy thiết kế hiện tại có vấn đề, nói thẳng thay vì làm theo.
+
+### Báo cáo khi xong một giai đoạn — BẮT BUỘC
+
+Liệt kê **từng mục trong prompt**, kèm trạng thái và **tên file/hàm hiện
+thực nó**. Mục nào chưa làm thì ghi rõ "CHƯA LÀM".
+
+```
+| Mục | Trạng thái | Hiện thực ở |
+|-----|------------|-------------|
+| 1.1 Bảng Period | xong | prisma/schema.prisma, migration scorecard |
+| 1.2 Tự sinh kỳ  | CHƯA LÀM | — |
+```
+
+Lý do có quy tắc này: đã từng báo "GIAI ĐOẠN 1 XONG" trong khi mục 1.2
+chưa hề tồn tại. Toàn bộ test vẫn xanh, vì **không có test nào cho thứ
+chưa được viết** — test xanh không chứng minh đã làm đủ.

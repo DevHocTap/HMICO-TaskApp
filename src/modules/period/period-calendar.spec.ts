@@ -119,9 +119,43 @@ describe('cacKyCanBaoDam — quy tắc bù kỳ', () => {
     }
   });
 
-  it('tháng 12 thì kéo theo cả kỳ năm sau', () => {
-    const ma = cacKyCanBaoDam(new Date('2026-12-10T03:00:00Z')).map((k) => k.code);
-    expect(ma.sort()).toEqual(['2026', '2026-12', '2026-Q4', '2027', '2027-01', '2027-Q1']);
+  describe('khởi động vào tháng 12 — vắt sang năm mới', () => {
+    const ds = cacKyCanBaoDam(new Date('2026-12-10T03:00:00Z'));
+    const theoMa = new Map(ds.map((k) => [k.code, k]));
+
+    it('sinh đủ sáu kỳ của cả hai năm', () => {
+      expect(ds.map((k) => k.code).sort()).toEqual([
+        '2026', '2026-12', '2026-Q4', '2027', '2027-01', '2027-Q1',
+      ]);
+    });
+
+    it('2027-01 nối lên 2027-Q1, rồi lên 2027 — không lạc sang cây năm cũ', () => {
+      expect(theoMa.get('2027-01')!.parentCode).toBe('2027-Q1');
+      expect(theoMa.get('2027-Q1')!.parentCode).toBe('2027');
+      expect(theoMa.get('2027')!.parentCode).toBeNull();
+    });
+
+    it('2026-12 vẫn nối lên 2026-Q4 rồi 2026', () => {
+      expect(theoMa.get('2026-12')!.parentCode).toBe('2026-Q4');
+      expect(theoMa.get('2026-Q4')!.parentCode).toBe('2026');
+    });
+
+    it('mọi kỳ cha đứng TRƯỚC con, kể cả khi vắt qua hai năm', () => {
+      const viTri = new Map(ds.map((k, i) => [k.code, i]));
+      for (const k of ds) {
+        if (!k.parentCode) continue;
+        expect(viTri.has(k.parentCode)).toBe(true);
+        expect(viTri.get(k.parentCode)!).toBeLessThan(viTri.get(k.code)!);
+      }
+    });
+
+    it('ngày tháng của kỳ năm mới đúng', () => {
+      const q1 = theoMa.get('2027-Q1')!;
+      expect(q1.startDate.toISOString().slice(0, 10)).toBe('2027-01-01');
+      expect(q1.endDate.toISOString().slice(0, 10)).toBe('2027-03-31');
+      const t1 = theoMa.get('2027-01')!;
+      expect(t1.submitDeadline!.toISOString().slice(0, 10)).toBe('2027-02-02');
+    });
   });
 
   it('không sinh trùng mã dù hai tháng cùng quý', () => {
