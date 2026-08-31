@@ -461,7 +461,14 @@ model ScorecardItem {
 // Thay bảng Approval cũ: một phiếu có thể bị trả lại nhiều lần,
 // mỗi lần một lý do — một cột comment sẽ bị ghi đè.
 enum ScorecardAction {
+  /// Phiếu được sinh ra (từ mẫu, hoặc chép từ kỳ trước)
+  CREATE
+  /// Sửa cây item của phiếu
+  UPDATE_ITEMS
   PROPOSE
+  /// Gửi lại nguyên trạng từ DISPUTED sau khi hai bên đã trao đổi trực tiếp.
+  /// Bắt buộc kèm ghi chú — xem docs/quy-tac-nghiep-vu.md mục 5.1.
+  RE_PROPOSED_UNCHANGED
   ACCEPT
   DISPUTE
   SELF_SCORE

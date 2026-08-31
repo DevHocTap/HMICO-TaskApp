@@ -265,6 +265,16 @@ tự động rồi mới vỡ.
 
 ## Ưu tiên trung bình
 
+- [ ] **Chức danh "Tổ trưởng" và "Trưởng phòng" chưa có mẫu KPI xuất bản.**
+      Endpoint `GET /scorecards/readiness` phát hiện ra khi chạy kiểm chứng:
+      tổ Shop Drawing có trưởng bộ phận, ai cũng có chức danh, nhưng vẫn
+      chưa sẵn sàng vì chức danh của tổ trưởng thiếu mẫu. **Trưởng bộ phận
+      cũng phải được giao KPI**, không chỉ nhân viên — cần HCNS cấp biểu mẫu
+      cho các chức danh quản lý.
+- [ ] `PUT /scorecards/:id/items` mới chỉ sửa được trọng số, chưa thêm/xoá
+      dòng. Đủ cho việc điều chỉnh phiếu trước khi ký; thêm/xoá dòng thì
+      sửa ở mẫu rồi sinh lại phiếu.
+
 - [ ] `PUT /kpi-templates/:id/items` xoá sạch rồi tạo lại cả cây thay vì
       đối chiếu từng dòng. Đúng với vài chục dòng như hiện nay, nhưng mọi
       `id` của item đều đổi sau mỗi lần lưu. Lát cắt sau `ScorecardItem`
