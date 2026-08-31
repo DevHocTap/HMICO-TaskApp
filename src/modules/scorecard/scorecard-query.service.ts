@@ -269,6 +269,19 @@ export class ScorecardQueryService {
       .filter((u) => !u.jobTitle)
       .map((u) => ({ userId: u.id, employeeCode: u.employeeCode, fullName: u.fullName }));
 
+    // Trưởng bộ phận không tự chấm mình được. Không chỉ ra ở đây thì trưởng
+    // phòng bấm "Sinh phiếu" xong mới biết phiếu của chính mình bị bỏ qua.
+    const tuChamChinhMinh = nhanVien
+      .filter((u) => phong.managerId !== null && u.id === phong.managerId)
+      .map((u) => ({
+        userId: u.id,
+        employeeCode: u.employeeCode,
+        fullName: u.fullName,
+        reason:
+          'Đang là trưởng bộ phận của chính phòng này, không tự chấm mình được. ' +
+          'Cần chỉ định người chấm khác khi sinh phiếu.',
+      }));
+
     const chucDanhThieuMau = [
       ...new Map(
         nhanVien
@@ -281,6 +294,7 @@ export class ScorecardQueryService {
       phong.managerId !== null &&
       thieuChucDanh.length === 0 &&
       chucDanhThieuMau.length === 0 &&
+      tuChamChinhMinh.length === 0 &&
       mauHeThong !== null;
 
     return {
@@ -293,6 +307,8 @@ export class ScorecardQueryService {
       missingSystemTemplate: mauHeThong === null,
       employeesWithoutJobTitle: thieuChucDanh,
       jobTitlesWithoutPublishedTemplate: chucDanhThieuMau,
+      /** Người không thể tự chấm mình — cần chỉ định người chấm khác. */
+      employeesNeedingExternalEvaluator: tuChamChinhMinh,
     };
   }
 

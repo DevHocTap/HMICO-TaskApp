@@ -132,7 +132,9 @@ TAO=$(echo "$KQ" | jq_ "d['created']"); BQ=$(echo "$KQ" | jq_ "d['skipped']")
 [ "$TAO" = "1" ] && pass "tạo 1 phiếu cho người đủ điều kiện" || fail "created=$TAO (mong đợi 1)"
 [ "$BQ" = "2" ] && pass "bỏ qua 2 người, không làm hỏng cả lô" || fail "skipped=$BQ (mong đợi 2)"
 echo "$KQ" | grep -q "Đã có phiếu" && pass "nêu lý do: đã có phiếu" || fail "không nêu: $KQ"
-echo "$KQ" | grep -q "chưa có mẫu KPI" && pass "nêu lý do: chức danh chưa có mẫu xuất bản" || fail "không nêu: $KQ"
+# Tổ trưởng bị chặn vì tự chấm chính mình — lý do này bắt TRƯỚC cả việc tra
+# mẫu KPI, vì nó là vấn đề căn bản hơn.
+echo "$KQ" | grep -q "tự chấm chính mình" && pass "nêu lý do: trưởng bộ phận không tự chấm mình được" || fail "không nêu: $KQ"
 
 buoc "PHÒNG CHƯA CÓ TRƯỞNG BỘ PHẬN / NGƯỜI THIẾU CHỨC DANH"
 P_MKT=$(sql "SELECT id FROM \"Department\" WHERE code='MKT';")
@@ -167,6 +169,30 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: applicati
 [ "$MA" = "201" ] && pass "ADMIN chỉ định người chấm thủ công -> tạo được phiếu" || fail "-> $MA (mong đợi 201)"
 
 # ============================================ 4. KÝ NHẬN
+buoc "CHẶN TỰ CHẤM CHÍNH MÌNH"
+# Tổ trưởng Shop Drawing là managerId của chính tổ đó. Không chặn thì phiếu
+# của họ sẽ tự gửi, tự ký, và ở lát cắt chấm điểm là tự cho mình điểm.
+U_TT=$(sql "SELECT id FROM \"User\" WHERE email='totruong.shopdrawing@hmico.vn';")
+sql "UPDATE \"User\" SET \"jobTitleId\"=(SELECT id FROM \"JobTitle\" WHERE code='KT-SD-NV') WHERE id='$U_TT';" >/dev/null
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_TT\",\"periodId\":\"$KY_08\"}" "$API/scorecards")
+echo "$KQ" | grep -q "tự chấm chính mình" && pass "sinh phiếu cho trưởng bộ phận của chính phòng -> bị chặn" \
+  || fail "không chặn tự chấm: $KQ"
+
+KQ=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/scorecards/readiness?departmentId=$P_KTSD")
+echo "$KQ" | grep -q "employeesNeedingExternalEvaluator" && pass "readiness có mục người cần chỉ định người chấm khác" \
+  || fail "readiness thiếu mục này: $KQ"
+echo "$KQ" | grep -q "Đang là trưởng bộ phận của chính phòng này" && pass "readiness nêu rõ lý do" || fail "$KQ"
+
+# Đường thoát: chỉ định người chấm khác
+MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_TT\",\"periodId\":\"$KY_08\",\"evaluatorId\":\"$U_ADMIN\"}" "$API/scorecards")
+[ "$MA" = "201" ] && pass "chỉ định người chấm khác -> tạo được phiếu" || fail "-> $MA (mong đợi 201)"
+sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_TT');" >/dev/null
+sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_TT');" >/dev/null
+sql "DELETE FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_TT';" >/dev/null
+sql "UPDATE \"User\" SET \"jobTitleId\"=(SELECT id FROM \"JobTitle\" WHERE code='TT') WHERE id='$U_TT';" >/dev/null
+
 buoc "LUỒNG KÝ NHẬN"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' -d '{}' "$API/scorecards/$SC1/propose")
 [ "$MA" = "200" ] && pass "trưởng bộ phận gửi phiếu đi ký -> 200" || fail "propose -> $MA"
@@ -211,24 +237,60 @@ echo "$LY_DO" | grep -q "quá cao" && pass "lý do phản đối còn nguyên tr
 CACHE=$(sql "SELECT \"disputeReason\" FROM \"Scorecard\" WHERE id='$SC1';")
 echo "$CACHE" | grep -q "quá cao" && pass "cột cache disputeReason khớp sự kiện" || fail "cache lệch: $CACHE"
 
-buoc "SỬA PHIẾU ĐÃ ACCEPTED -> VỀ DRAFT"
-IT=$(sql "SELECT id FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1' AND \"parentId\" IS NULL AND section='BSC_WORK' ORDER BY \"displayOrder\" LIMIT 1;")
-W=$(sql "SELECT weight FROM \"ScorecardItem\" WHERE id='$IT';")
-MA=$(ma -X PUT -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' \
-  -d "{\"items\":[{\"itemId\":\"$IT\",\"weight\":$W}]}" "$API/scorecards/$SC1/items")
-[ "$MA" = "200" ] && pass "sửa item phiếu đã ký -> 200" || fail "-> $MA"
+buoc "PUT /items — THÊM, SỬA, XOÁ DÒNG"
+# Dựng lại cả cây từ dữ liệu hiện có, thêm một tiêu chí mới
+python3 - "$SC1" > "$TMP/cay.json" <<'PYEOF'
+import json, subprocess, sys
+sc = sys.argv[1]
+raw = subprocess.run(['docker','exec','kpi-postgres','psql','-U','kpi_dev','-d','kpi_db','-t','-A','-F','\t','-c',
+  f'SELECT id, COALESCE("parentId",\'\'), name, section, weight, "displayOrder", COALESCE("templateItemId",\'\') '
+  f'FROM "ScorecardItem" WHERE "scorecardId"=\'{sc}\' ORDER BY section, "displayOrder"'],
+  capture_output=True, text=True).stdout.strip().split('\n')
+items=[]
+for line in raw:
+    if not line.strip(): continue
+    i,p,n,sec,w,o,t = line.split('\t')
+    items.append({'key':i,'parentKey':p or None,'name':n,'section':sec,
+                  'weight':float(w),'displayOrder':int(o),
+                  'templateItemId': t or None})
+# Bớt 10 khỏi tiêu chí BSC đầu tiên, thêm một tiêu chí mới trọng số 10
+for it in items:
+    if it['parentKey'] is None and it['section']=='BSC_WORK':
+        it['weight'] = round(it['weight']-10, 2); break
+items.append({'key':'moi-1','parentKey':None,'name':'Tiêu chí thêm tay',
+              'section':'BSC_WORK','weight':10,'displayOrder':99,'templateItemId':None})
+print(json.dumps({'items':items}, ensure_ascii=False))
+PYEOF
+SO_TRUOC=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1';")
+MA=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "Authorization: Bearer $AT_TT" \
+  -H 'Content-Type: application/json' --data-binary "@$TMP/cay.json" "$API/scorecards/$SC1/items")
+[ "$MA" = "200" ] && pass "lưu cả cây, THÊM một tiêu chí mới -> 200" || fail "-> $MA"
+SO_SAU=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1';")
+[ "$SO_SAU" = "$((SO_TRUOC+1))" ] && pass "số dòng tăng đúng 1 ($SO_TRUOC -> $SO_SAU)" || fail "$SO_TRUOC -> $SO_SAU"
+sql "SELECT name FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1' AND name='Tiêu chí thêm tay';" | grep -q "thêm tay" \
+  && pass "tiêu chí mới có trong phiếu" || fail "không thấy tiêu chí mới"
+TONG=$(sql "SELECT sum(weight) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1' AND \"parentId\" IS NULL;")
+[ "$TONG" = "100.00" ] && pass "tổng vẫn đúng 100 sau khi thêm dòng" || fail "tổng = $TONG"
+CON=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1' AND \"parentId\" IS NOT NULL;")
+[ "$CON" = "31" ] && pass "quan hệ cha con giữ nguyên 31 KPI con" || fail "còn $CON KPI con"
+SNAP=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1' AND \"templateItemId\" IS NOT NULL;")
+[ "$SNAP" = "$SO_TRUOC" ] && pass "giữ nguyên nguồn gốc mẫu cho $SNAP dòng cũ" || fail "chỉ còn $SNAP dòng có templateItemId"
 TT=$(sql "SELECT \"assignStatus\" FROM \"Scorecard\" WHERE id='$SC1';")
-[ "$TT" = "DRAFT" ] && pass "phiếu tự quay về DRAFT, phải ký lại" || fail "status=$TT"
+[ "$TT" = "DRAFT" ] && pass "phiếu đã ký tự quay về DRAFT sau khi sửa" || fail "status=$TT"
 SO=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityId\"='$SC1' AND action='UPDATE_ITEMS';")
-[ "$SO" = "1" ] && pass "có AuditLog UPDATE_ITEMS" || fail "có $SO bản ghi"
+[ "$SO" -ge 1 ] && pass "có AuditLog UPDATE_ITEMS" || fail "có $SO bản ghi"
 
-buoc "TRỌNG SỐ SAI THÌ KHÔNG GỬI ĐI KÝ ĐƯỢC"
-MA=$(ma -X PUT -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' \
-  -d "{\"items\":[{\"itemId\":\"$IT\",\"weight\":5}]}" "$API/scorecards/$SC1/items")
-KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' -d '{}' "$API/scorecards/$SC1/propose")
-echo "$KQ" | grep -q "trọng số" && pass "propose khi trọng số lệch -> bị chặn" || fail "không chặn: $KQ"
-echo "$KQ" | grep -qE "9[0-9](\.|,)?" && pass "thông báo nêu con số thực tế" || fail "không nêu số: $KQ"
-sql "UPDATE \"ScorecardItem\" SET weight=$W WHERE id='$IT';" >/dev/null
+buoc "PUT /items — TỪ CHỐI CÂY SAI"
+KQ=$(curl -s -X PUT -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' \
+  -d '{"items":[{"key":"a","parentKey":null,"name":"A","section":"BSC_WORK","weight":60,"displayOrder":1}]}' \
+  "$API/scorecards/$SC1/items")
+echo "$KQ" | grep -q "60" && pass "trọng số lệch -> từ chối, nêu con số" || fail "không chặn: $KQ"
+KQ=$(curl -s -X PUT -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' \
+  -d '{"items":[{"key":"a","parentKey":null,"name":"A","section":"BSC_WORK","weight":70,"displayOrder":1},{"key":"b","parentKey":"a","name":"B","section":"BSC_WORK","weight":100,"displayOrder":1},{"key":"c","parentKey":"b","name":"C","section":"BSC_WORK","weight":100,"displayOrder":1}]}' \
+  "$API/scorecards/$SC1/items")
+echo "$KQ" | grep -q "hai cấp" && pass "cây ba cấp -> từ chối" || fail "không chặn cấp 3: $KQ"
+SO_GIU=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1';")
+[ "$SO_GIU" = "$SO_SAU" ] && pass "lưu thất bại thì phiếu giữ nguyên $SO_GIU dòng" || fail "còn $SO_GIU dòng"
 
 # ============================================ 5. SAO CHÉP
 buoc "SAO CHÉP TỪ KỲ TRƯỚC"
@@ -247,8 +309,9 @@ SO=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"periodId\"='$KY_09' AND (\"
 [ "$SO" = "0" ] && pass "không mang theo dấu vết duyệt của kỳ cũ" || fail "$SO phiếu còn dấu vết"
 SO=$(sql "SELECT count(*) FROM \"ScorecardItem\" i JOIN \"Scorecard\" s ON s.id=i.\"scorecardId\" WHERE s.\"periodId\"='$KY_09' AND (i.\"selfScore\" IS NOT NULL OR i.\"managerScore\" IS NOT NULL);")
 [ "$SO" = "0" ] && pass "không mang theo điểm số của kỳ cũ" || fail "$SO dòng còn điểm"
+SO_NGUON_ITEM=$(sql "SELECT count(*) FROM \"ScorecardItem\" i JOIN \"Scorecard\" s ON s.id=i.\"scorecardId\" WHERE s.\"periodId\"='$KY_08' AND s.\"ownerUserId\"='$U_NV1';")
 SO_ITEM=$(sql "SELECT count(*) FROM \"ScorecardItem\" i JOIN \"Scorecard\" s ON s.id=i.\"scorecardId\" WHERE s.\"periodId\"='$KY_09' AND s.\"ownerUserId\"='$U_NV1';")
-[ "$SO_ITEM" = "40" ] && pass "chép nguyên 40 dòng (6+31 Mục 1, 3 Mục 2)" || fail "có $SO_ITEM dòng"
+[ "$SO_ITEM" = "$SO_NGUON_ITEM" ] && pass "chép nguyên $SO_ITEM dòng, đúng bằng phiếu nguồn" || fail "nguồn $SO_NGUON_ITEM dòng, chép ra $SO_ITEM dòng"
 
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"departmentId\":\"$P_KTSD\",\"sourcePeriodId\":\"$KY_08\",\"targetPeriodId\":\"$KY_09\"}" \

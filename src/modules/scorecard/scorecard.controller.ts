@@ -24,6 +24,7 @@ import {
   ListScorecardsQuery,
   ProposeDto,
   ReadinessQuery,
+  SaveScorecardItemsDto,
 } from './dto/scorecard.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -170,14 +171,15 @@ export class ScorecardController {
     return this.assign.dispute(id, dto.reason, user, req.ip);
   }
 
+  /** Lưu cả cây item một lần: thêm, sửa, xoá dòng trong một transaction. */
   @Roles(...VAI_TRO_GIAO_KPI)
   @Put(':id/items')
-  updateItems(
+  saveItems(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { items: Array<{ itemId: string; weight: number }> },
+    @Body() dto: SaveScorecardItemsDto,
     @CurrentUser() user: AuthenticatedUser,
     @Req() req: RequestInfo,
   ) {
-    return this.assign.updateItemWeights(id, body.items ?? [], user, req.ip);
+    return this.assign.saveItems(id, dto.items, user, req.ip);
   }
 }

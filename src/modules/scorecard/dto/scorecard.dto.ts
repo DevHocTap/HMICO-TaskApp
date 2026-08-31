@@ -1,10 +1,11 @@
-import { AssignStatus, ResultStatus } from '@prisma/client';
+import { AssignStatus, KpiSection, ResultStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -12,6 +13,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 
 export class CreateScorecardDto {
@@ -76,6 +78,78 @@ export class BatchProposeDto {
 
   @IsUUID('4', { message: 'Kỳ đánh giá không hợp lệ' })
   periodId!: string;
+}
+
+/**
+ * Một dòng khi sửa cây item của phiếu.
+ *
+ * `key` là khoá TẠM do giao diện sinh; dòng mới chưa có id. Quan hệ cha con
+ * biểu diễn bằng key/parentKey nên gửi được cả cây mới lẫn cây đã sửa trong
+ * một lần — giống hệt màn soạn mẫu KPI.
+ */
+export class ScorecardItemInput {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  key!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  parentKey?: string | null;
+
+  @IsString()
+  @MinLength(1, { message: 'Tên tiêu chí không được để trống' })
+  @MaxLength(500)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string | null;
+
+  @IsEnum(KpiSection, { message: 'Mục không hợp lệ' })
+  section!: KpiSection;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  measurementText?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  measureMethod?: string | null;
+
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'Trọng số chỉ được có tối đa 2 chữ số thập phân' },
+  )
+  @Min(0, { message: 'Trọng số không được âm' })
+  @Max(100, { message: 'Trọng số không vượt quá 100' })
+  weight!: number;
+
+  @IsInt()
+  @Min(0)
+  displayOrder!: number;
+
+  /**
+   * Nguồn gốc từ mẫu KPI, nếu dòng này vốn chép từ mẫu.
+   *
+   * Chỉ để TRA NGUỒN GỐC. Không bao giờ đọc nội dung từ mẫu qua cột này —
+   * sửa mẫu về sau không được làm đổi phiếu đã lập.
+   */
+  @IsOptional()
+  @IsUUID('4')
+  templateItemId?: string | null;
+}
+
+export class SaveScorecardItemsDto {
+  @IsArray()
+  @ArrayMaxSize(500, { message: 'Phiếu KPI không được quá 500 dòng' })
+  @ValidateNested({ each: true })
+  @Type(() => ScorecardItemInput)
+  items!: ScorecardItemInput[];
 }
 
 export class DisputeDto {

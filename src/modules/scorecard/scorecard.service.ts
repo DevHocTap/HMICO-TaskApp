@@ -469,6 +469,21 @@ export class ScorecardService {
         `Phòng "${nguoi.department.name}" chưa có trưởng bộ phận — chưa biết ai duyệt KPI`,
       );
     }
+
+    // KHÔNG cho ai tự chấm chính mình.
+    //
+    // Trưởng bộ phận là managerId của chính phòng mình, nên nếu không chặn
+    // thì phiếu của họ sẽ tự gửi, tự ký, và ở lát cắt chấm điểm là tự cho
+    // mình điểm. Ký nhận và chấm điểm chỉ có nghĩa khi hai bên là hai người.
+    const nguoiCham = evaluatorIdChiDinh ?? nguoi.department?.managerId ?? null;
+    if (nguoiCham && nguoiCham === nguoi.id) {
+      lyDo.push(
+        'Không thể tự chấm chính mình — người này đang là trưởng bộ phận của ' +
+          `phòng "${nguoi.department?.name ?? ''}". Cần chỉ định người chấm khác, ` +
+          'thường là trưởng phòng cấp trên.',
+      );
+    }
+
     return lyDo.length > 0 ? lyDo.join('; ') : null;
   }
 
