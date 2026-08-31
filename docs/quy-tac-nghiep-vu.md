@@ -105,6 +105,34 @@ Ba tiêu chí Mục 2 (`COMPLIANCE`) đều là tiêu chí lá.
 Service phải chặn: nhập điểm vào tiêu chí có con → lỗi; tiêu chí lá mà lại
 có con → lỗi.
 
+### Trọng số cấp 1 và cấp 2 có ngữ nghĩa KHÁC NHAU
+
+Đây là chỗ dễ hiểu nhầm nhất của toàn bộ mô hình.
+
+| Cấp | Ngữ nghĩa | Cộng lại bằng |
+|---|---|---|
+| Tiêu chí cấp 1 | **Tuyệt đối** — phần trăm của cả phiếu | 70 (BSC) / 30 (nội quy) |
+| KPI con | **Tương đối** — phần trăm trong nội bộ tiêu chí cha | 100 |
+
+Một KPI con trọng số `20` **không phải 20% của phiếu**. Nó là 20% của tiêu
+chí cha; nếu cha có trọng số 15 thì phần đóng góp thật vào phiếu là:
+
+```
+đóng góp thật = trọng số cha × (trọng số con ÷ 100)
+              = 15 × (20 ÷ 100) = 3 phần trăm của phiếu
+```
+
+Kiểm chứng bằng mẫu Shop Drawing thật: tiêu chí *"Tiến độ hoàn thành Shop
+Drawing"* trọng số 15, có 5 KPI con mỗi con 20. Đóng góp thật của mỗi con
+là `15 × 0,2 = 3`, năm con cộng lại đúng 15 — bằng trọng số của cha.
+
+**Vì sao tách hai ngữ nghĩa:** trưởng phòng thêm hoặc bớt một KPI con thì
+chỉ phải chia lại trong nội bộ tiêu chí đó (nút "Chia đều"), không phải
+tính lại toàn bộ phiếu. Nếu dùng trọng số tuyệt đối cho cả hai cấp thì thêm
+một dòng là phải sửa cả 37 dòng.
+
+Công thức tính điểm ở mục 3 dựa đúng vào cách chia này.
+
 ### Ràng buộc trọng số — kiểm theo LOẠI MẪU
 
 Mục 2 nằm ở một **mẫu hệ thống riêng**, không nằm chung mẫu chức danh. Nên
@@ -252,8 +280,22 @@ DRAFT → PROPOSED → ACCEPTED
 
 | Chuyển | Ai làm |
 |---|---|
-| `DRAFT` → `PROPOSED` | Trưởng bộ phận |
-| `PROPOSED` → `ACCEPTED` / `DISPUTED` | Người nhận KPI |
+| `DRAFT` → `PROPOSED` | Trưởng bộ phận (`evaluatorId` của phiếu), hoặc ADMIN/HR |
+| `PROPOSED` → `ACCEPTED` | **Chỉ chủ sở hữu phiếu.** Không ai ký thay được |
+| `PROPOSED` → `DISPUTED` | **Chỉ chủ sở hữu phiếu**, bắt buộc nêu lý do |
+| `DISPUTED` → `DRAFT` | **Trưởng bộ phận**, bằng cách sửa lại cây item của phiếu |
+
+**`DISPUTED` → `DRAFT` không có nút riêng.** Nhân viên nêu ý kiến xong, phiếu
+nằm ở `DISPUTED` cho tới khi trưởng bộ phận mở ra sửa; chính thao tác lưu
+cây item đưa phiếu về `DRAFT`, rồi gửi lại để ký.
+
+Làm vậy vì một nút "chuyển về nháp" riêng sẽ cho phép trưởng bộ phận xoá
+trạng thái `DISPUTED` mà **không sửa gì** — ý kiến của nhân viên biến mất
+không để lại dấu vết. Buộc phải sửa mới thoát được `DISPUTED` là cách rẻ
+nhất để ý kiến đó không bị bỏ qua.
+
+Lý do phản đối luôn còn trong `ScorecardEvent`, kể cả sau khi phiếu đã về
+`DRAFT` và được ký lại.
 
 Giai đoạn 1 chỉ có một cấp ký nhận: **trưởng phòng ↔ nhân viên**. Cấp
 BGĐ ↔ trưởng phòng để BSCkpi lo.
@@ -313,6 +355,19 @@ gửi thông báo.
 
 Chỉ `ADMIN` khoá/mở kỳ. Kỳ đã khoá thì không sửa được điểm. Mở lại phải ghi
 `AuditLog`.
+
+**Khoá kỳ CHỈ ảnh hưởng đúng kỳ đó, không lan xuống kỳ con.**
+
+Khoá "Quý 3/2026" **không** khoá tháng 07, 08, 09 bên trong. Phiếu KPI luôn
+gắn với kỳ THÁNG, nên kiểm khoá cũng chỉ nhìn đúng kỳ tháng của phiếu —
+không đi ngược lên cây `parentId`.
+
+Lý do: kỳ quý và kỳ năm chỉ để **tổng hợp**, không có phiếu nào gắn trực
+tiếp vào chúng. Cho khoá lan xuống nghĩa là một thao tác trên kỳ tổng hợp
+lại chặn việc chấm điểm của ba tháng — hậu quả lớn hơn nhiều so với thứ
+người bấm nút nghĩ mình đang làm.
+
+Muốn chốt sổ cả quý thì khoá lần lượt ba kỳ tháng.
 
 Kỳ tháng **tạo tự động trước 7 ngày**, không tạo tay — quên một lần là chặn
 cả công ty đúng hạn mùng 02.

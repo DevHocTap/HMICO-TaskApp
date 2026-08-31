@@ -64,6 +64,31 @@ Prisma không ép được, nên service phải tự kiểm:
 Ràng buộc 1 và 2 nên viết thêm CHECK constraint bằng raw SQL trong
 migration để chặn ở tầng database.
 
+## `ScorecardEvent` là nguồn sự thật của luồng trạng thái
+
+Bảng `Scorecard` có bốn cột dấu vết: `proposedAt`, `proposedById`,
+`acceptedAt`, `disputedAt`, `disputeReason`.
+
+**Chúng chỉ là bản sao cho nhanh của sự kiện MỚI NHẤT.** Nguồn sự thật là
+`ScorecardEvent` — mỗi lần chuyển trạng thái ghi một dòng, không bao giờ
+ghi đè.
+
+Lý do rất cụ thể: một phiếu có thể bị phản đối **nhiều lần**. Cột
+`disputeReason` chỉ giữ được lý do gần nhất; lý do lần đầu — thứ có thể là
+căn cứ khi tranh cãi lương thưởng — sẽ mất nếu không có bảng sự kiện.
+
+**Quy tắc bắt buộc:** cột dấu vết và `ScorecardEvent` phải ghi trong **cùng
+một transaction, qua đúng một hàm**. Hai chỗ ghi rời nhau sẽ có lúc lệch,
+và khi lệch thì không biết bên nào đúng.
+
+Ba bảng ghi nhận, đừng nhầm vai:
+
+| Bảng | Dùng để | Có khoá ngoại |
+|---|---|---|
+| `ScorecardEvent` | Lịch sử nghiệp vụ của một phiếu, hiện lên giao diện | có |
+| `AuditLog` | Truy vết hệ thống, mọi bảng, tra khi có sự cố | không |
+| Cột dấu vết trên `Scorecard` | Đọc nhanh trạng thái hiện tại, không phải lịch sử | — |
+
 ## Vì sao `AuditLog` không có khoá ngoại
 
 `AuditLog` cố ý không ràng buộc tới bảng nghiệp vụ. Khi một KPI bị xoá,

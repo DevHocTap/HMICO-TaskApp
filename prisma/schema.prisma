@@ -51,8 +51,9 @@ model JobTitle {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
-  templates KpiTemplate[]
+  users      User[]
+  templates  KpiTemplate[]
+  scorecards Scorecard[]
 
   @@index([departmentId])
 }
@@ -100,6 +101,9 @@ model User {
 
   managedDepartments   Department[]     @relation("DeptManager")
   createdKpiTemplates  KpiTemplate[]    @relation("KpiTemplateCreator")
+  lockedPeriods        Period[]         @relation("PeriodLocker")
+  createdPeriods       Period[]         @relation("PeriodCreator")
+  proposedScorecards   Scorecard[]      @relation("ScorecardProposer")
   refreshTokens        RefreshToken[]
   scorecards           Scorecard[]      @relation("ScorecardOwner")
   evaluatingScorecards Scorecard[]      @relation("ScorecardEvaluator")
@@ -147,7 +151,12 @@ enum PeriodType {
 }
 
 model Period {
-  id   String     @id @default(uuid())
+  id String @id @default(uuid())
+
+  /// Khoá idempotent cho việc tự sinh kỳ: "2026-09", "2026-Q3", "2026".
+  /// Nhờ nó, tác vụ định kỳ chạy lại bao nhiêu lần cũng chỉ ra một kỳ.
+  code String @unique
+
   name String     @unique
   type PeriodType
 
@@ -159,10 +168,23 @@ model Period {
   startDate DateTime @db.Date
   endDate   DateTime @db.Date
 
-  // Hạn nộp về HCNS — ngày 02 tháng kế tiếp. Không hard-code trong code.
-  dueDate DateTime? @db.Date
+  /// Hạn nộp kết quả về HCNS — ngày 02 tháng kế tiếp (docs mục 5.5).
+  /// Là dữ liệu chứ không hard-code, vì công ty có thể đổi mốc.
+  submitDeadline DateTime? @db.Date
 
-  isLocked Boolean @default(false)
+  /// Khoá kỳ CHỈ ảnh hưởng chính kỳ đó, không lan xuống kỳ con.
+  /// Khoá quý không khoá ba tháng bên trong — xem docs mục 5.6.
+  isLocked   Boolean   @default(false)
+  lockedAt   DateTime?
+  lockedById String?
+  lockedBy   User?     @relation("PeriodLocker", fields: [lockedById], references: [id])
+
+  /// NULL nghĩa là hệ thống tự tạo bằng tác vụ định kỳ, không phải người tạo.
+  createdById String?
+  createdBy   User?   @relation("PeriodCreator", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   scorecards Scorecard[]
 
@@ -220,8 +242,9 @@ model KpiTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items      KpiTemplateItem[]
-  scorecards Scorecard[]
+  items            KpiTemplateItem[]
+  scorecards       Scorecard[]       @relation("ScorecardTemplate")
+  systemScorecards Scorecard[]       @relation("ScorecardSystemTemplate")
 
   @@index([jobTitleId])
   @@index([status])
@@ -295,7 +318,7 @@ enum ResultStatus {
 }
 
 enum Grade {
-  NOT_MET
+  NOT_ACHIEVED
   NEEDS_IMPROVEMENT
   COMPLETED
   EXCEEDED
@@ -307,8 +330,10 @@ model Scorecard {
   // Giai đoạn 1 luôn là USER. Giữ cột cho tương lai (KPI phòng ban).
   ownerType OwnerType @default(USER)
 
-  userId String
-  user   User   @relation("ScorecardOwner", fields: [userId], references: [id])
+  /// Nullable để dành cho ownerType = DEPARTMENT sau này. Giai đoạn 1 luôn
+  /// có giá trị; service từ chối mọi ownerType khác USER.
+  ownerUserId String?
+  ownerUser   User?   @relation("ScorecardOwner", fields: [ownerUserId], references: [id])
 
   periodId String
   period   Period @relation(fields: [periodId], references: [id])
@@ -317,21 +342,37 @@ model Scorecard {
   departmentId   String
   department     Department @relation(fields: [departmentId], references: [id])
   departmentName String
-  jobTitleName   String
-  level          String?
+
+  jobTitleId    String?
+  jobTitle      JobTitle? @relation(fields: [jobTitleId], references: [id])
+  jobTitleName  String
+  employeeLevel String?
 
   templateId      String?
-  template        KpiTemplate? @relation(fields: [templateId], references: [id])
+  template        KpiTemplate? @relation("ScorecardTemplate", fields: [templateId], references: [id])
   templateVersion Int?
+
+  /// Mẫu Mục 2 đã ghép vào phiếu, để tra ngược nguồn gốc.
+  systemTemplateId String?
+  systemTemplate   KpiTemplate? @relation("ScorecardSystemTemplate", fields: [systemTemplateId], references: [id])
 
   // Người chấm được chốt từ đầu kỳ, không suy ra lúc chấm
   evaluatorId String?
   evaluator   User?   @relation("ScorecardEvaluator", fields: [evaluatorId], references: [id])
 
   // --- Luồng 1: giao KPI ---
-  assignStatus AssignStatus @default(DRAFT)
-  proposedAt   DateTime?
-  acceptedAt   DateTime?
+  //
+  // Bốn cột dấu vết dưới đây là BẢN SAO CHO NHANH của sự kiện mới nhất
+  // trong ScorecardEvent. ScorecardEvent mới là nguồn sự thật: phiếu bị
+  // trả lại hai lần thì lý do lần đầu chỉ còn ở đó.
+  // Cả hai luôn ghi cùng một transaction, qua đúng một hàm.
+  assignStatus  AssignStatus @default(DRAFT)
+  proposedAt    DateTime?
+  proposedById  String?
+  proposedBy    User?        @relation("ScorecardProposer", fields: [proposedById], references: [id])
+  acceptedAt    DateTime?
+  disputedAt    DateTime?
+  disputeReason String?
 
   // --- Luồng 2: chấm điểm ---
   resultStatus    ResultStatus @default(PENDING)
@@ -345,8 +386,8 @@ model Scorecard {
   noSelfScoreReason String?
 
   // Chốt khi chuyển sang MANAGER_SCORED
-  totalSelfScore    Decimal? @db.Decimal(6, 2)
-  totalManagerScore Decimal? @db.Decimal(6, 2)
+  selfTotalScore    Decimal? @db.Decimal(6, 2)
+  managerTotalScore Decimal? @db.Decimal(6, 2)
   grade             Grade?
 
   createdById String
@@ -357,8 +398,10 @@ model Scorecard {
   items  ScorecardItem[]
   events ScorecardEvent[]
 
-  // Chặn tạo trùng phiếu — nút "sao chép từ kỳ trước" chắc chắn sẽ bấm nhầm
-  @@unique([userId, periodId])
+  // Chặn tạo trùng phiếu — nút "sao chép từ kỳ trước" chắc chắn sẽ bấm nhầm.
+  // PostgreSQL coi các NULL là khác nhau, nên ràng buộc này chỉ áp cho phiếu
+  // có chủ sở hữu; phiếu cấp phòng ban sau này không bị vướng.
+  @@unique([ownerUserId, periodId])
   @@index([departmentId, periodId])
   @@index([periodId, resultStatus])
   @@index([evaluatorId, resultStatus])
@@ -376,19 +419,21 @@ model ScorecardItem {
   parent   ScorecardItem?  @relation("ItemTree", fields: [parentId], references: [id])
   children ScorecardItem[] @relation("ItemTree")
 
-  // Chỉ để truy vết nguồn gốc, không ràng buộc khoá ngoại
-  sourceTemplateItemId String?
+  /// CHỈ để tra nguồn gốc. KHÔNG bao giờ đọc nội dung từ mẫu qua cột này:
+  /// mẫu sửa về sau không được làm đổi phiếu đã lập.
+  templateItemId String?
 
   section         KpiSection
-  orderIndex      Int
+  displayOrder    Int
   name            String
   description     String?
-  measurementUnit String?
+  measurementText String?
+  measureMethod   String?
 
-  targetValue Decimal?     @db.Decimal(18, 4)
-  minValue    Decimal?     @db.Decimal(18, 4)
-  direction   KpiDirection @default(HIGHER_BETTER)
-  scoringMode ScoringMode  @default(MANUAL)
+  targetValue Decimal?      @db.Decimal(18, 4)
+  minValue    Decimal?      @db.Decimal(18, 4)
+  direction   KpiDirection?
+  scoringMode ScoringMode   @default(MANUAL)
 
   // Chụp lại từ hằng số theo section (BSC_WORK: 10, COMPLIANCE: 3).
   // Công ty đổi thang sang 100 năm sau thì phiếu cũ vẫn giữ thang 10.
@@ -403,10 +448,13 @@ model ScorecardItem {
   managerScore   Decimal? @db.Decimal(6, 2)
   managerComment String?
 
+  /// Bắt buộc nhập khi chấm vượt thang (chỉ BSC_WORK được vượt, tối đa 1,2 lần).
+  overScaleNote String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([scorecardId, section, orderIndex])
+  @@index([scorecardId, section, displayOrder])
   @@index([parentId])
 }
 

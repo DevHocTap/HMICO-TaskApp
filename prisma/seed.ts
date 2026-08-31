@@ -341,6 +341,7 @@ async function seedPeriods() {
   // dueDate = ngày 02 tháng kế tiếp (docs mục 5.5).
   const nam = await prisma.period.create({
     data: {
+      code: '2026',
       name: 'Năm 2026',
       type: PeriodType.YEAR,
       startDate: new Date('2026-01-01'),
@@ -349,6 +350,7 @@ async function seedPeriods() {
   });
   const quy = await prisma.period.create({
     data: {
+      code: '2026-Q3',
       name: 'Quý 3/2026',
       type: PeriodType.QUARTER,
       parentId: nam.id,
@@ -358,22 +360,24 @@ async function seedPeriods() {
   });
   await prisma.period.create({
     data: {
+      code: '2026-08',
       name: 'Tháng 08/2026',
       type: PeriodType.MONTH,
       parentId: quy.id,
       startDate: new Date('2026-08-01'),
       endDate: new Date('2026-08-31'),
-      dueDate: new Date('2026-09-02'),
+      submitDeadline: new Date('2026-09-02'),
     },
   });
   await prisma.period.create({
     data: {
+      code: '2026-09',
       name: 'Tháng 09/2026',
       type: PeriodType.MONTH,
       parentId: quy.id,
       startDate: new Date('2026-09-01'),
       endDate: new Date('2026-09-30'),
-      dueDate: new Date('2026-10-02'),
+      submitDeadline: new Date('2026-10-02'),
     },
   });
 }
