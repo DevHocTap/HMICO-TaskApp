@@ -28,6 +28,17 @@ don_dep() {
   [ -n "${PID_API:-}" ] && kill "$PID_API" 2>/dev/null
   wait 2>/dev/null
   rm -rf "$TMP"
+  # Dọn mẫu thử NGAY KHI KẾT THÚC, không đợi lần chạy sau. Để lại thì
+  # chúng hiện trong giao diện và người dùng tưởng là dữ liệu thật.
+  don_mau_thu
+}
+
+don_mau_thu() {
+  docker exec kpi-postgres psql -U kpi_dev -d kpi_db -c "
+    DELETE FROM \"KpiTemplateItem\" WHERE \"templateId\" IN (SELECT id FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%');
+    DELETE FROM \"AuditLog\" WHERE \"entityId\" IN (SELECT id FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%');
+    DELETE FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%';
+  " >/dev/null 2>&1
 }
 trap don_dep EXIT
 
@@ -48,10 +59,8 @@ if ! curl -sf -o /dev/null "$API/"; then
   echo "Không khởi động được API:"; tail -20 "$TMP/api.log"; exit 1
 fi
 
-# Dọn mẫu thử của lần chạy trước — KHÔNG đụng bốn mẫu thật
-sql "DELETE FROM \"KpiTemplateItem\" WHERE \"templateId\" IN (SELECT id FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%');" >/dev/null
-sql "DELETE FROM \"AuditLog\" WHERE \"entityId\" IN (SELECT id FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%');" >/dev/null
-sql "DELETE FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%';" >/dev/null
+# Dọn mẫu thử còn sót — KHÔNG đụng bốn mẫu thật
+don_mau_thu
 
 if [ -z "$(token_cua admin@hmico.vn)" ]; then
   echo; echo "Không đăng nhập được bằng tài khoản seed (admin@hmico.vn)."
