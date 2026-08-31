@@ -74,6 +74,7 @@ AT_KT=$(token_cua truongphong.kythuat@hmico.vn)
 AT_SD=$(token_cua to.shopdrawing@hmico.vn 2>/dev/null)
 AT_TT=$(token_cua totruong.shopdrawing@hmico.vn)
 AT_RND=$(token_cua truongphong.rnd@hmico.vn)
+AT_BGD=$(token_cua giamdoc@hmico.vn)
 AT_NV1=$(token_cua sd.nhanvien1@hmico.vn)
 AT_NV2=$(token_cua sd.nhanvien2@hmico.vn)
 
@@ -134,7 +135,9 @@ TAO=$(echo "$KQ" | jq_ "d['created']"); BQ=$(echo "$KQ" | jq_ "d['skipped']")
 echo "$KQ" | grep -q "Đã có phiếu" && pass "nêu lý do: đã có phiếu" || fail "không nêu: $KQ"
 # Tổ trưởng bị chặn vì tự chấm chính mình — lý do này bắt TRƯỚC cả việc tra
 # mẫu KPI, vì nó là vấn đề căn bản hơn.
-echo "$KQ" | grep -q "tự chấm chính mình" && pass "nêu lý do: trưởng bộ phận không tự chấm mình được" || fail "không nêu: $KQ"
+# Tổ trưởng: chức danh quản lý không có mẫu KPI — dùng đường sinh phiếu rỗng
+echo "$KQ" | grep -q "chưa có mẫu KPI" && pass "nêu lý do: chức danh quản lý chưa có mẫu" || fail "không nêu: $KQ"
+echo "$KQ" | grep -q "sinh phiếu rỗng" && pass "gợi ý đúng hướng xử lý" || fail "không gợi ý: $KQ"
 
 buoc "PHÒNG CHƯA CÓ TRƯỞNG BỘ PHẬN / NGƯỜI THIẾU CHỨC DANH"
 P_MKT=$(sql "SELECT id FROM \"Department\" WHERE code='MKT';")
@@ -170,28 +173,101 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: applicati
 
 # ============================================ 4. KÝ NHẬN
 buoc "CHẶN TỰ CHẤM CHÍNH MÌNH"
-# Tổ trưởng Shop Drawing là managerId của chính tổ đó. Không chặn thì phiếu
-# của họ sẽ tự gửi, tự ký, và ở lát cắt chấm điểm là tự cho mình điểm.
-U_TT=$(sql "SELECT id FROM \"User\" WHERE email='totruong.shopdrawing@hmico.vn';")
-sql "UPDATE \"User\" SET \"jobTitleId\"=(SELECT id FROM \"JobTitle\" WHERE code='KT-SD-NV') WHERE id='$U_TT';" >/dev/null
+# Trưởng bộ phận nay do BAN GIÁM ĐỐC chấm nên không còn tự chấm nữa.
+# Tự chấm chỉ xảy ra khi ai đó CHỈ ĐỊNH TAY chính người nhận làm người chấm.
+# Dùng nhân viên phòng Kỹ thuật: U_NV2 là dữ liệu mà test sao chép phía sau cần
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
-  -d "{\"userId\":\"$U_TT\",\"periodId\":\"$KY_08\"}" "$API/scorecards")
-echo "$KQ" | grep -q "tự chấm chính mình" && pass "sinh phiếu cho trưởng bộ phận của chính phòng -> bị chặn" \
+  -d "{\"userId\":\"$U_KTNV\",\"periodId\":\"$KY_08\",\"evaluatorId\":\"$U_KTNV\"}" "$API/scorecards")
+echo "$KQ" | grep -q "tự chấm chính mình" && pass "chỉ định chính người nhận làm người chấm -> bị chặn" \
   || fail "không chặn tự chấm: $KQ"
 
-KQ=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/scorecards/readiness?departmentId=$P_KTSD")
-echo "$KQ" | grep -q "employeesNeedingExternalEvaluator" && pass "readiness có mục người cần chỉ định người chấm khác" \
-  || fail "readiness thiếu mục này: $KQ"
-echo "$KQ" | grep -q "Đang là trưởng bộ phận của chính phòng này" && pass "readiness nêu rõ lý do" || fail "$KQ"
-
-# Đường thoát: chỉ định người chấm khác
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
-  -d "{\"userId\":\"$U_TT\",\"periodId\":\"$KY_08\",\"evaluatorId\":\"$U_ADMIN\"}" "$API/scorecards")
-[ "$MA" = "201" ] && pass "chỉ định người chấm khác -> tạo được phiếu" || fail "-> $MA (mong đợi 201)"
-sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_TT');" >/dev/null
-sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_TT');" >/dev/null
-sql "DELETE FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_TT';" >/dev/null
-sql "UPDATE \"User\" SET \"jobTitleId\"=(SELECT id FROM \"JobTitle\" WHERE code='TT') WHERE id='$U_TT';" >/dev/null
+  -d "{\"userId\":\"$U_KTNV\",\"periodId\":\"$KY_08\",\"evaluatorId\":\"$U_ADMIN\"}" "$API/scorecards")
+[ "$MA" = "201" ] && pass "chỉ định người chấm khác cho nhân viên thường -> 201" || fail "-> $MA"
+sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_KTNV');" >/dev/null
+sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_KTNV');" >/dev/null
+sql "DELETE FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_KTNV';" >/dev/null
+
+# Trưởng bộ phận: chỉ BAN GIÁM ĐỐC mới chấm được
+U_TT2=$(sql "SELECT id FROM \"User\" WHERE email='totruong.shopdrawing@hmico.vn';")
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_TT2\",\"periodId\":\"$KY_08\",\"emptyTemplate\":true,\"evaluatorId\":\"$U_ADMIN\"}" "$API/scorecards")
+echo "$KQ" | grep -q "chỉ ban giám đốc mới chấm được" \
+  && pass "gán người chấm không thuộc BGĐ cho trưởng bộ phận -> bị chặn" || fail "$KQ"
+
+buoc "TRƯỞNG BỘ PHẬN: BAN GIÁM ĐỐC CHẤM"
+U_TP_KT=$(sql "SELECT id FROM \"User\" WHERE email='truongphong.kythuat@hmico.vn';")
+U_BGD=$(sql "SELECT id FROM \"User\" WHERE email='giamdoc@hmico.vn';")
+
+# Chức danh "Trưởng phòng" không có mẫu -> phải nêu HẾT lý do cùng lúc
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_TP_KT\",\"periodId\":\"$KY_08\"}" "$API/scorecards")
+echo "$KQ" | grep -q "chưa có mẫu KPI" && pass "nêu lý do: chức danh chưa có mẫu" || fail "$KQ"
+echo "$KQ" | grep -q "sinh phiếu rỗng" && pass "gợi ý đường sinh phiếu rỗng cho trưởng bộ phận" || fail "$KQ"
+
+# Sinh phiếu rỗng
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_TP_KT\",\"periodId\":\"$KY_08\",\"emptyTemplate\":true}" "$API/scorecards")
+SC_TP=$(echo "$KQ" | jq_ "d['id']")
+[ -n "$SC_TP" ] && pass "sinh phiếu rỗng cho trưởng phòng -> tạo được" || fail "$KQ"
+SO_M1=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC_TP' AND section='BSC_WORK';")
+SO_M2=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC_TP' AND section='COMPLIANCE';")
+[ "$SO_M1" = "0" ] && pass "Mục 1 để trống chờ nhập" || fail "Mục 1 có $SO_M1 dòng"
+[ "$SO_M2" = "3" ] && pass "Mục 2 dựng sẵn đủ 3 tiêu chí (30)" || fail "Mục 2 có $SO_M2 dòng"
+EV=$(sql "SELECT \"evaluatorId\" FROM \"Scorecard\" WHERE id='$SC_TP';")
+[ "$EV" = "$U_BGD" ] && pass "người chấm tự gán là ban giám đốc (công ty có đúng 1)" || fail "evaluatorId=$EV"
+
+# Phiếu rỗng KHÔNG gửi ký được cho tới khi Mục 1 đủ 70 — hành vi đúng
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' -d '{}' "$API/scorecards/$SC_TP/propose")
+echo "$KQ" | grep -qE "BSC công việc|trọng số" && pass "phiếu rỗng chưa gửi ký được, nêu thiếu Mục 1" || fail "$KQ"
+
+buoc "QUYỀN BAN GIÁM ĐỐC — HAI CHIỀU"
+# Chiều thuận: BGĐ nhập KPI cho trưởng bộ phận
+cat > "$TMP/m1.json" <<'JSONEOF'
+{"items":[
+ {"key":"m2a","parentKey":null,"name":"Số lần đi trễ/ về sớm không phép","section":"COMPLIANCE","weight":10,"displayOrder":1},
+ {"key":"m2b","parentKey":null,"name":"Vi phạm bộ phận chưa xử lý kịp thời","section":"COMPLIANCE","weight":10,"displayOrder":2},
+ {"key":"m2c","parentKey":null,"name":"Giữ gìn văn hoá doanh nghiệp","section":"COMPLIANCE","weight":10,"displayOrder":3},
+ {"key":"a","parentKey":null,"name":"Hoàn thành mục tiêu phòng","section":"BSC_WORK","weight":40,"displayOrder":1},
+ {"key":"b","parentKey":null,"name":"Quản lý nhân sự phòng","section":"BSC_WORK","weight":30,"displayOrder":2}]}
+JSONEOF
+MA=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "Authorization: Bearer $AT_BGD" \
+  -H 'Content-Type: application/json' --data-binary "@$TMP/m1.json" "$API/scorecards/$SC_TP/items")
+[ "$MA" = "200" ] && pass "BGĐ nhập KPI vào phiếu trưởng bộ phận -> 200" || fail "-> $MA"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' -d '{}' "$API/scorecards/$SC_TP/propose")
+[ "$MA" = "200" ] && pass "BGĐ gửi phiếu trưởng bộ phận đi ký -> 200" || fail "-> $MA"
+
+# Chiều nghịch: phiếu nhân viên thường thì BGĐ chỉ được xem
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' -d '{}' "$API/scorecards/$SC1/propose")
+echo "$KQ" | grep -q "chỉ thao tác được trên phiếu của trưởng bộ phận" \
+  && pass "BGĐ thao tác trên phiếu nhân viên thường -> 403, nêu rõ lý do" || fail "$KQ"
+MA=$(ma -X PUT -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' \
+  --data-binary "@$TMP/m1.json" "$API/scorecards/$SC1/items")
+[ "$MA" = "403" ] && pass "BGĐ sửa item phiếu nhân viên thường -> 403" || fail "-> $MA"
+
+# Chính chủ vẫn là người ký
+MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" "$API/scorecards/$SC_TP/accept")
+[ "$MA" = "403" ] && pass "BGĐ KHÔNG ký thay trưởng bộ phận -> 403" || fail "-> $MA"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_KT" "$API/scorecards/$SC_TP/accept")
+[ "$MA" = "200" ] && pass "trưởng bộ phận tự ký phiếu của mình -> 200" || fail "-> $MA"
+
+buoc "PENDING-MY-ACTION CHO BAN GIÁM ĐỐC"
+KQ=$(curl -s -H "Authorization: Bearer $AT_BGD" "$API/scorecards/pending-my-action")
+echo "$KQ" | grep -q "BGD_CHUA_GIAO_KPI" && pass "BGĐ thấy trưởng bộ phận chưa có phiếu" || fail "$KQ"
+
+buoc "READINESS TOÀN CÔNG TY"
+KQ=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/scorecards/readiness/company")
+echo "$KQ" | grep -q "departmentsWithoutManager" && pass "có danh sách phòng chưa có trưởng" || fail "$KQ"
+echo "$KQ" | grep -q "employeesWithoutJobTitle" && pass "có danh sách người chưa có chức danh" || fail "$KQ"
+echo "$KQ" | grep -q '"isManagerRole":true' && pass "đánh dấu chức danh quản lý (thiếu mẫu là bình thường)" || fail "$KQ"
+echo "$KQ" | grep -q '"executiveAutoAssignable":true' && pass "báo có đúng 1 BGĐ nên tự gán được" || fail "$KQ"
+MA=$(ma -H "Authorization: Bearer $AT_RND" "$API/scorecards/readiness/company")
+[ "$MA" = "403" ] && pass "MANAGER không xem được readiness toàn công ty -> 403" || fail "-> $MA"
+
+# Dọn phiếu trưởng phòng để không ảnh hưởng phần sau
+sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\"='$SC_TP';" >/dev/null
+sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC_TP';" >/dev/null
+sql "DELETE FROM \"Scorecard\" WHERE id='$SC_TP';" >/dev/null
 
 buoc "LUỒNG KÝ NHẬN"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' -d '{}' "$API/scorecards/$SC1/propose")

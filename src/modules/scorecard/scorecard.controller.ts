@@ -37,6 +37,16 @@ interface RequestInfo {
 /** Ai được sinh phiếu và gửi ký: quản trị, HR, và trưởng bộ phận. */
 const VAI_TRO_GIAO_KPI = [Role.ADMIN, Role.HR, Role.MANAGER] as const;
 
+/**
+ * Thêm ban giám đốc: họ giao và duyệt KPI của TRƯỞNG BỘ PHẬN.
+ *
+ * Guard chỉ lọc thô theo vai trò. Việc giới hạn EXECUTIVE chỉ thao tác
+ * được trên phiếu của trưởng bộ phận nằm ở
+ * ScorecardWorkflowService.assertCoTheGui() — phiếu nhân viên thường vẫn
+ * trả 403.
+ */
+const VAI_TRO_GIAO_KPI_VA_BGD = [...VAI_TRO_GIAO_KPI, Role.EXECUTIVE] as const;
+
 @Controller('scorecards')
 export class ScorecardController {
   constructor(
@@ -66,6 +76,13 @@ export class ScorecardController {
     return this.queries.readiness(query.departmentId, user);
   }
 
+  /** Sẵn sàng dữ liệu TOÀN CÔNG TY — danh sách để gửi HCNS một lần. */
+  @Roles(Role.ADMIN, Role.HR, Role.EXECUTIVE)
+  @Get('readiness/company')
+  readinessCompany(@CurrentUser() user: AuthenticatedUser) {
+    return this.queries.readinessToanCongTy(user);
+  }
+
   @Get()
   list(@Query() query: ListScorecardsQuery, @CurrentUser() user: AuthenticatedUser) {
     return this.queries.list(query, user);
@@ -78,14 +95,21 @@ export class ScorecardController {
 
   // ------------------------------------------------------------ sinh phiếu
 
-  @Roles(...VAI_TRO_GIAO_KPI)
+  @Roles(...VAI_TRO_GIAO_KPI_VA_BGD)
   @Post()
   create(
     @Body() dto: CreateScorecardDto,
     @CurrentUser() user: AuthenticatedUser,
     @Req() req: RequestInfo,
   ) {
-    return this.scorecards.create(dto.userId, dto.periodId, user, dto.evaluatorId, req.ip);
+    return this.scorecards.create(
+      dto.userId,
+      dto.periodId,
+      user,
+      dto.evaluatorId,
+      req.ip,
+      dto.emptyTemplate ?? false,
+    );
   }
 
   @Roles(...VAI_TRO_GIAO_KPI)
@@ -126,7 +150,7 @@ export class ScorecardController {
 
   // -------------------------------------------------------------- ký nhận
 
-  @Roles(...VAI_TRO_GIAO_KPI)
+  @Roles(...VAI_TRO_GIAO_KPI_VA_BGD)
   @Post(':id/propose')
   @HttpCode(HttpStatus.OK)
   propose(
@@ -172,7 +196,7 @@ export class ScorecardController {
   }
 
   /** Lưu cả cây item một lần: thêm, sửa, xoá dòng trong một transaction. */
-  @Roles(...VAI_TRO_GIAO_KPI)
+  @Roles(...VAI_TRO_GIAO_KPI_VA_BGD)
   @Put(':id/items')
   saveItems(
     @Param('id', ParseUUIDPipe) id: string,

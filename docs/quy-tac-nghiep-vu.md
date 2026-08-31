@@ -271,6 +271,36 @@ tự tính thưởng bên ngoài.
 
 Có **hai luồng độc lập** trên cùng một `Scorecard`.
 
+### 5.0 Ai chấm KPI của trưởng bộ phận — HCNS đã chốt
+
+**Ban giám đốc (`EXECUTIVE`) chấm và duyệt KPI của trưởng bộ phận.**
+
+Không dùng `Department.parentId` để suy ra người chấm — hướng đó đã bỏ.
+
+Quy tắc: nếu `ownerUserId` chính là `managerId` của phòng người đó, thì
+`evaluatorId` **bắt buộc** là người có vai trò `EXECUTIVE`. Hệ thống từ
+chối sinh phiếu nếu người chấm không thuộc ban giám đốc.
+
+Công ty có **đúng một** người vai trò `EXECUTIVE` thì hệ thống tự gán; **từ
+hai người trở lên** thì ADMIN/HR phải chọn rõ ai chấm lúc sinh phiếu — đoán
+bừa ai trong ban giám đốc là sai.
+
+**Chức danh trưởng bộ phận KHÔNG có mẫu KPI.** Ban giám đốc **nhập KPI
+trực tiếp vào phiếu** của họ, qua đường sinh phiếu rỗng
+(`POST /scorecards` với `emptyTemplate: true`): phiếu chỉ dựng sẵn Mục 2,
+Mục 1 để trống.
+
+Người nhập là ban giám đốc, **không phải trưởng bộ phận tự nhập cho mình**.
+Nhập xong, hai bên trao đổi và chốt theo đúng luồng `PROPOSED → ACCEPTED`
+như mọi phiếu khác. Cuối kỳ ban giám đốc chấm dựa trên chính KPI đã chốt đó.
+
+Cấu trúc **70/30 áp dụng cho tất cả**, kể cả trưởng bộ phận. Phiếu rỗng
+không qua được kiểm trọng số cho tới khi Mục 1 đủ 70 — đó là hành vi đúng,
+không phải lỗi.
+
+Nhân viên thường vẫn dùng bốn mẫu Excel như cũ. Nút "sao chép từ kỳ trước"
+giữ nguyên giá trị.
+
 ### 5.1 Luồng giao KPI (đầu kỳ)
 
 ```
@@ -358,10 +388,19 @@ báo "quá hạn" cho thứ chưa từng có ai được giao.
 
 Cột `submitDeadline` vì vậy phải **nullable**.
 
-> Hạn nộp hiện là **ngày 02 của tháng kế tiếp**. Biểu mẫu ghi "trước ngày
-> 02" — chưa rõ là hết ngày 01 hay hết ngày 02, HCNS sẽ chốt sau. Con số
-> nằm ở hằng số `NGAY_HAN_NOP` trong
-> `src/modules/period/period-calendar.ts`, đổi một chỗ là xong.
+**HCNS đã chốt: hạn là HẾT ngày 02 của tháng kế tiếp.** `NGAY_HAN_NOP = 2`
+trong `src/modules/period/period-calendar.ts` giữ nguyên.
+
+Hệ quả cho phần đếm ngược ở trang "Việc của tôi":
+
+| Hôm nay | Hiển thị |
+|---|---|
+| Ngày 01 | còn 2 ngày |
+| **Ngày 02** | **còn 1 ngày** — vẫn nộp được |
+| Ngày 03 | **quá hạn** |
+
+Ngày 02 vẫn là ngày làm việc hợp lệ, không được hiện "hết hạn hôm nay" hay
+số âm. Sang ngày 03 mới tính quá hạn.
 
 
 Kết quả phải về HCNS **trước ngày 02 của tháng kế tiếp** (lưu ở

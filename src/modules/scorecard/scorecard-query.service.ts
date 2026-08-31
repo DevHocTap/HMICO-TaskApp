@@ -203,8 +203,54 @@ export class ScorecardQueryService {
       });
     }
 
+    // --- Ban giám đốc: phiếu của trưởng bộ phận ---
+    if (user.role === Role.EXECUTIVE && kyHienTai) {
+      const idTruongBoPhan = (
+        await this.prisma.department.findMany({
+          where: { managerId: { not: null }, isActive: true },
+          select: { managerId: true },
+        })
+      ).map((d) => d.managerId!);
+
+      if (idTruongBoPhan.length > 0) {
+        const chuaGuiKy = await this.prisma.scorecard.count({
+          where: {
+            periodId: kyHienTai.id,
+            ownerUserId: { in: idTruongBoPhan },
+            assignStatus: AssignStatus.DRAFT,
+          },
+        });
+        if (chuaGuiKy > 0) {
+          viec.push({
+            type: 'BGD_CHUA_GUI_KY',
+            message: `${chuaGuiKy} phiếu KPI của trưởng bộ phận chưa gửi ký nhận`,
+            count: chuaGuiKy,
+            link: '/kpi/assign',
+            daysUntilDeadline: conLai,
+          });
+        }
+
+        const daCoPhieu = (
+          await this.prisma.scorecard.findMany({
+            where: { periodId: kyHienTai.id, ownerUserId: { in: idTruongBoPhan } },
+            select: { ownerUserId: true },
+          })
+        ).map((s) => s.ownerUserId);
+        const chuaCoPhieu = idTruongBoPhan.filter((id) => !daCoPhieu.includes(id)).length;
+        if (chuaCoPhieu > 0) {
+          viec.push({
+            type: 'BGD_CHUA_GIAO_KPI',
+            message: `${chuaCoPhieu} trưởng bộ phận chưa có phiếu KPI ${kyHienTai.name}`,
+            count: chuaCoPhieu,
+            link: '/kpi/assign',
+            daysUntilDeadline: conLai,
+          });
+        }
+      }
+    }
+
     // --- Quản lý và HR: người chưa được giao KPI trong kỳ hiện tại ---
-    if (kyHienTai && user.role !== Role.STAFF) {
+    if (kyHienTai && user.role !== Role.STAFF && user.role !== Role.EXECUTIVE) {
       const chuaGiao = await this.demNguoiChuaCoPhieu(kyHienTai.id, user);
       if (chuaGiao > 0) {
         viec.push({
@@ -290,11 +336,12 @@ export class ScorecardQueryService {
       ).values(),
     ];
 
+    // "Chức danh chưa có mẫu" là CẢNH BÁO, không phải lỗi chặn.
+    // Với trưởng bộ phận thì không có mẫu là trạng thái BÌNH THƯỜNG — ban
+    // giám đốc nhập KPI trực tiếp qua đường sinh phiếu rỗng.
     const sanSang =
       phong.managerId !== null &&
       thieuChucDanh.length === 0 &&
-      chucDanhThieuMau.length === 0 &&
-      tuChamChinhMinh.length === 0 &&
       mauHeThong !== null;
 
     return {
@@ -306,9 +353,122 @@ export class ScorecardQueryService {
       missingDepartmentManager: phong.managerId === null,
       missingSystemTemplate: mauHeThong === null,
       employeesWithoutJobTitle: thieuChucDanh,
-      jobTitlesWithoutPublishedTemplate: chucDanhThieuMau,
+      /** Cảnh báo, không chặn: dùng đường sinh phiếu rỗng cho các chức danh này. */
+      jobTitlesWithoutPublishedTemplate: chucDanhThieuMau.map((t) => ({
+        ...t,
+        suggestion:
+          'Chưa có mẫu KPI. Nếu là chức danh quản lý thì dùng đường sinh phiếu ' +
+          'rỗng (emptyTemplate) rồi nhập KPI trực tiếp.',
+      })),
       /** Người không thể tự chấm mình — cần chỉ định người chấm khác. */
       employeesNeedingExternalEvaluator: tuChamChinhMinh,
+    };
+  }
+
+  /**
+   * Kiểm tra sẵn sàng TOÀN CÔNG TY, gộp theo từng loại thiếu sót.
+   *
+   * Đây là dữ liệu để gửi HCNS một lần: việc nhập liệu là của người khác và
+   * mất vài ngày, nên phải đưa họ danh sách đầy đủ chứ không phải bắt dò
+   * từng phòng.
+   */
+  async readinessToanCongTy(user: AuthenticatedUser) {
+    const trongPhamVi = await this.departmentScope.getAccessibleDepartmentIds(user);
+
+    const [phongBan, nhanVien, mauDaXuatBan, mauHeThong] = await Promise.all([
+      this.prisma.department.findMany({
+        where: { id: { in: trongPhamVi }, isActive: true },
+        select: { id: true, code: true, name: true, managerId: true },
+        orderBy: { code: 'asc' },
+      }),
+      this.prisma.user.findMany({
+        where: { departmentId: { in: trongPhamVi }, isActive: true },
+        include: {
+          jobTitle: { select: { id: true, code: true, name: true } },
+          department: { select: { code: true, name: true } },
+        },
+        orderBy: { employeeCode: 'asc' },
+      }),
+      this.prisma.kpiTemplate.findMany({
+        where: { status: TemplateStatus.PUBLISHED, isActive: true, isSystem: false },
+        select: { jobTitleId: true },
+      }),
+      this.prisma.kpiTemplate.findUnique({
+        where: { code: 'SYS-COMPLIANCE' },
+        select: { id: true },
+      }),
+    ]);
+
+    const coMau = new Set(mauDaXuatBan.map((m) => m.jobTitleId));
+    const laTruongBoPhan = new Set(
+      phongBan.map((p) => p.managerId).filter((x): x is string => !!x),
+    );
+    const soBanGiamDoc = await this.prisma.user.count({
+      where: { role: 'EXECUTIVE', isActive: true },
+    });
+
+    const phongThieuTruong = phongBan
+      .filter((p) => p.managerId === null)
+      // Chỉ tính phòng có nhân viên: đơn vị rỗng chưa cần trưởng
+      .filter((p) => nhanVien.some((u) => u.departmentId === p.id))
+      .map((p) => ({ code: p.code, name: p.name }));
+
+    const nguoiThieuChucDanh = nhanVien
+      .filter((u) => !u.jobTitle)
+      .map((u) => ({
+        employeeCode: u.employeeCode,
+        fullName: u.fullName,
+        department: u.department?.name ?? '(chưa có phòng)',
+      }));
+
+    const chucDanhThieuMau = [
+      ...new Map(
+        nhanVien
+          .filter((u) => u.jobTitle && !coMau.has(u.jobTitle.id))
+          .map((u) => [
+            u.jobTitle!.id,
+            {
+              code: u.jobTitle!.code,
+              name: u.jobTitle!.name,
+              // Chức danh mà người giữ nó đang là trưởng bộ phận thì thiếu
+              // mẫu là bình thường — ban giám đốc nhập KPI trực tiếp
+              isManagerRole: laTruongBoPhan.has(u.id),
+              headcount: nhanVien.filter((x) => x.jobTitle?.id === u.jobTitle!.id).length,
+            },
+          ]),
+      ).values(),
+    ];
+
+    const truongBoPhan = nhanVien
+      .filter((u) => laTruongBoPhan.has(u.id))
+      .map((u) => ({
+        employeeCode: u.employeeCode,
+        fullName: u.fullName,
+        department: u.department?.name ?? '',
+        jobTitle: u.jobTitle?.name ?? '(chưa có chức danh)',
+        hasPublishedTemplate: u.jobTitle ? coMau.has(u.jobTitle.id) : false,
+      }));
+
+    return {
+      totalDepartments: phongBan.length,
+      totalEmployees: nhanVien.length,
+      missingSystemTemplate: mauHeThong === null,
+
+      /** Chặn: phòng có nhân viên nhưng chưa có trưởng bộ phận. */
+      departmentsWithoutManager: phongThieuTruong,
+      /** Chặn: người chưa được gán chức danh. */
+      employeesWithoutJobTitle: nguoiThieuChucDanh,
+      /** Cảnh báo: chức danh chưa có mẫu KPI xuất bản. */
+      jobTitlesWithoutPublishedTemplate: chucDanhThieuMau,
+
+      /** Trưởng bộ phận và tình trạng mẫu của họ — do ban giám đốc chấm. */
+      departmentManagers: truongBoPhan,
+      executiveCount: soBanGiamDoc,
+      /**
+       * Có đúng một người thuộc ban giám đốc thì hệ thống tự gán làm người
+       * chấm cho trưởng bộ phận; nhiều hơn một thì phải chọn tay khi sinh phiếu.
+       */
+      executiveAutoAssignable: soBanGiamDoc === 1,
     };
   }
 

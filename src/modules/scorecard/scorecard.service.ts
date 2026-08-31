@@ -11,6 +11,7 @@ import {
   OwnerType,
   Prisma,
   ResultStatus,
+  Role,
   ScorecardAction,
   TemplateStatus,
   type KpiTemplateItem,
@@ -29,6 +30,22 @@ import type {
 
 /** Mã mẫu hệ thống chứa Mục 2 "Chấp hành nội quy". */
 const MA_MAU_HE_THONG = 'SYS-COMPLIANCE';
+
+/**
+ * Dữ liệu tra cứu gom sẵn một lần, để kiểm điều kiện lập phiếu nêu được
+ * HẾT lý do cùng lúc.
+ *
+ * Không có nó thì mỗi lý do phải một truy vấn riêng, và việc kiểm phải
+ * dừng ở lý do đầu tiên — trưởng phòng sửa xong cái này lại gặp cái kia.
+ */
+interface BoiCanhKiemTra {
+  /** Chức danh đã có mẫu KPI xuất bản. */
+  chucDanhCoMau: Set<string>;
+  /** Người đang là trưởng bộ phận của ít nhất một phòng. */
+  laTruongBoPhan: Set<string>;
+  /** Người có vai trò EXECUTIVE và đang hoạt động. */
+  banGiamDoc: Set<string>;
+}
 
 /** Người dùng kèm những gì cần để lập phiếu. */
 type NguoiDungDeLapPhieu = Prisma.UserGetPayload<{
@@ -60,6 +77,7 @@ export class ScorecardService {
     actor: AuthenticatedUser,
     evaluatorIdChiDinh?: string,
     ipAddress?: string,
+    phieuRong = false,
   ) {
     const ky = await this.mustFindPeriod(periodId);
     this.assertKyChuaKhoa(ky);
@@ -73,7 +91,18 @@ export class ScorecardService {
       await this.assertPhongTrongPhamVi(nguoi.departmentId, actor);
     }
 
-    const canTro = this.kiemDieuKienLapPhieu(nguoi, evaluatorIdChiDinh);
+    const boiCanh = await this.dungBoiCanh();
+
+    if (phieuRong) {
+      this.assertDuocSinhPhieuRong(nguoi, boiCanh, actor);
+    }
+
+    const canTro = this.kiemDieuKienLapPhieu(
+      nguoi,
+      boiCanh,
+      evaluatorIdChiDinh,
+      phieuRong,
+    );
     if (canTro) throw new BadRequestException(canTro);
 
     const daCo = await this.prisma.scorecard.findFirst({
@@ -86,7 +115,15 @@ export class ScorecardService {
       );
     }
 
-    const id = await this.taoMotPhieu(nguoi, ky, actor, evaluatorIdChiDinh, ipAddress);
+    const id = await this.taoMotPhieu(
+      nguoi,
+      ky,
+      actor,
+      boiCanh,
+      evaluatorIdChiDinh,
+      ipAddress,
+      phieuRong,
+    );
     return { id };
   }
 
@@ -131,21 +168,22 @@ export class ScorecardService {
       ).map((s) => s.ownerUserId),
     );
 
+    const boiCanh = await this.dungBoiCanh();
     const boQua: NguoiBiBoQua[] = [];
     let daTao = 0;
 
     for (const nguoi of nguoiTrongPhong) {
-      if (daCoPhieu.has(nguoi.id)) {
-        boQua.push(this.moTaBoQua(nguoi, `Đã có phiếu trong kỳ ${ky.name}`));
-        continue;
-      }
-      const canTro = this.kiemDieuKienLapPhieu(nguoi, evaluatorIdChiDinh);
-      if (canTro) {
-        boQua.push(this.moTaBoQua(nguoi, canTro));
+      // Gom cả "đã có phiếu" vào cùng danh sách lý do, không dừng riêng
+      const lyDo: string[] = [];
+      if (daCoPhieu.has(nguoi.id)) lyDo.push(`Đã có phiếu trong kỳ ${ky.name}`);
+      const canTro = this.kiemDieuKienLapPhieu(nguoi, boiCanh, evaluatorIdChiDinh);
+      if (canTro) lyDo.push(canTro);
+      if (lyDo.length > 0) {
+        boQua.push(this.moTaBoQua(nguoi, lyDo.join('; ')));
         continue;
       }
       try {
-        await this.taoMotPhieu(nguoi, ky, actor, evaluatorIdChiDinh, ipAddress);
+        await this.taoMotPhieu(nguoi, ky, actor, boiCanh, evaluatorIdChiDinh, ipAddress);
         daTao += 1;
       } catch (error) {
         boQua.push(
@@ -215,6 +253,7 @@ export class ScorecardService {
       ).map((s) => s.ownerUserId),
     );
 
+    const boiCanh = await this.dungBoiCanh();
     const boQua: NguoiBiBoQua[] = [];
     const canhBao: NguoiBiBoQua[] = [];
     let daChep = 0;
@@ -223,17 +262,13 @@ export class ScorecardService {
       const nguoi = theoId.get(nguon.ownerUserId!);
       if (!nguoi) continue;
 
-      if (!nguoi.isActive) {
-        boQua.push(this.moTaBoQua(nguoi, 'Đã nghỉ việc'));
-        continue;
-      }
-      if (daCoPhieu.has(nguoi.id)) {
-        boQua.push(this.moTaBoQua(nguoi, `Đã có phiếu trong kỳ ${kyDich.name}`));
-        continue;
-      }
-      const canTro = this.kiemDieuKienLapPhieu(nguoi);
-      if (canTro) {
-        boQua.push(this.moTaBoQua(nguoi, canTro));
+      const lyDo: string[] = [];
+      if (daCoPhieu.has(nguoi.id)) lyDo.push(`Đã có phiếu trong kỳ ${kyDich.name}`);
+      // Chép phiếu thì item đã có sẵn, không cần mẫu -> phieuRong = true
+      const canTro = this.kiemDieuKienLapPhieu(nguoi, boiCanh, undefined, true);
+      if (canTro) lyDo.push(canTro);
+      if (lyDo.length > 0) {
+        boQua.push(this.moTaBoQua(nguoi, lyDo.join('; ')));
         continue;
       }
 
@@ -251,7 +286,7 @@ export class ScorecardService {
       await this.prisma.$transaction(async (tx) => {
         const moi = await tx.scorecard.create({
           data: {
-            ...this.duLieuBoiCanh(nguoi, targetPeriodId, actor.id),
+            ...this.duLieuBoiCanh(nguoi, targetPeriodId, actor.id, boiCanh),
             // Bối cảnh mẫu giữ theo phiếu nguồn: item chép nguyên từ đó
             templateId: nguon.templateId,
             templateVersion: nguon.templateVersion,
@@ -297,23 +332,29 @@ export class ScorecardService {
     nguoi: NguoiDungDeLapPhieu,
     ky: Period,
     actor: AuthenticatedUser,
+    boiCanh: BoiCanhKiemTra,
     evaluatorIdChiDinh?: string,
     ipAddress?: string,
+    phieuRong = false,
   ): Promise<string> {
-    const mauChucDanh = await this.mustFindTemplate(nguoi.jobTitle!.id, nguoi.jobTitle!.name);
     const mauHeThong = await this.mustFindSystemTemplate();
+    // Phiếu rỗng: chỉ dựng Mục 2, Mục 1 để trống chờ nhập trực tiếp
+    const mauChucDanh = phieuRong
+      ? null
+      : await this.mustFindTemplate(nguoi.jobTitle!.id, nguoi.jobTitle!.name);
 
+    const idMau = [mauHeThong.id, ...(mauChucDanh ? [mauChucDanh.id] : [])];
     const itemMau = await this.prisma.kpiTemplateItem.findMany({
-      where: { templateId: { in: [mauChucDanh.id, mauHeThong.id] } },
+      where: { templateId: { in: idMau } },
       orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }],
     });
 
     return this.prisma.$transaction(async (tx) => {
       const phieu = await tx.scorecard.create({
         data: {
-          ...this.duLieuBoiCanh(nguoi, ky.id, actor.id, evaluatorIdChiDinh),
-          templateId: mauChucDanh.id,
-          templateVersion: mauChucDanh.version,
+          ...this.duLieuBoiCanh(nguoi, ky.id, actor.id, boiCanh, evaluatorIdChiDinh),
+          templateId: mauChucDanh?.id ?? null,
+          templateVersion: mauChucDanh?.version ?? null,
           systemTemplateId: mauHeThong.id,
         },
       });
@@ -330,7 +371,9 @@ export class ScorecardService {
           scorecardId: phieu.id,
           action: ScorecardAction.CREATE,
           actor,
-          comment: `Sinh từ mẫu ${mauChucDanh.code} (phiên bản ${mauChucDanh.version})`,
+          comment: mauChucDanh
+            ? `Sinh từ mẫu ${mauChucDanh.code} (phiên bản ${mauChucDanh.version})`
+            : 'Sinh phiếu rỗng: chỉ có Mục 2, Mục 1 chờ nhập trực tiếp',
           ipAddress,
         },
         tx,
@@ -375,6 +418,7 @@ export class ScorecardService {
     nguoi: NguoiDungDeLapPhieu,
     periodId: string,
     createdById: string,
+    boiCanh: BoiCanhKiemTra,
     evaluatorIdChiDinh?: string,
   ): Prisma.ScorecardUncheckedCreateInput {
     return {
@@ -386,7 +430,7 @@ export class ScorecardService {
       jobTitleId: nguoi.jobTitle?.id ?? null,
       jobTitleName: nguoi.jobTitle?.name ?? '',
       employeeLevel: nguoi.level,
-      evaluatorId: evaluatorIdChiDinh ?? nguoi.department!.managerId,
+      evaluatorId: this.nguoiChamDuKien(nguoi, boiCanh, evaluatorIdChiDinh),
       assignStatus: AssignStatus.DRAFT,
       resultStatus: ResultStatus.PENDING,
       createdById,
@@ -451,37 +495,113 @@ export class ScorecardService {
    * Trả chuỗi thay vì ném lỗi, để sinh hàng loạt gom được thành danh sách
    * "ai bị bỏ qua vì sao" thay vì hỏng cả lô ở người đầu tiên.
    */
-  private kiemDieuKienLapPhieu(
+  /** Gom sẵn dữ liệu tra cứu, một lần cho cả lô. */
+  private async dungBoiCanh(): Promise<BoiCanhKiemTra> {
+    const [mau, phong, bgd] = await Promise.all([
+      this.prisma.kpiTemplate.findMany({
+        where: { status: TemplateStatus.PUBLISHED, isActive: true, isSystem: false },
+        select: { jobTitleId: true },
+      }),
+      this.prisma.department.findMany({
+        where: { managerId: { not: null } },
+        select: { managerId: true },
+      }),
+      this.prisma.user.findMany({
+        where: { role: Role.EXECUTIVE, isActive: true },
+        select: { id: true },
+      }),
+    ]);
+
+    return {
+      chucDanhCoMau: new Set(mau.map((m) => m.jobTitleId).filter((x): x is string => !!x)),
+      laTruongBoPhan: new Set(phong.map((p) => p.managerId!).filter(Boolean)),
+      banGiamDoc: new Set(bgd.map((u) => u.id)),
+    };
+  }
+
+  /**
+   * Người chấm sẽ được gán, hoặc null nếu chưa xác định được.
+   *
+   * Trưởng bộ phận do BAN GIÁM ĐỐC chấm (HCNS chốt). Tự gán khi công ty
+   * có đúng một người vai trò EXECUTIVE; nhiều hơn một thì bắt chọn tay,
+   * vì đoán bừa ai trong ban giám đốc là sai.
+   */
+  private nguoiChamDuKien(
     nguoi: NguoiDungDeLapPhieu,
+    boiCanh: BoiCanhKiemTra,
     evaluatorIdChiDinh?: string,
   ): string | null {
-    // Nghỉ việc thì mọi thứ khác không còn ý nghĩa, dừng ngay
+    if (evaluatorIdChiDinh) return evaluatorIdChiDinh;
+
+    if (boiCanh.laTruongBoPhan.has(nguoi.id)) {
+      const bgd = [...boiCanh.banGiamDoc];
+      return bgd.length === 1 ? bgd[0] : null;
+    }
+    return nguoi.department?.managerId ?? null;
+  }
+
+  /**
+   * Lý do KHÔNG lập được phiếu. Trả null nếu đủ điều kiện.
+   *
+   * NÊU HẾT LÝ DO CÙNG LÚC, không dừng ở lý do đầu tiên. Trưởng phòng sửa
+   * xong một lỗi lại gặp lỗi kế tiếp là trải nghiệm tệ — với 200 người thì
+   * đó là nhiều vòng sửa vô ích.
+   */
+  private kiemDieuKienLapPhieu(
+    nguoi: NguoiDungDeLapPhieu,
+    boiCanh: BoiCanhKiemTra,
+    evaluatorIdChiDinh?: string,
+    phieuRong = false,
+  ): string | null {
+    // Nghỉ việc thì mọi thứ khác không còn ý nghĩa
     if (!nguoi.isActive) return 'Đã nghỉ việc';
 
-    // Còn lại thì gom HẾT lý do. Nêu từng lý do một khiến người dùng sửa
-    // xong cái này lại gặp cái kia — với 200 người thì đó là nhiều vòng
-    // sửa vô ích.
     const lyDo: string[] = [];
     if (!nguoi.department) lyDo.push('Chưa được gán phòng ban');
     if (!nguoi.jobTitle) lyDo.push('Chưa được gán chức danh');
-    if (nguoi.department && !evaluatorIdChiDinh && !nguoi.department.managerId) {
+
+    // Chức danh chưa có mẫu — kiểm ở đây chứ không đợi lúc tra mẫu, để lý
+    // do này gộp được với các lý do khác
+    if (
+      !phieuRong &&
+      nguoi.jobTitle &&
+      !boiCanh.chucDanhCoMau.has(nguoi.jobTitle.id)
+    ) {
+      lyDo.push(
+        `Chức danh "${nguoi.jobTitle.name}" chưa có mẫu KPI nào được xuất bản` +
+          (boiCanh.laTruongBoPhan.has(nguoi.id)
+            ? ' — với trưởng bộ phận, hãy dùng đường sinh phiếu rỗng rồi nhập KPI trực tiếp'
+            : ''),
+      );
+    }
+
+    const laTruong = boiCanh.laTruongBoPhan.has(nguoi.id);
+    const nguoiCham = this.nguoiChamDuKien(nguoi, boiCanh, evaluatorIdChiDinh);
+
+    if (laTruong) {
+      // Trưởng bộ phận do ban giám đốc chấm — HCNS đã chốt
+      if (!nguoiCham) {
+        lyDo.push(
+          boiCanh.banGiamDoc.size === 0
+            ? 'Là trưởng bộ phận, cần ban giám đốc chấm, nhưng công ty chưa có ai vai trò Ban giám đốc'
+            : `Là trưởng bộ phận, cần ban giám đốc chấm. Công ty có ${boiCanh.banGiamDoc.size} người ` +
+              'thuộc ban giám đốc nên phải chọn rõ ai chấm khi sinh phiếu',
+        );
+      } else if (!boiCanh.banGiamDoc.has(nguoiCham)) {
+        lyDo.push(
+          'Là trưởng bộ phận nên chỉ ban giám đốc mới chấm được. ' +
+            'Người chấm đang chọn không thuộc ban giám đốc.',
+        );
+      }
+    } else if (nguoi.department && !nguoiCham) {
       lyDo.push(
         `Phòng "${nguoi.department.name}" chưa có trưởng bộ phận — chưa biết ai duyệt KPI`,
       );
     }
 
-    // KHÔNG cho ai tự chấm chính mình.
-    //
-    // Trưởng bộ phận là managerId của chính phòng mình, nên nếu không chặn
-    // thì phiếu của họ sẽ tự gửi, tự ký, và ở lát cắt chấm điểm là tự cho
-    // mình điểm. Ký nhận và chấm điểm chỉ có nghĩa khi hai bên là hai người.
-    const nguoiCham = evaluatorIdChiDinh ?? nguoi.department?.managerId ?? null;
+    // Không ai tự chấm chính mình. Ký nhận chỉ có nghĩa khi hai bên là hai người.
     if (nguoiCham && nguoiCham === nguoi.id) {
-      lyDo.push(
-        'Không thể tự chấm chính mình — người này đang là trưởng bộ phận của ' +
-          `phòng "${nguoi.department?.name ?? ''}". Cần chỉ định người chấm khác, ` +
-          'thường là trưởng phòng cấp trên.',
-      );
+      lyDo.push('Không thể tự chấm chính mình — cần chỉ định người chấm khác');
     }
 
     return lyDo.length > 0 ? lyDo.join('; ') : null;
@@ -494,6 +614,31 @@ export class ScorecardService {
     const trongPhamVi = await this.departmentScope.getAccessibleDepartmentIds(user);
     if (!trongPhamVi.includes(departmentId)) {
       throw new ForbiddenException('Bạn không có quyền giao KPI cho phòng ban này');
+    }
+  }
+
+  /**
+   * Phiếu rỗng là ngoại lệ có chủ đích, không phải đường tắt.
+   *
+   * Chỉ mở khi chức danh THẬT SỰ chưa có mẫu — trường hợp bình thường của
+   * trưởng bộ phận. Có mẫu mà vẫn sinh rỗng là bỏ qua nội dung đã duyệt.
+   */
+  private assertDuocSinhPhieuRong(
+    nguoi: NguoiDungDeLapPhieu,
+    boiCanh: BoiCanhKiemTra,
+    actor: AuthenticatedUser,
+  ): void {
+    const duocPhep: Role[] = [Role.ADMIN, Role.HR, Role.EXECUTIVE];
+    if (!duocPhep.includes(actor.role)) {
+      throw new ForbiddenException(
+        'Chỉ quản trị viên, Hành chính nhân sự hoặc ban giám đốc mới sinh được phiếu rỗng.',
+      );
+    }
+    if (nguoi.jobTitle && boiCanh.chucDanhCoMau.has(nguoi.jobTitle.id)) {
+      throw new BadRequestException(
+        `Chức danh "${nguoi.jobTitle.name}" đã có mẫu KPI xuất bản. ` +
+          'Sinh phiếu từ mẫu thay vì tạo phiếu rỗng.',
+      );
     }
   }
 

@@ -30,6 +30,8 @@ const QUAN_TRI = [Role.ADMIN, Role.HR];
 const GIAO_KPI = [Role.ADMIN, Role.HR, Role.MANAGER];
 const DOC_TO_CHUC = [Role.ADMIN, Role.HR, Role.EXECUTIVE];
 const DOC_NHAN_SU = [Role.ADMIN, Role.HR, Role.EXECUTIVE, Role.MANAGER];
+/** Ban giám đốc giao và duyệt KPI của trưởng bộ phận. */
+const GIAO_KPI_VA_BGD = [...GIAO_KPI, Role.EXECUTIVE];
 
 export const MA_TRAN_PHAN_QUYEN: DongPhanQuyen[] = [
   // ------------------------------------------------------------- auth
@@ -76,16 +78,17 @@ export const MA_TRAN_PHAN_QUYEN: DongPhanQuyen[] = [
   { method: 'GET', path: 'scorecards/my', allowedRoles: AI_CUNG_DUOC, dataScope: 'owner' },
   { method: 'GET', path: 'scorecards/pending-my-action', allowedRoles: AI_CUNG_DUOC, dataScope: 'owner' },
   { method: 'GET', path: 'scorecards/readiness', allowedRoles: [...GIAO_KPI, Role.EXECUTIVE], dataScope: 'scope' },
+  { method: 'GET', path: 'scorecards/readiness/company', allowedRoles: DOC_TO_CHUC, dataScope: 'scope', note: 'danh sách gửi HCNS' },
   { method: 'GET', path: 'scorecards', allowedRoles: AI_CUNG_DUOC, dataScope: 'scope', note: 'STAFF chỉ thấy phiếu mình' },
   { method: 'GET', path: 'scorecards/:id', allowedRoles: AI_CUNG_DUOC, dataScope: 'scope' },
-  { method: 'POST', path: 'scorecards', allowedRoles: GIAO_KPI, dataScope: 'scope' },
+  { method: 'POST', path: 'scorecards', allowedRoles: GIAO_KPI_VA_BGD, dataScope: 'scope', note: 'BGĐ sinh phiếu rỗng cho trưởng bộ phận' },
   { method: 'POST', path: 'scorecards/batch', allowedRoles: GIAO_KPI, dataScope: 'scope' },
   { method: 'POST', path: 'scorecards/copy-from-period', allowedRoles: GIAO_KPI, dataScope: 'scope' },
-  { method: 'POST', path: 'scorecards/:id/propose', allowedRoles: GIAO_KPI, dataScope: 'scope' },
+  { method: 'POST', path: 'scorecards/:id/propose', allowedRoles: GIAO_KPI_VA_BGD, dataScope: 'scope', note: 'BGĐ chỉ trên phiếu trưởng bộ phận' },
   { method: 'POST', path: 'scorecards/batch-propose', allowedRoles: GIAO_KPI, dataScope: 'scope' },
   { method: 'POST', path: 'scorecards/:id/accept', allowedRoles: AI_CUNG_DUOC, dataScope: 'owner', note: 'chỉ chính chủ, không ai ký thay' },
   { method: 'POST', path: 'scorecards/:id/dispute', allowedRoles: AI_CUNG_DUOC, dataScope: 'owner', note: 'chỉ chính chủ' },
-  { method: 'PUT', path: 'scorecards/:id/items', allowedRoles: GIAO_KPI, dataScope: 'scope' },
+  { method: 'PUT', path: 'scorecards/:id/items', allowedRoles: GIAO_KPI_VA_BGD, dataScope: 'scope', note: 'BGĐ chỉ trên phiếu trưởng bộ phận' },
 
   // -------------------------------------------------------------- khác
   { method: 'GET', path: '', allowedRoles: AI_CUNG_DUOC, dataScope: 'none', note: 'health check, công khai' },
@@ -101,5 +104,3 @@ export function timDong(
   );
 }
 
-const DOC_TO_CHUC_UNUSED = DOC_TO_CHUC;
-void DOC_TO_CHUC_UNUSED;

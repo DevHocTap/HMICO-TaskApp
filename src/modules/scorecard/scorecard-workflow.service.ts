@@ -115,14 +115,32 @@ export class ScorecardWorkflowService {
    * `evaluatorId` của phiếu, hoặc ADMIN/HR. Trưởng bộ phận khác phòng
    * không gửi thay được — kiểm phạm vi đã làm ở tầng trên.
    */
-  assertCoTheGui(phieu: Scorecard, actor: AuthenticatedUser): void {
+  async assertCoTheGui(phieu: Scorecard, actor: AuthenticatedUser): Promise<void> {
     const laNguoiCham = phieu.evaluatorId === actor.id;
     const laQuanTri = actor.role === Role.ADMIN || actor.role === Role.HR;
-    if (!laNguoiCham && !laQuanTri) {
+
+    // Ban giám đốc chấm và duyệt KPI của TRƯỞNG BỘ PHẬN (HCNS chốt).
+    // Với phiếu nhân viên thường thì EXECUTIVE vẫn chỉ được xem.
+    const laBgdTrenPhieuTruongBoPhan =
+      actor.role === Role.EXECUTIVE && (await this.laPhieuTruongBoPhan(phieu));
+
+    if (!laNguoiCham && !laQuanTri && !laBgdTrenPhieuTruongBoPhan) {
       throw new ForbiddenException(
-        'Chỉ người chấm được chỉ định của phiếu, hoặc quản trị viên, mới gửi được phiếu đi ký.',
+        actor.role === Role.EXECUTIVE
+          ? 'Ban giám đốc chỉ thao tác được trên phiếu của trưởng bộ phận. ' +
+            'Phiếu nhân viên thường do trưởng bộ phận của họ phụ trách.'
+          : 'Chỉ người chấm được chỉ định của phiếu, hoặc quản trị viên, mới gửi được phiếu đi ký.',
       );
     }
+  }
+
+  /** Chủ phiếu có đang là trưởng bộ phận của phòng nào không. */
+  async laPhieuTruongBoPhan(phieu: Scorecard): Promise<boolean> {
+    if (!phieu.ownerUserId) return false;
+    const soPhong = await this.prisma.department.count({
+      where: { managerId: phieu.ownerUserId },
+    });
+    return soPhong > 0;
   }
 
   /** Chỉ chính chủ ký nhận. Không ai ký thay, kể cả ADMIN. */

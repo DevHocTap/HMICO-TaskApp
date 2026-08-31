@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNumber,
@@ -32,6 +33,19 @@ export class CreateScorecardDto {
   @IsOptional()
   @IsUUID('4', { message: 'Người chấm không hợp lệ' })
   evaluatorId?: string;
+
+  /**
+   * Sinh phiếu RỖNG: chỉ dựng Mục 2, Mục 1 để trống chờ nhập trực tiếp.
+   *
+   * Dành cho trưởng bộ phận — chức danh của họ không có mẫu KPI, ban giám
+   * đốc nhập KPI thẳng vào phiếu rồi hai bên trao đổi và chốt.
+   *
+   * CỐ Ý không có ở batch và copy: sinh phiếu rỗng phải là hành động có chủ
+   * đích trên từng người, không phải thao tác hàng loạt.
+   */
+  @IsOptional()
+  @IsBoolean()
+  emptyTemplate?: boolean;
 }
 
 export class BatchCreateScorecardDto {

@@ -45,7 +45,7 @@ export class ScorecardAssignService {
   ) {
     const phieu = await this.mustFindTrongPhamVi(id, actor);
     this.assertKyChuaKhoa(phieu.period);
-    this.workflow.assertCoTheGui(phieu, actor);
+    await this.workflow.assertCoTheGui(phieu, actor);
 
     const hanhDong = this.workflow.hanhDongGui(phieu, note);
     await this.assertTrongSoDung(id);
@@ -183,7 +183,7 @@ export class ScorecardAssignService {
   ) {
     const phieu = await this.mustFindTrongPhamVi(id, actor);
     this.assertKyChuaKhoa(phieu.period);
-    this.workflow.assertCoTheGui(phieu, actor);
+    await this.workflow.assertCoTheGui(phieu, actor);
     this.workflow.assertCoTheSuaNoiDung(phieu);
 
     if (phieu.assignStatus === AssignStatus.PROPOSED) {

@@ -120,40 +120,18 @@
 > khi HCNS xác nhận là làm hỏng mốc đối chiếu tuần 11 — mốc đó yêu cầu điểm
 > hệ thống tính ra khớp tuyệt đối với file Excel đang dùng.
 
-### Câu 0 — Ai chấm KPI của trưởng bộ phận: HAI CÂU CHẶN VIỆC CHẠY THẬT
+### Câu 0 — ĐÃ TRẢ LỜI (31/08)
 
-Phát hiện khi kiểm chứng module phiếu KPI. **Cả hai câu phải trả lời trước
-khi phòng Kỹ thuật chạy thật tháng 11**, vì nếu không thì trưởng bộ phận
-không có phiếu KPI nào.
+**(a) Chức danh trưởng bộ phận không có mẫu KPI riêng.** Ban giám đốc nhập
+KPI trực tiếp vào phiếu qua đường sinh phiếu rỗng.
 
-**(a) Chức danh trưởng bộ phận có mẫu KPI riêng không?**
+**(b) Ban giám đốc chấm và duyệt KPI của trưởng bộ phận.** Bỏ hẳn hướng suy
+người chấm theo `Department.parentId`.
 
-Bốn file Excel hiện có chỉ phủ bốn chức danh **nhân viên**: Kỹ sư triển
-khai, Kỹ sư cấu hình, Nhân viên Shop Drawing, Nhân viên Bảo hành.
-
-Chức danh `Tổ trưởng` và `Trưởng phòng` **chưa có mẫu nào**. Endpoint
-`GET /scorecards/readiness` báo tổ Shop Drawing chưa sẵn sàng đúng vì lý do
-này, dù tổ đã có trưởng bộ phận và mọi người đều có chức danh.
-
-Trưởng bộ phận cũng là nhân sự, cũng phải được đánh giá. Cần HCNS cấp biểu
-mẫu cho các chức danh quản lý, hoặc xác nhận họ dùng chung mẫu nhân viên.
-
-**(b) AI chấm KPI của trưởng bộ phận?**
-
-Hệ thống lấy người chấm từ `Department.managerId`. Nhưng trưởng bộ phận
-CHÍNH LÀ `managerId` của phòng mình — nếu không chặn thì phiếu của họ tự
-gửi, tự ký, và ở lát cắt chấm điểm là tự cho mình điểm.
-
-Hệ thống hiện **từ chối** sinh phiếu trong trường hợp đó và nêu rõ lý do.
-Hai hướng xử lý, cần HCNS chốt:
-
-| Hướng | Cách làm | Đánh đổi |
-|---|---|---|
-| **Tự động theo cây** | Người chấm = trưởng của phòng CHA (`Department.parentId`) | Đúng với cây tổ chức, không phải khai tay. Nhưng trưởng phòng cấp cao nhất vẫn không có ai chấm |
-| **Chỉ định tay** | ADMIN/HR gán `evaluatorId` khi sinh phiếu | Linh hoạt, hợp với trường hợp ngoại lệ. Nhưng phải nhớ làm mỗi kỳ |
-
-Hiện đã có **đường chỉ định tay** làm lối thoát. Hướng tự động theo cây chỉ
-là vài dòng trong `kiemDieuKienLapPhieu`, làm được ngay khi HCNS xác nhận.
+Xem `docs/quy-tac-nghiep-vu.md` mục 5.0. Còn một việc nhập liệu chờ HCNS:
+**gán chức danh cho những người còn thiếu, và bổ nhiệm trưởng bộ phận cho
+các phòng còn trống** — dùng `GET /scorecards/readiness/company` để lấy
+danh sách đầy đủ.
 
 ### Câu 1 — Cả bốn file đều ghi sai chức danh
 
