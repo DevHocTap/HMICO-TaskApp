@@ -120,6 +120,30 @@
 > khi HCNS xác nhận là làm hỏng mốc đối chiếu tuần 11 — mốc đó yêu cầu điểm
 > hệ thống tính ra khớp tuyệt đối với file Excel đang dùng.
 
+### Câu 0b — Tổ trưởng do AI giao và chấm KPI? CHƯA TRẢ LỜI
+
+HCNS đã chốt **trưởng bộ phận** do ban giám đốc chấm. Nhưng công ty có hai
+cấp quản lý:
+
+| Cấp | Ví dụ | Ai giao và chấm |
+|---|---|---|
+| Trưởng phòng | Trưởng phòng Kỹ thuật | Ban giám đốc — **đã chốt** |
+| **Tổ trưởng** | Tổ trưởng Shop Drawing, Tổ trưởng Bảo trì | **chưa rõ** |
+
+Hệ thống hiện gộp cả hai: bất kỳ ai là `Department.managerId` đều được ban
+giám đốc chấm và dùng phiếu rỗng. **Đây là suy diễn khi viết code, không
+phải điều HCNS nói.**
+
+Hai khả năng:
+- Ban giám đốc chấm cả tổ trưởng — code hiện tại đúng, không phải sửa
+- **Trưởng phòng chấm tổ trưởng** — hợp lý hơn về mặt quản lý, vì tổ trưởng
+  báo cáo trực tiếp cho trưởng phòng. Khi đó phải sửa `nguoiChamDuKien()`
+  để phân biệt cấp phòng với cấp tổ
+
+Ảnh hưởng thực tế: 2 trong 5 người đang là trưởng bộ phận là **tổ trưởng**.
+
+Cũng chưa rõ tổ trưởng có mẫu KPI riêng hay dùng phiếu rỗng như trưởng phòng.
+
 ### Câu 0 — ĐÃ TRẢ LỜI (31/08)
 
 **(a) Chức danh trưởng bộ phận không có mẫu KPI riêng.** Ban giám đốc nhập
@@ -128,10 +152,25 @@ KPI trực tiếp vào phiếu qua đường sinh phiếu rỗng.
 **(b) Ban giám đốc chấm và duyệt KPI của trưởng bộ phận.** Bỏ hẳn hướng suy
 người chấm theo `Department.parentId`.
 
-Xem `docs/quy-tac-nghiep-vu.md` mục 5.0. Còn một việc nhập liệu chờ HCNS:
-**gán chức danh cho những người còn thiếu, và bổ nhiệm trưởng bộ phận cho
-các phòng còn trống** — dùng `GET /scorecards/readiness/company` để lấy
-danh sách đầy đủ.
+Xem `docs/quy-tac-nghiep-vu.md` mục 5.0. **Câu trả lời này chỉ phủ TRƯỞNG
+BỘ PHẬN, chưa phủ tổ trưởng** — xem Câu 0b.
+
+Còn một việc nhập liệu chờ HCNS: **bổ nhiệm trưởng bộ phận cho các phòng
+đang có nhân sự mà còn trống, và gán chức danh cho những người còn thiếu.**
+Dùng `GET /scorecards/readiness/company` để lấy danh sách đầy đủ; endpoint
+đã tách riêng phòng **có nhân sự** (chặn thật) khỏi đơn vị tổ chức **chưa
+có ai** (bình thường, chưa cần trưởng).
+
+**Chặn thật hiện tại — 3 phòng, 3 người không sinh được phiếu:**
+
+| Phòng | Người bị chặn |
+|---|---|
+| Phòng Hành chính nhân sự | HM003 Chuyên viên HCNS — **ca thật, cần bổ nhiệm trưởng phòng** |
+| Ban giám đốc | HM002 Giám đốc điều hành — ai chấm giám đốc? Chưa có lời giải |
+| Công ty HMICO | HM001 Quản trị hệ thống — tài khoản kỹ thuật, nhiều khả năng không cần phiếu KPI |
+
+Tám đơn vị còn lại (DA, HCM, HN, KD, KD-HCM, MH, MKT, TCKT) chưa có nhân sự
+nên chưa cần trưởng bộ phận.
 
 ### Câu 1 — Cả bốn file đều ghi sai chức danh
 

@@ -290,6 +290,16 @@ trực tiếp vào phiếu** của họ, qua đường sinh phiếu rỗng
 (`POST /scorecards` với `emptyTemplate: true`): phiếu chỉ dựng sẵn Mục 2,
 Mục 1 để trống.
 
+> **Phạm vi của quy tắc này: HCNS mới xác nhận cho TRƯỞNG BỘ PHẬN.**
+>
+> Hệ thống hiện áp dụng cho **mọi người là `Department.managerId`**, tức
+> gồm cả **tổ trưởng** (tổ Shop Drawing, tổ Bảo trì). Đó là suy diễn từ mã
+> nguồn, **chưa được HCNS xác nhận** — xem `docs/no-ky-thuat.md`.
+>
+> Nếu HCNS trả lời tổ trưởng do trưởng phòng giao thay vì ban giám đốc, chỗ
+> sửa là hàm `nguoiChamDuKien()` trong `scorecard.service.ts`: phân biệt
+> cấp phòng với cấp tổ thay vì gộp chung một tập `laTruongBoPhan`.
+
 Người nhập là ban giám đốc, **không phải trưởng bộ phận tự nhập cho mình**.
 Nhập xong, hai bên trao đổi và chốt theo đúng luồng `PROPOSED → ACCEPTED`
 như mọi phiếu khác. Cuối kỳ ban giám đốc chấm dựa trên chính KPI đã chốt đó.

@@ -357,8 +357,9 @@ export class ScorecardQueryService {
       jobTitlesWithoutPublishedTemplate: chucDanhThieuMau.map((t) => ({
         ...t,
         suggestion:
-          'Chưa có mẫu KPI. Nếu là chức danh quản lý thì dùng đường sinh phiếu ' +
-          'rỗng (emptyTemplate) rồi nhập KPI trực tiếp.',
+          'Chưa có mẫu KPI xuất bản. Với chức danh quản lý, hiện dùng đường ' +
+          'sinh phiếu rỗng (emptyTemplate) rồi nhập KPI trực tiếp — cách này ' +
+          'HCNS mới xác nhận cho trưởng bộ phận, tổ trưởng còn chờ trả lời.',
       })),
       /** Người không thể tự chấm mình — cần chỉ định người chấm khác. */
       employeesNeedingExternalEvaluator: tuChamChinhMinh,
@@ -407,10 +408,28 @@ export class ScorecardQueryService {
       where: { role: 'EXECUTIVE', isActive: true },
     });
 
-    const phongThieuTruong = phongBan
-      .filter((p) => p.managerId === null)
-      // Chỉ tính phòng có nhân viên: đơn vị rỗng chưa cần trưởng
-      .filter((p) => nhanVien.some((u) => u.departmentId === p.id))
+    // Tách hai loại. Trộn chung thì người đọc không biết dòng nào cần sửa:
+    // đơn vị tổ chức rỗng người chưa cần trưởng, còn phòng đang có nhân sự
+    // mà thiếu trưởng thì những người đó KHÔNG sinh được phiếu.
+    const chuaCoTruong = phongBan.filter((p) => p.managerId === null);
+    const nguoiCuaPhong = (id: string) =>
+      nhanVien.filter((u) => u.departmentId === id);
+
+    const phongThieuTruong = chuaCoTruong
+      .filter((p) => nguoiCuaPhong(p.id).length > 0)
+      .map((p) => ({
+        code: p.code,
+        name: p.name,
+        headcount: nguoiCuaPhong(p.id).length,
+        blockedEmployees: nguoiCuaPhong(p.id).map((u) => ({
+          employeeCode: u.employeeCode,
+          fullName: u.fullName,
+          role: u.role,
+        })),
+      }));
+
+    const donViRong = chuaCoTruong
+      .filter((p) => nguoiCuaPhong(p.id).length === 0)
       .map((p) => ({ code: p.code, name: p.name }));
 
     const nguoiThieuChucDanh = nhanVien
@@ -454,8 +473,16 @@ export class ScorecardQueryService {
       totalEmployees: nhanVien.length,
       missingSystemTemplate: mauHeThong === null,
 
-      /** Chặn: phòng có nhân viên nhưng chưa có trưởng bộ phận. */
+      /**
+       * CHẶN THẬT: phòng đang có nhân sự nhưng chưa có trưởng bộ phận.
+       * Những người trong đó không sinh được phiếu KPI.
+       */
       departmentsWithoutManager: phongThieuTruong,
+      /**
+       * BÌNH THƯỜNG, không cần sửa: đơn vị tổ chức chưa có nhân sự nào.
+       * Chưa có người thì chưa cần trưởng bộ phận.
+       */
+      emptyOrgUnits: donViRong,
       /** Chặn: người chưa được gán chức danh. */
       employeesWithoutJobTitle: nguoiThieuChucDanh,
       /** Cảnh báo: chức danh chưa có mẫu KPI xuất bản. */

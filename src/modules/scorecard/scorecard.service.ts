@@ -41,7 +41,16 @@ const MA_MAU_HE_THONG = 'SYS-COMPLIANCE';
 interface BoiCanhKiemTra {
   /** Chức danh đã có mẫu KPI xuất bản. */
   chucDanhCoMau: Set<string>;
-  /** Người đang là trưởng bộ phận của ít nhất một phòng. */
+  /**
+   * Người đang là `Department.managerId` của ít nhất một đơn vị.
+   *
+   * CHÚ Ý: tập này gộp cả TRƯỞNG PHÒNG lẫn TỔ TRƯỞNG. HCNS mới xác nhận
+   * quy tắc "ban giám đốc chấm" cho trưởng phòng; tổ trưởng do ai chấm thì
+   * chưa có câu trả lời — xem docs/no-ky-thuat.md Câu 0b.
+   *
+   * Nếu HCNS trả lời tổ trưởng do trưởng phòng chấm thì sửa ở đây: tách
+   * hai cấp thay vì gộp một tập.
+   */
   laTruongBoPhan: Set<string>;
   /** Người có vai trò EXECUTIVE và đang hoạt động. */
   banGiamDoc: Set<string>;
