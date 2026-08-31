@@ -285,17 +285,26 @@ DRAFT → PROPOSED → ACCEPTED
 | `PROPOSED` → `DISPUTED` | **Chỉ chủ sở hữu phiếu**, bắt buộc nêu lý do |
 | `DISPUTED` → `DRAFT` | **Trưởng bộ phận**, bằng cách sửa lại cây item của phiếu |
 
-**`DISPUTED` → `DRAFT` không có nút riêng.** Nhân viên nêu ý kiến xong, phiếu
-nằm ở `DISPUTED` cho tới khi trưởng bộ phận mở ra sửa; chính thao tác lưu
-cây item đưa phiếu về `DRAFT`, rồi gửi lại để ký.
+**`DISPUTED` KHÔNG phải ngõ cụt.** Có đúng hai đường ra, cả hai đều do
+trưởng bộ phận thực hiện:
 
-Làm vậy vì một nút "chuyển về nháp" riêng sẽ cho phép trưởng bộ phận xoá
-trạng thái `DISPUTED` mà **không sửa gì** — ý kiến của nhân viên biến mất
-không để lại dấu vết. Buộc phải sửa mới thoát được `DISPUTED` là cách rẻ
-nhất để ý kiến đó không bị bỏ qua.
+| Đường ra | Khi nào | Ghi nhận |
+|---|---|---|
+| **Sửa KPI rồi gửi lại** | Ý kiến của nhân viên hợp lý, có chỗ để sửa | Lưu cây item đưa phiếu về `DRAFT`, rồi `/propose` như bình thường |
+| **Gửi lại nguyên trạng** | Đã trao đổi trực tiếp và thống nhất giữ nguyên | `/propose` gọi thẳng từ `DISPUTED`, **bắt buộc nhập ghi chú**, ghi `ScorecardEvent` kiểu `RE_PROPOSED_UNCHANGED` |
 
-Lý do phản đối luôn còn trong `ScorecardEvent`, kể cả sau khi phiếu đã về
-`DRAFT` và được ký lại.
+Trường hợp thứ hai là bình thường và hay gặp: hai bên nói chuyện với nhau,
+nhân viên hiểu ra và đồng ý, không có gì phải sửa — nhưng phiếu vẫn phải đi
+tiếp. Không có đường này thì phiếu kẹt vĩnh viễn ở `DISPUTED`, hoặc trưởng
+bộ phận phải sửa vu vơ một ký tự để thoát ra.
+
+**Không có nút "chuyển về nháp" trần.** Một nút như vậy cho phép xoá trạng
+thái `DISPUTED` mà không sửa gì và không giải thích gì — ý kiến của nhân
+viên biến mất không dấu vết. Cả hai đường ra ở trên đều để lại dấu: một
+đằng là nội dung phiếu đổi, một đằng là ghi chú bắt buộc.
+
+Lịch sử ý kiến luôn còn trong `ScorecardEvent`, kể cả sau khi phiếu đã được
+ký lại.
 
 Giai đoạn 1 chỉ có một cấp ký nhận: **trưởng phòng ↔ nhân viên**. Cấp
 BGĐ ↔ trưởng phòng để BSCkpi lo.
@@ -340,6 +349,21 @@ một cột `managerScore`**, `selfScore` để trống, **bắt buộc ghi lý 
 
 ### 5.5 Hạn nộp
 
+**CHỈ kỳ THÁNG có hạn nộp.** Kỳ quý và kỳ năm để `submitDeadline = NULL`.
+
+Lý do: phiếu KPI luôn gắn với kỳ tháng, không có phiếu nào gắn trực tiếp
+vào kỳ quý hay kỳ năm — hai loại đó chỉ để tổng hợp. Đặt hạn nộp cho chúng
+là tạo ra một cái mốc không ai phải đáp ứng, rồi bảng theo dõi tiến độ sẽ
+báo "quá hạn" cho thứ chưa từng có ai được giao.
+
+Cột `submitDeadline` vì vậy phải **nullable**.
+
+> Hạn nộp hiện là **ngày 02 của tháng kế tiếp**. Biểu mẫu ghi "trước ngày
+> 02" — chưa rõ là hết ngày 01 hay hết ngày 02, HCNS sẽ chốt sau. Con số
+> nằm ở hằng số `NGAY_HAN_NOP` trong
+> `src/modules/period/period-calendar.ts`, đổi một chỗ là xong.
+
+
 Kết quả phải về HCNS **trước ngày 02 của tháng kế tiếp** (lưu ở
 `Period.dueDate`, không hard-code). Hệ thống:
 - Nhắc nhân viên chưa tự chấm từ ngày 28
@@ -369,8 +393,40 @@ người bấm nút nghĩ mình đang làm.
 
 Muốn chốt sổ cả quý thì khoá lần lượt ba kỳ tháng.
 
-Kỳ tháng **tạo tự động trước 7 ngày**, không tạo tay — quên một lần là chặn
-cả công ty đúng hạn mùng 02.
+**Giao diện: nút khoá ở kỳ quý và kỳ năm phải VÔ HIỆU HOÁ** cho tới khi có
+KPI cấp quý. Cột `isLocked` vẫn tồn tại cho tương lai, nhưng khoá một kỳ
+không có phiếu nào thì không chặn được gì — để nút bấm được là mời người
+dùng hiểu nhầm rằng mình vừa chốt sổ cả quý.
+
+### 5.7 Tự sinh kỳ đánh giá
+
+Tài liệu chốt ADMIN khoá/mở kỳ nhưng không nói ai TẠO kỳ. Tạo tay 12 lần
+một năm, quên đúng một lần là chặn cả công ty vào hạn nộp mùng 02. Nên hệ
+thống tự sinh.
+
+**Quy tắc bù kỳ — chỉ TIẾN, không LÙI:**
+
+| | |
+|---|---|
+| Luôn bảo đảm tồn tại | Kỳ **tháng hiện tại** và **tháng kế tiếp** |
+| Kèm theo | Kỳ quý và kỳ năm chứa hai tháng đó |
+| **Không bao giờ** | Bù ngược kỳ đã qua |
+
+Vì sao không bù ngược: khởi động lại máy chủ vào tháng 9 mà sinh ngược 8 kỳ
+đầu năm thì tạo ra 8 kỳ **rỗng không ai điền**, làm rác ô chọn kỳ, và khiến
+bảng theo dõi tiến độ nộp báo "chưa nộp" cho những tháng công ty chưa từng
+dùng phần mềm. Kỳ quá khứ nếu thật sự cần thì HCNS tạo tay.
+
+Chạy ở **hai nơi, cùng một hàm** `ensurePeriodsExist()`:
+- 01:00 hằng ngày, múi giờ `Asia/Ho_Chi_Minh`
+- mỗi lần máy chủ khởi động
+
+Máy chủ tắt đúng lúc 01:00 thì lần bật lên sau bù ngay, không phải đợi hôm
+sau. Hàm **idempotent** nhờ khoá `Period.code`, nên chạy lại bao nhiêu lần
+— kể cả nhiều tiến trình song song — cũng chỉ ra một kỳ.
+
+Kỳ do hệ thống tạo có `createdById = NULL`; kỳ do người tạo tay thì mang id
+người đó.
 
 ---
 

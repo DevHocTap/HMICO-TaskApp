@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { validateEnv } from './config/env.validation.js';
@@ -8,6 +9,7 @@ import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { OrgModule } from './modules/org/org.module.js';
 import { KpiTemplateModule } from './modules/kpi-template/kpi-template.module.js';
+import { PeriodModule } from './modules/period/period.module.js';
 
 @Module({
   imports: [
@@ -15,11 +17,13 @@ import { KpiTemplateModule } from './modules/kpi-template/kpi-template.module.js
       isGlobal: true,
       validate: validateEnv,
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuditModule,
     AuthModule,
     OrgModule,
     KpiTemplateModule,
+    PeriodModule,
   ],
   controllers: [AppController],
   providers: [AppService],
