@@ -203,46 +203,18 @@ hai sheet ghi khác nhau:
 Hệ thống lấy tên ở **sheet biểu mẫu** vì đó là bản in chính thức. Xin xác
 nhận.
 
-### Câu 3 — Cách đo bị chép trùng: CÂU QUAN TRỌNG NHẤT
+### Câu 3 — ĐÃ TRẢ LỜI (03/09/2026)
 
-Nhiều nhóm có **mọi KPI con dùng chung một câu "Cách đo"**:
+**Bốn file Excel chỉ là mẫu thử nghiệm.** Cách làm thật: một tiêu chí lớn
+chiếm trọng số bao nhiêu, trong đó có các tiêu chí con được thêm và phân bổ,
+**do trưởng phòng đưa ra cho từng nhân viên**.
 
-| File | Nhóm chép trùng hoàn toàn | KPI con bị ảnh hưởng |
-|---|---|---|
-| **Shop Drawing** | **6/6 nhóm** | **31/31** |
-| Bảo hành | 2/7 nhóm | 7/29 |
-| Kỹ sư triển khai | 0 | 0 |
-| Kỹ sư cấu hình | 0 | 0 |
+Nghĩa là mẫu KPI chỉ là điểm khởi đầu, không phải khuôn cứng. Hệ thống phải
+cho tự thêm và chỉnh sửa ngay trên phiếu — đã làm: `MANAGER` sinh được phiếu
+rỗng và tự soạn cây qua `PUT /scorecards/:id/items`.
 
-Ví dụ cụ thể — nhóm *"Tính khả thi thi công"* (Shop Drawing) có 5 KPI con
-nội dung khác hẳn nhau:
-
-1. Bản vẽ phải phản ánh được phương án có thể triển khai thực tế
-2. Kiểm tra không gian lắp đặt, kích thước, cao độ, vị trí thiết bị...
-3. Thể hiện đầy đủ tuyến cáp, điểm đấu nối, giá đỡ...
-4. Kiểm tra sự phù hợp với hiện trạng và phối hợp với các bộ môn khác
-5. Chủ động phát hiện các điểm bất khả thi hoặc xung đột...
-
-...nhưng **cả 5 dùng chung một cách đo**: *"Tỷ lệ bản vẽ không phát sinh
-lỗi thi công = Số bản vẽ không gây lỗi / Tổng số bản vẽ × 100%"*.
-
-**Câu hỏi: 5 dòng này là 5 tiêu chí riêng, hay thực chất là MỘT tiêu chí
-được diễn giải thành 5 gạch đầu dòng?**
-
-**Hệ quả nếu là một:**
-
-| | Hiện tại | Nếu gộp |
-|---|---|---|
-| Số điểm trưởng phòng phải chấm, mỗi nhân viên mỗi tháng | **31** | **6** |
-| Với 5 nhân viên Shop Drawing | 155 lần chấm | 30 lần chấm |
-
-Đây không phải chuyện gọn gàng — **đây là chuyện hệ thống có được dùng
-thật hay không.** Bắt trưởng phòng chấm 31 điểm cho mỗi người mỗi tháng,
-trong khi 5 điểm liền nhau đo bằng đúng một công thức, là cách chắc chắn
-nhất để họ quay về dùng Excel.
-
-Nếu HCNS xác nhận là một, phần diễn giải nên chuyển vào ô **Mô tả** của
-tiêu chí cha thay vì tách thành KPI con có trọng số riêng.
+Câu hỏi "5 dòng là 5 tiêu chí hay 1" vì vậy **không cần trả lời nữa**:
+trưởng phòng tự quyết mỗi tháng.
 
 ### Câu 4 — 42 KPI con không có "Cách đo"
 

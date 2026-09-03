@@ -526,6 +526,75 @@ echo "$KQ" | grep -q '"totalWeight"' && pass "có totalWeight" || fail "thiếu 
 echo "$KQ" | grep -q '"itemCount"' && pass "có itemCount" || fail "thiếu itemCount"
 echo "$KQ" | grep -q '"items"' && fail "trả cả cây item — nặng không cần thiết" || pass "KHÔNG trả cây item trong danh sách"
 
+# ============ 6b. TRƯỞNG PHÒNG TỰ SOẠN KPI TRÊN PHIẾU (HCNS chốt câu C3)
+# Mẫu KPI chỉ là ĐIỂM KHỞI ĐẦU. Trưởng phòng đưa ra tiêu chí lớn và các tiêu
+# chí con cho từng nhân viên, tự thêm và chỉnh sửa. Ép dùng mẫu là ép họ quay
+# về Excel để làm phần mẫu không diễn đạt được.
+buoc "TRƯỞNG PHÒNG TỰ SOẠN KPI TRÊN PHIẾU"
+U_PP=$(sql "SELECT id FROM \"User\" WHERE email='kt.phophong@hmico.vn';")
+xoa_phieu_cua_script "\"ownerUserId\"='$U_PP'"
+
+# Phó phòng chỉ là chức danh, chưa có mẫu KPI -> đúng ca cần phiếu rỗng
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_PP\",\"periodId\":\"$KY_08\"}" "$API/scorecards")
+echo "$KQ" | grep -q "chưa có mẫu KPI" && pass "chức danh chưa có mẫu -> nêu lý do" || fail "$KQ"
+echo "$KQ" | grep -q "sinh phiếu rỗng" && pass "gợi ý đường thoát cho MỌI người, không riêng trưởng bộ phận" || fail "$KQ"
+
+SC_PP=$(curl -s -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_PP\",\"periodId\":\"$KY_08\",\"emptyTemplate\":true}" "$API/scorecards" | jq_ "d['id']")
+[ -n "$SC_PP" ] && pass "TRƯỞNG PHÒNG sinh được phiếu rỗng cho nhân viên mình" || fail "không sinh được"
+
+# Phiếu rỗng: Mục 2 dựng sẵn (30), Mục 1 để trống chờ nhập
+SO_M1=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC_PP' AND section='BSC_WORK';")
+SO_M2=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC_PP' AND section='COMPLIANCE' AND \"parentId\" IS NULL;")
+[ "$SO_M1" = "0" ] && pass "Mục 1 để trống, chờ trưởng phòng nhập" || fail "Mục 1 có $SO_M1 dòng"
+[ "$SO_M2" = "3" ] && pass "Mục 2 dựng sẵn 3 tiêu chí chấp hành nội quy" || fail "Mục 2 có $SO_M2"
+
+# Trưởng phòng soạn cây hai cấp đúng ví dụ HCNS đưa ở câu C4:
+#   3 tiêu chí lớn 30 + 15 + 25 = 70; tiêu chí 1 có 3 con 50 + 30 + 20 = 100
+# PUT :id/items thay CẢ CÂY nên phải gửi kèm Mục 2 (3 tiêu chí nội quy, 30),
+# nếu không phiếu mất mục đó và tổng chỉ còn 70.
+CAY='{"items":[
+ {"key":"a","parentKey":null,"name":"Làm việc A","section":"BSC_WORK","weight":30,"displayOrder":1},
+ {"key":"a1","parentKey":"a","name":"Thực hiện quy trình A1","section":"BSC_WORK","weight":50,"displayOrder":1},
+ {"key":"a2","parentKey":"a","name":"Thực hiện quy trình A2","section":"BSC_WORK","weight":30,"displayOrder":2},
+ {"key":"a3","parentKey":"a","name":"Thực hiện quy trình A3","section":"BSC_WORK","weight":20,"displayOrder":3},
+ {"key":"b","parentKey":null,"name":"Làm việc B","section":"BSC_WORK","weight":15,"displayOrder":2},
+ {"key":"b1","parentKey":"b","name":"Chi tiết B1","section":"BSC_WORK","weight":100,"displayOrder":1},
+ {"key":"c","parentKey":null,"name":"Làm việc C","section":"BSC_WORK","weight":25,"displayOrder":3},
+ {"key":"c1","parentKey":"c","name":"Chi tiết C1","section":"BSC_WORK","weight":100,"displayOrder":1},
+ {"key":"n1","parentKey":null,"name":"Số lần đi trễ / về sớm không phép (trên 30 phút)","section":"COMPLIANCE","weight":10,"displayOrder":1},
+ {"key":"n2","parentKey":null,"name":"Vi phạm bộ phận chưa xử lý kịp thời","section":"COMPLIANCE","weight":10,"displayOrder":2},
+ {"key":"n3","parentKey":null,"name":"Giữ gìn văn hoá doanh nghiệp, chấp hành nội quy lao động","section":"COMPLIANCE","weight":10,"displayOrder":3}]}'
+CAY=$(echo "$CAY" | tr -d '\n')
+KQ=$(curl -s -X PUT -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' -d "$CAY" "$API/scorecards/$SC_PP/items")
+echo "$KQ" | grep -q '"id"' && pass "trưởng phòng tự nhập cây KPI hai cấp -> 200" || fail "$KQ"
+
+TONG=$(sql "SELECT sum(weight) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC_PP' AND \"parentId\" IS NULL;")
+[ "$TONG" = "100.00" ] && pass "tổng cấp 1 đúng 100 (70 việc + 30 nội quy)" || fail "tổng = $TONG"
+SO_LOI=$(sql "SELECT count(*) FROM (SELECT p.id, sum(c.weight) s FROM \"ScorecardItem\" p JOIN \"ScorecardItem\" c ON c.\"parentId\"=p.id WHERE p.\"scorecardId\"='$SC_PP' GROUP BY p.id) x WHERE s<>100;")
+[ "$SO_LOI" = "0" ] && pass "mọi nhóm con đều đúng 100" || fail "$SO_LOI nhóm sai"
+
+# Tổng cấp 1 lệch 70 -> phải bị chặn
+LECH=$(echo "$CAY" | sed 's/"Làm việc C","section":"BSC_WORK","weight":25/"Làm việc C","section":"BSC_WORK","weight":20/')
+KQ=$(curl -s -X PUT -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' -d "$LECH" "$API/scorecards/$SC_PP/items")
+echo "$KQ" | grep -qE "70|trọng số" && pass "tổng cấp 1 lệch 70 -> bị chặn ngay lúc lưu" || fail "$KQ"
+
+# Gửi đi ký được như phiếu thường
+MA=$(ma -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' -d '{}' "$API/scorecards/$SC_PP/propose")
+[ "$MA" = "200" ] && pass "gửi phiếu tự soạn đi ký nhận -> 200" || fail "-> $MA (mong đợi 200)"
+
+# STAFF vẫn không tự giao KPI cho mình
+MA=$(ma -X POST -H "Authorization: Bearer $AT_NV1" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_NV1\",\"periodId\":\"$KY_08\",\"emptyTemplate\":true}" "$API/scorecards")
+[ "$MA" = "403" ] && pass "STAFF tự sinh phiếu rỗng cho mình -> 403" || fail "-> $MA (mong đợi 403)"
+# Trưởng phòng phòng khác vẫn bị chặn theo phạm vi
+MA=$(ma -X POST -H "Authorization: Bearer $AT_RND" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_PP\",\"periodId\":\"$KY_08\",\"emptyTemplate\":true}" "$API/scorecards")
+[ "$MA" = "403" ] && pass "MANAGER phòng khác sinh phiếu rỗng -> 403" || fail "-> $MA (mong đợi 403)"
+
+xoa_phieu_cua_script "\"ownerUserId\"='$U_PP'"
+
 # ======================= 7. DỮ LIỆU NỀN CHO MÀN GIAO KPI
 # Hai phiếu ở KỲ HIỆN TẠI, một PROPOSED và một DRAFT.
 #

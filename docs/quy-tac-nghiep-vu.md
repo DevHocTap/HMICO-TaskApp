@@ -290,6 +290,19 @@ trực tiếp vào phiếu** của họ, qua đường sinh phiếu rỗng
 (`POST /scorecards` với `emptyTemplate: true`): phiếu chỉ dựng sẵn Mục 2,
 Mục 1 để trống.
 
+**Đường này KHÔNG chỉ dành cho trưởng bộ phận (HCNS chốt 03/09/2026, câu
+C3).** Mẫu KPI chỉ là **điểm khởi đầu**: trưởng phòng đưa ra tiêu chí lớn
+và các tiêu chí con cho từng nhân viên, tự thêm và chỉnh sửa theo việc thật
+của tháng đó.
+
+- `MANAGER` sinh được phiếu rỗng cho nhân viên phòng mình.
+- **Không chặn khi chức danh đã có mẫu.** Ép dùng mẫu là ép trưởng phòng
+  quay về Excel để làm phần mẫu không diễn đạt được.
+- `STAFF` vẫn không sinh được phiếu — không ai tự giao KPI cho mình.
+
+Sửa nội dung phiếu qua `PUT /scorecards/:id/items`, thay **cả cây** một lần:
+gửi thiếu Mục 2 là mất Mục 2, và kiểm trọng số sẽ chặn ngay lúc lưu.
+
 > **Đã chốt hết 03/09/2026 — không còn chỗ mơ hồ.**
 >
 > **Công ty chỉ có MỘT cấp quản lý: Trưởng phòng.** Không có tổ trưởng.

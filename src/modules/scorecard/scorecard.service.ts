@@ -103,7 +103,7 @@ export class ScorecardService {
     const boiCanh = await this.dungBoiCanh();
 
     if (phieuRong) {
-      this.assertDuocSinhPhieuRong(nguoi, boiCanh, actor);
+      this.assertDuocSinhPhieuRong(actor);
     }
 
     const canTro = this.kiemDieuKienLapPhieu(
@@ -589,11 +589,13 @@ export class ScorecardService {
       nguoi.jobTitle &&
       !boiCanh.chucDanhCoMau.has(nguoi.jobTitle.id)
     ) {
+      // Gợi ý đường thoát cho MỌI người, không riêng trưởng bộ phận: HCNS
+      // chốt 03/09/2026 (câu C3) rằng mẫu chỉ là điểm khởi đầu, trưởng phòng
+      // tự soạn KPI cho từng nhân viên. Chức danh chưa có mẫu không còn là
+      // ngõ cụt.
       lyDo.push(
         `Chức danh "${nguoi.jobTitle.name}" chưa có mẫu KPI nào được xuất bản` +
-          (boiCanh.laTruongBoPhan.has(nguoi.id)
-            ? ' — với trưởng bộ phận, hãy dùng đường sinh phiếu rỗng rồi nhập KPI trực tiếp'
-            : ''),
+          ' — dùng đường sinh phiếu rỗng rồi nhập KPI trực tiếp',
       );
     }
 
@@ -645,21 +647,29 @@ export class ScorecardService {
    * Chỉ mở khi chức danh THẬT SỰ chưa có mẫu — trường hợp bình thường của
    * trưởng bộ phận. Có mẫu mà vẫn sinh rỗng là bỏ qua nội dung đã duyệt.
    */
-  private assertDuocSinhPhieuRong(
-    nguoi: NguoiDungDeLapPhieu,
-    boiCanh: BoiCanhKiemTra,
-    actor: AuthenticatedUser,
-  ): void {
-    const duocPhep: Role[] = [Role.ADMIN, Role.HR, Role.EXECUTIVE];
+  /**
+   * Ai được sinh phiếu RỖNG rồi tự nhập KPI.
+   *
+   * HCNS chốt 03/09/2026 (câu C3): **mẫu KPI chỉ là điểm khởi đầu.** Trưởng
+   * phòng đưa ra tiêu chí lớn và các tiêu chí con cho từng nhân viên, tự
+   * thêm và chỉnh sửa. Vì vậy:
+   *
+   * - `MANAGER` sinh được phiếu rỗng cho nhân viên phòng mình. Phạm vi
+   *   phòng ban đã được `assertPhongTrongPhamVi` chặn ở tầng trên, chỗ này
+   *   không kiểm lại.
+   * - **Không còn chặn khi chức danh ĐÃ có mẫu.** Trước đây bắt buộc dùng
+   *   mẫu nếu chức danh có mẫu; nay trưởng phòng được quyền soạn từ đầu khi
+   *   mẫu không hợp với việc thật của tháng đó. Ép dùng mẫu là ép họ quay
+   *   về Excel để làm phần mẫu không diễn đạt được.
+   *
+   * `STAFF` vẫn không sinh được phiếu — không ai tự giao KPI cho mình.
+   */
+  private assertDuocSinhPhieuRong(actor: AuthenticatedUser): void {
+    const duocPhep: Role[] = [Role.ADMIN, Role.HR, Role.EXECUTIVE, Role.MANAGER];
     if (!duocPhep.includes(actor.role)) {
       throw new ForbiddenException(
-        'Chỉ quản trị viên, Hành chính nhân sự hoặc ban giám đốc mới sinh được phiếu rỗng.',
-      );
-    }
-    if (nguoi.jobTitle && boiCanh.chucDanhCoMau.has(nguoi.jobTitle.id)) {
-      throw new BadRequestException(
-        `Chức danh "${nguoi.jobTitle.name}" đã có mẫu KPI xuất bản. ` +
-          'Sinh phiếu từ mẫu thay vì tạo phiếu rỗng.',
+        'Chỉ quản trị viên, Hành chính nhân sự, ban giám đốc hoặc trưởng ' +
+          'phòng mới sinh được phiếu rỗng.',
       );
     }
   }
