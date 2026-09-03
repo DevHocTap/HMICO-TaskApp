@@ -456,8 +456,17 @@ curl -s -o /dev/null -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type:
   -d '{}' "$API/scorecards/$SC1/propose"
 KQ=$(curl -s -H "Authorization: Bearer $AT_NV1" "$API/scorecards/pending-my-action")
 echo "$KQ" | grep -q "CHO_KY_NHAN" && pass "nhân viên thấy việc chờ ký nhận" || fail "$KQ"
-echo "$KQ" | grep -q '"type"' && pass "trả mảng việc có kiểu {type,message,count,link,daysUntilDeadline}" || fail "$KQ"
-echo "$KQ" | grep -q "daysUntilDeadline" && pass "có số ngày còn lại tới hạn nộp" || fail "thiếu daysUntilDeadline"
+echo "$KQ" | grep -q '"type"' && pass "trả mảng việc có kiểu {type,message,count,link,daysUntilDeadline,isOverdue}" || fail "$KQ"
+echo "$KQ" | grep -q '"daysUntilDeadline"' && pass "có trường daysUntilDeadline" || fail "thiếu daysUntilDeadline"
+echo "$KQ" | grep -q '"isOverdue"' && pass "có trường isOverdue tách riêng" || fail "thiếu isOverdue"
+# Việc ĐẦU KỲ không có hạn — hạn ngày 02 là hạn nộp KẾT QUẢ cuối kỳ.
+# Xem hằng KHONG_CO_HAN trong scorecard-query.service.ts và Câu 0c ở no-ky-thuat.md.
+echo "$KQ" | grep -q '"daysUntilDeadline": *null' && pass "việc đầu kỳ KHÔNG bịa hạn (null)" || fail "gắn hạn cho việc đầu kỳ: $KQ"
+echo "$KQ" | grep -q '"isOverdue": *false' && pass "việc đầu kỳ không bị báo quá hạn" || fail "$KQ"
+# Nhãn kỳ phải là kỳ chứa HÔM NAY, không phải kỳ mới nhất (tự sinh luôn
+# tạo sẵn tháng kế tiếp — bản cũ lấy nhầm và lệch nguyên một tháng).
+TEN_KY_NAY=$(sql "SELECT name FROM \"Period\" WHERE type='MONTH' AND \"startDate\"<=CURRENT_DATE AND \"endDate\">=CURRENT_DATE;")
+echo "$KQ" | grep -q "$TEN_KY_NAY" && pass "câu chữ ghi đúng kỳ hiện tại ($TEN_KY_NAY)" || fail "không thấy '$TEN_KY_NAY' trong: $KQ"
 KQ=$(curl -s -H "Authorization: Bearer $AT_TT" "$API/scorecards/pending-my-action")
 echo "$KQ" | grep -qE "chưa gửi|chưa được giao|ý kiến" && pass "trưởng bộ phận thấy việc của mình" || fail "$KQ"
 
@@ -466,6 +475,50 @@ KQ=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/scorecards?periodId=$KY_
 echo "$KQ" | grep -q '"totalWeight"' && pass "có totalWeight" || fail "thiếu totalWeight"
 echo "$KQ" | grep -q '"itemCount"' && pass "có itemCount" || fail "thiếu itemCount"
 echo "$KQ" | grep -q '"items"' && fail "trả cả cây item — nặng không cần thiết" || pass "KHÔNG trả cây item trong danh sách"
+
+# ======================= 7. DỮ LIỆU NỀN CHO MÀN GIAO KPI
+# Hai phiếu ở KỲ HIỆN TẠI, một PROPOSED và một DRAFT.
+#
+# Trước đây hai phiếu này là dữ liệu tạo tay còn sót lại từ lượt điều tra
+# GĐ2.5 — chạy `migrate reset` là mất, và không ai dựng lại được. Đưa vào
+# đây để mọi kiểm tra của màn giao KPI có nền tái lập được, và để hàm
+# don_du_lieu_thu() dọn nốt khi script kết thúc.
+#
+# Kỳ lấy bằng truy vấn CURRENT_DATE, KHÔNG viết cứng '2026-09': sang tháng
+# sau script vẫn phải chạy đúng.
+buoc "DỮ LIỆU NỀN — HAI PHIẾU Ở KỲ HIỆN TẠI"
+KY_NAY=$(sql "SELECT id FROM \"Period\" WHERE type='MONTH' AND \"startDate\"<=CURRENT_DATE AND \"endDate\">=CURRENT_DATE;")
+if [ -z "$KY_NAY" ]; then
+  fail "không có kỳ tháng nào chứa hôm nay — tác vụ tự sinh kỳ chưa chạy?"
+else
+  pass "tìm được kỳ chứa hôm nay bằng truy vấn, không viết cứng mã kỳ"
+
+  # Dọn sạch kỳ hiện tại trước, vì các mục trên có tạo phiếu ở đây
+  sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"periodId\"='$KY_NAY');" >/dev/null
+  sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"periodId\"='$KY_NAY');" >/dev/null
+  sql "DELETE FROM \"Scorecard\" WHERE \"periodId\"='$KY_NAY';" >/dev/null
+
+  SC_NEN1=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+    -d "{\"userId\":\"$U_NV1\",\"periodId\":\"$KY_NAY\"}" "$API/scorecards" | jq_ "d['id']")
+  SC_NEN2=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+    -d "{\"userId\":\"$U_NV2\",\"periodId\":\"$KY_NAY\"}" "$API/scorecards" | jq_ "d['id']")
+  { [ -n "$SC_NEN1" ] && [ -n "$SC_NEN2" ]; } && pass "dựng lại được 2 phiếu nền" || fail "SC1=$SC_NEN1 SC2=$SC_NEN2"
+
+  # Một phiếu gửi đi ký để có đủ cả hai trạng thái
+  curl -s -o /dev/null -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' \
+    -d '{}' "$API/scorecards/$SC_NEN1/propose"
+  TT1=$(sql "SELECT \"assignStatus\" FROM \"Scorecard\" WHERE id='$SC_NEN1';")
+  TT2=$(sql "SELECT \"assignStatus\" FROM \"Scorecard\" WHERE id='$SC_NEN2';")
+  [ "$TT1" = "PROPOSED" ] && pass "phiếu nền 1 ở PROPOSED" || fail "phiếu nền 1 = $TT1"
+  [ "$TT2" = "DRAFT" ] && pass "phiếu nền 2 ở DRAFT" || fail "phiếu nền 2 = $TT2"
+
+  # Số người trong cây phòng Kỹ thuật CHƯA có phiếu — con số màn giao KPI cần.
+  # Tính bằng truy vấn, không viết số: seed đổi thì kỳ vọng đổi theo.
+  TONG_KT=$(sql "WITH RECURSIVE cay AS (SELECT id FROM \"Department\" WHERE code='KT' UNION ALL SELECT d.id FROM \"Department\" d JOIN cay ON d.\"parentId\"=cay.id) SELECT count(*) FROM \"User\" u JOIN cay ON u.\"departmentId\"=cay.id WHERE u.\"isActive\";")
+  CO_PHIEU_KT=$(sql "WITH RECURSIVE cay AS (SELECT id FROM \"Department\" WHERE code='KT' UNION ALL SELECT d.id FROM \"Department\" d JOIN cay ON d.\"parentId\"=cay.id) SELECT count(*) FROM \"Scorecard\" s JOIN cay ON s.\"departmentId\"=cay.id WHERE s.\"periodId\"='$KY_NAY';")
+  [ "$CO_PHIEU_KT" = "2" ] && pass "cây phòng Kỹ thuật: $TONG_KT người hoạt động, $CO_PHIEU_KT đã có phiếu, $((TONG_KT-CO_PHIEU_KT)) chưa có" \
+    || fail "mong đợi đúng 2 phiếu trong cây KT, đang có $CO_PHIEU_KT"
+fi
 
 echo
 printf '%.0s=' {1..60}; echo

@@ -55,7 +55,13 @@ export function homNayDangNgay(bayGio: Date = new Date()): Date {
   return new Date(Date.UTC(nam, thang - 1, ngay));
 }
 
-/** Số ngày kể từ epoch của một `Date` ngày-thuần (UTC). */
+/**
+ * Số ngày kể từ epoch của một `Date` NGÀY-THUẦN.
+ *
+ * Cố ý đọc bằng `getUTC*()`: cả `homNayDangNgay()` lẫn cột `@db.Date` của
+ * Prisma đều gói ngày lịch vào nửa đêm UTC. Dùng `getDate()` ở đây sẽ đọc
+ * theo múi giờ của máy chạy và làm kết quả phụ thuộc chỗ deploy.
+ */
 function soNgayEpoch(d: Date): number {
   return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86_400_000);
 }
@@ -76,9 +82,30 @@ export interface TinhTrangHanNop {
  * `NGAY_HAN_NOP`** của tháng kế tiếp, nên chính ngày hạn vẫn còn nộp được.
  * Với hạn 02/10: ngày 01 còn 2, ngày 02 còn 1, ngày 03 là quá hạn.
  *
- * So NGÀY LỊCH chứ không so mốc thời gian: `submitDeadline` là `@db.Date`
- * (nửa đêm UTC), lấy hiệu hai mốc rồi chia 86400000 sẽ lệch đúng 7 tiếng
- * so với giờ VN — đủ để sai một ngày ở chính hôm hạn chót.
+ * So NGÀY LỊCH chứ không so mốc thời gian: lấy hiệu hai mốc rồi chia
+ * 86400000 sẽ lệch đúng 7 tiếng so với giờ VN — đủ để sai một ngày ở chính
+ * hôm hạn chót.
+ *
+ * NGỮ NGHĨA HAI THAM SỐ KHÁC NHAU, đừng đối xử giống nhau:
+ *
+ * - `hanNop` là **NGÀY LỊCH THUẦN**, không phải thời điểm. Nó đến từ cột
+ *   `Period.submitDeadline` kiểu `@db.Date` — trong database chỉ có
+ *   `2026-10-02`, không có giờ, không có múi giờ. Prisma dựng lại thành
+ *   `Date` bằng cách gắn nửa đêm UTC, nhưng số 00:00Z đó là **quy ước lưu
+ *   trữ, không phải một thời điểm có thật**: hạn nộp không xảy ra lúc 0 giờ
+ *   ở bất kỳ đâu.
+ *
+ *   Vì vậy **KHÔNG quy đổi `hanNop` sang giờ VN**. Quy đổi một ngày lịch
+ *   sang múi giờ khác là phép toán vô nghĩa — 02/10 giờ UTC không "thành"
+ *   01/10 hay 03/10 giờ VN, nó vẫn là ngày 02. Đọc thẳng ba số
+ *   năm/tháng/ngày ra bằng `getUTC*()`, đúng như lúc ghi vào.
+ *
+ * - `bayGio` NGƯỢC LẠI là một **thời điểm thật**, nên BẮT BUỘC phải quy đổi
+ *   sang giờ VN mới biết "hôm nay" là ngày mấy. Máy chủ chạy UTC thì 06:00
+ *   ngày 03 giờ VN vẫn là 23:00 ngày 02 giờ UTC.
+ *
+ * Trộn hai thứ này lại — quy đổi cả hai, hoặc không quy đổi cái nào — là
+ * đúng nguyên nhân của lỗi lệch một ngày đã sửa ở GĐ2.6.
  */
 export function tinhTinhTrangHanNop(
   hanNop: Date | null,
