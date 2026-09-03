@@ -18,6 +18,13 @@ cd "$(dirname "$0")/.."
 PORT=3151
 API="http://localhost:$PORT"
 MAT_KHAU="${SEED_PASSWORD:-Hmico@2026}"
+# Mật khẩu dự phòng: tài khoản đã đổi mật khẩu qua trình duyệt thì thử tiếp
+# giá trị này. Đọc từ .env.local (đã gitignore) — KHÔNG viết mật khẩu vào
+# file commit. Không đặt thì chỉ thử mật khẩu seed như trước.
+MAT_KHAU_PHU="${SEED_PASSWORD_ALT:-}"
+if [ -z "$MAT_KHAU_PHU" ] && [ -f .env.local ]; then
+  MAT_KHAU_PHU=$(grep -m1 '^SEED_PASSWORD_ALT=' .env.local | cut -d= -f2- | tr -d '"'"'"'')
+fi
 
 TMP=$(mktemp -d)
 SO_PASS=0
@@ -46,9 +53,38 @@ don_mau_thu() {
 trap don_dep EXIT
 
 sql() { docker exec kpi-postgres psql -U kpi_dev -d kpi_db -t -A -c "$1" 2>/dev/null; }
+# Thử mật khẩu seed trước, không được thì thử mật khẩu dự phòng.
+# Người dùng nghịch trên trình duyệt là đổi mật khẩu, và trước đây script
+# chết ngay ở bước đầu vì lý do chẳng liên quan gì tới thứ đang kiểm.
+# Nhớ mật khẩu đúng của từng email vào file, KHÔNG dùng biến: hàm này hay
+# được gọi trong $(...) nên biến đặt bên trong mất ngay khi subshell kết thúc.
+# Không nhớ thì mỗi lần đăng nhập lại tốn hai lượt và ăn hết hạn mức theo IP.
+dang_nhap_thu() {
+  local email=$1 goc=${2:-$API} kq mk
+  mk=$(grep -m1 -F "$email	" "$TMP/mat-khau.cache" 2>/dev/null | cut -f2-)
+  if [ -n "$mk" ]; then
+    curl -s -X POST "$goc/auth/login" -H 'Content-Type: application/json' \
+      -d "{\"email\":\"$email\",\"password\":\"$mk\"}"
+    return
+  fi
+
+  kq=$(curl -s -X POST "$goc/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$email\",\"password\":\"$MAT_KHAU\"}")
+  if echo "$kq" | grep -q accessToken; then
+    printf '%s\t%s\n' "$email" "$MAT_KHAU" >> "$TMP/mat-khau.cache"
+    echo "$kq"; return
+  fi
+  if [ -z "$MAT_KHAU_PHU" ]; then echo "$kq"; return; fi
+
+  # Mật khẩu seed sai -> tài khoản này đã đổi mật khẩu qua trình duyệt
+  kq=$(curl -s -X POST "$goc/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$email\",\"password\":\"$MAT_KHAU_PHU\"}")
+  echo "$kq" | grep -q accessToken \
+    && printf '%s\t%s\n' "$email" "$MAT_KHAU_PHU" >> "$TMP/mat-khau.cache"
+  echo "$kq"
+}
 token_cua() {
-  curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$1\",\"password\":\"$MAT_KHAU\"}" \
+  dang_nhap_thu "$1" \
     | python3 -c "import json,sys;print(json.load(sys.stdin).get('accessToken',''))" 2>/dev/null
 }
 ma() { curl -s -o /dev/null -w '%{http_code}' "$@"; }

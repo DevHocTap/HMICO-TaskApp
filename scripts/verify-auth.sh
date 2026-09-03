@@ -27,6 +27,13 @@ API_SHORT="http://localhost:$PORT_SHORT"
 API_RATE="http://localhost:$PORT_RATE"
 
 MAT_KHAU="${SEED_PASSWORD:-Hmico@2026}"
+# Mật khẩu dự phòng: tài khoản đã đổi mật khẩu qua trình duyệt thì thử tiếp
+# giá trị này. Đọc từ .env.local (đã gitignore) — KHÔNG viết mật khẩu vào
+# file commit. Không đặt thì chỉ thử mật khẩu seed như trước.
+MAT_KHAU_PHU="${SEED_PASSWORD_ALT:-}"
+if [ -z "$MAT_KHAU_PHU" ] && [ -f .env.local ]; then
+  MAT_KHAU_PHU=$(grep -m1 '^SEED_PASSWORD_ALT=' .env.local | cut -d= -f2- | tr -d '"'"'"'')
+fi
 TAI_KHOAN_ADMIN="admin@hmico.vn"
 TAI_KHOAN_RND="truongphong.rnd@hmico.vn"
 
@@ -50,9 +57,38 @@ don_dep() {
 }
 trap don_dep EXIT
 
+# Thử mật khẩu seed trước, không được thì thử mật khẩu dự phòng.
+# Người dùng nghịch trên trình duyệt là đổi mật khẩu, và trước đây script
+# chết ngay ở bước đầu vì lý do chẳng liên quan gì tới thứ đang kiểm.
+# Nhớ mật khẩu đúng của từng email vào file, KHÔNG dùng biến: hàm này hay
+# được gọi trong $(...) nên biến đặt bên trong mất ngay khi subshell kết thúc.
+# Không nhớ thì mỗi lần đăng nhập lại tốn hai lượt và ăn hết hạn mức theo IP.
+dang_nhap_thu() {
+  local email=$1 goc=${2:-$API} kq mk
+  mk=$(grep -m1 -F "$email	" "$TMP/mat-khau.cache" 2>/dev/null | cut -f2-)
+  if [ -n "$mk" ]; then
+    curl -s -X POST "$goc/auth/login" -H 'Content-Type: application/json' \
+      -d "{\"email\":\"$email\",\"password\":\"$mk\"}"
+    return
+  fi
+
+  kq=$(curl -s -X POST "$goc/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$email\",\"password\":\"$MAT_KHAU\"}")
+  if echo "$kq" | grep -q accessToken; then
+    printf '%s\t%s\n' "$email" "$MAT_KHAU" >> "$TMP/mat-khau.cache"
+    echo "$kq"; return
+  fi
+  if [ -z "$MAT_KHAU_PHU" ]; then echo "$kq"; return; fi
+
+  # Mật khẩu seed sai -> tài khoản này đã đổi mật khẩu qua trình duyệt
+  kq=$(curl -s -X POST "$goc/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$email\",\"password\":\"$MAT_KHAU_PHU\"}")
+  echo "$kq" | grep -q accessToken \
+    && printf '%s\t%s\n' "$email" "$MAT_KHAU_PHU" >> "$TMP/mat-khau.cache"
+  echo "$kq"
+}
 token_cua() {
-  curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$1\",\"password\":\"$MAT_KHAU\"}" \
+  dang_nhap_thu "$1" \
     | python3 -c "import json,sys;print(json.load(sys.stdin).get('accessToken',''))" 2>/dev/null
 }
 
@@ -68,9 +104,12 @@ doi_san_sang() {
 }
 
 echo "Khởi động API..."
-PORT=$PORT_NORMAL node dist/main.js > "$TMP/normal.log" 2>&1 &
+# Hạn mức đăng nhập được kiểm RIÊNG ở cổng $PORT_RATE. Cổng này để kiểm chức
+# năng, nên nới hạn mức — nếu không, việc thử mật khẩu dự phòng sẽ ăn hết
+# hạn mức và làm đỏ những bước chẳng liên quan gì tới hạn mức.
+PORT=$PORT_NORMAL LOGIN_RATE_LIMIT_PER_MINUTE=200 node dist/main.js > "$TMP/normal.log" 2>&1 &
 PID_NORMAL=$!
-PORT=$PORT_SHORT JWT_ACCESS_TTL=5s node dist/main.js > "$TMP/short.log" 2>&1 &
+PORT=$PORT_SHORT JWT_ACCESS_TTL=5s LOGIN_RATE_LIMIT_PER_MINUTE=200 node dist/main.js > "$TMP/short.log" 2>&1 &
 PID_SHORT=$!
 PORT=$PORT_RATE node dist/main.js > "$TMP/rate.log" 2>&1 &
 PID_RATE=$!
@@ -98,8 +137,7 @@ fi
 
 # ---------------------------------------------------------------- bước 1
 buoc "BƯỚC 1 — Đăng nhập bằng tài khoản seed"
-curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$TAI_KHOAN_ADMIN\",\"password\":\"$MAT_KHAU\"}" > "$TMP/login.json"
+dang_nhap_thu "$TAI_KHOAN_ADMIN" > "$TMP/login.json"
 
 AT=$(python3 -c "import json;print(json.load(open('$TMP/login.json')).get('accessToken',''))" 2>/dev/null)
 RT=$(python3 -c "import json;print(json.load(open('$TMP/login.json')).get('refreshToken',''))" 2>/dev/null)
@@ -128,8 +166,7 @@ MA=$(curl -s -o /dev/null -w '%{http_code}' "$API/departments/tree")
 
 # ---------------------------------------------------------------- bước 4
 buoc "BƯỚC 4 — Access token hết hạn (cổng $PORT_SHORT, hạn 5 giây)"
-curl -s -X POST "$API_SHORT/auth/login" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$TAI_KHOAN_ADMIN\",\"password\":\"$MAT_KHAU\"}" > "$TMP/short.json"
+dang_nhap_thu "$TAI_KHOAN_ADMIN" "$API_SHORT" > "$TMP/short.json"
 AT_NGAN=$(python3 -c "import json;print(json.load(open('$TMP/short.json')).get('accessToken',''))" 2>/dev/null)
 
 MA=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AT_NGAN" "$API_SHORT/departments/tree")
@@ -170,8 +207,7 @@ MA=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API/auth/refresh" \
 
 # ---------------------------------------------------------------- bước 7
 buoc "BƯỚC 7 — MANAGER phòng R&D xem dữ liệu phòng khác  [QUAN TRỌNG]"
-curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$TAI_KHOAN_RND\",\"password\":\"$MAT_KHAU\"}" > "$TMP/rnd.json"
+dang_nhap_thu "$TAI_KHOAN_RND" > "$TMP/rnd.json"
 AT_RND=$(python3 -c "import json;print(json.load(open('$TMP/rnd.json')).get('accessToken',''))" 2>/dev/null)
 
 if [ -z "$AT_RND" ]; then
@@ -228,12 +264,10 @@ buoc "BỔ SUNG — /auth/logout-all bắt buộc access token"
 MA=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API/auth/logout-all")
 [ "$MA" = "401" ] && pass "không có token -> 401" || fail "không token -> $MA (mong đợi 401)"
 
-curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$TAI_KHOAN_ADMIN\",\"password\":\"$MAT_KHAU\"}" > "$TMP/l2.json"
+dang_nhap_thu "$TAI_KHOAN_ADMIN" > "$TMP/l2.json"
 AT3=$(python3 -c "import json;print(json.load(open('$TMP/l2.json')).get('accessToken',''))")
 RT3=$(python3 -c "import json;print(json.load(open('$TMP/l2.json')).get('refreshToken',''))")
-curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$TAI_KHOAN_ADMIN\",\"password\":\"$MAT_KHAU\"}" > "$TMP/l3.json"
+dang_nhap_thu "$TAI_KHOAN_ADMIN" > "$TMP/l3.json"
 RT4=$(python3 -c "import json;print(json.load(open('$TMP/l3.json')).get('refreshToken',''))")
 
 MA=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API/auth/logout-all" -H "Authorization: Bearer $AT3")
@@ -261,8 +295,7 @@ echo "$CAY_RND" | grep -q '"code":"HMICO"' \
 
 # Dùng cổng $PORT_SHORT: mỗi tiến trình có hạn mức riêng nên lần đăng nhập
 # này không tiêu vào hạn mức của cổng chính.
-curl -s -X POST "$API_SHORT/auth/login" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"sd.nhanvien1@hmico.vn\",\"password\":\"$MAT_KHAU\"}" > "$TMP/staff.json"
+dang_nhap_thu "sd.nhanvien1@hmico.vn" "$API_SHORT" > "$TMP/staff.json"
 AT_STAFF=$(python3 -c "import json;print(json.load(open('$TMP/staff.json')).get('accessToken',''))" 2>/dev/null)
 CAY_STAFF=$(curl -s -H "Authorization: Bearer $AT_STAFF" "$API_SHORT/departments/tree")
 [ "$CAY_STAFF" = "[]" ] && pass "STAFF nhận cây RỖNG" || fail "STAFF nhận: $CAY_STAFF (mong đợi [])"

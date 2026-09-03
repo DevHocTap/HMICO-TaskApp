@@ -6,6 +6,7 @@ import { AdminLayout } from './components/AdminLayout';
 import { LoginPage } from './pages/LoginPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { HomePage } from './pages/HomePage';
+import { MyScorecardsPage } from './pages/kpi/MyScorecardsPage';
 import { DepartmentsPage } from './pages/admin/DepartmentsPage';
 import { JobTitlesPage } from './pages/admin/JobTitlesPage';
 import { UsersPage } from './pages/admin/UsersPage';
@@ -27,6 +28,9 @@ export function App() {
 
         <Route element={<AdminLayout />}>
           <Route path="/" element={<HomePage />} />
+
+          {/* Phiếu KPI của chính mình — MỌI vai trò đều có, kể cả STAFF. */}
+          <Route path="/kpi/my" element={<MyScorecardsPage />} />
 
           <Route element={<RoleRoute duocPhep={coTheXemToChuc} />}>
             <Route path="/admin/departments" element={<DepartmentsPage />} />

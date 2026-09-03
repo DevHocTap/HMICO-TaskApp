@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, Layout, Menu, Space, Tag, Typography } from 'antd';
 import {
+  SolutionOutlined,
   ApartmentOutlined,
   FileTextOutlined,
   IdcardOutlined,
@@ -11,8 +12,24 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { coTheXemNhanVien, coTheXemToChuc } from '../auth/permissions';
 import { ROLE_LABELS } from '../types/auth';
+import type { Role } from '../types/auth';
 
 /** Khung chung cho mọi trang sau khi đăng nhập: thanh trên + menu trái. */
+/**
+ * Dòng phụ dưới tên người dùng.
+ *
+ * Tài khoản quản trị hệ thống CỐ Ý không thuộc phòng ban nào — HCNS chốt
+ * 03/09/2026 (câu A4): đó là tài khoản kỹ thuật, không phải một vị trí nhân
+ * sự. Ghi "Chưa gán phòng ban" ở đó đọc như một thiếu sót cần khắc phục,
+ * trong khi không có gì để khắc phục.
+ */
+function moTaViTri(user: { role: Role; departmentName?: string | null } | null): string {
+  if (!user) return '';
+  if (user.departmentName) return user.departmentName;
+  if (user.role === 'ADMIN') return 'Tài khoản kỹ thuật — không thuộc phòng ban';
+  return 'Chưa gán phòng ban';
+}
+
 export function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -27,9 +44,27 @@ export function AdminLayout() {
 
   // Menu dựng theo vai trò. Xem permissions.ts — đây chỉ là giao diện,
   // backend chặn độc lập.
-  const mucMenu = [];
+  //
+  // Nhóm KPI đứng TRƯỚC nhóm quản trị: phiếu KPI là việc hàng tháng của mọi
+  // người, còn phòng ban và chức danh là việc nhập một lần rồi thôi.
+  const mucMenu = [
+    {
+      key: 'kpi',
+      label: 'KPI',
+      type: 'group' as const,
+      children: [
+        {
+          key: '/kpi/my',
+          icon: <SolutionOutlined />,
+          label: <Link to="/kpi/my">Phiếu KPI của tôi</Link>,
+        },
+      ],
+    },
+  ];
+
+  const mucQuanTri = [];
   if (coTheXemToChuc(user?.role)) {
-    mucMenu.push(
+    mucQuanTri.push(
       {
         key: '/admin/departments',
         icon: <ApartmentOutlined />,
@@ -43,7 +78,7 @@ export function AdminLayout() {
     );
   }
   if (coTheXemNhanVien(user?.role)) {
-    mucMenu.push({
+    mucQuanTri.push({
       key: '/admin/users',
       icon: <TeamOutlined />,
       label: <Link to="/admin/users">Nhân viên</Link>,
@@ -51,10 +86,19 @@ export function AdminLayout() {
   }
   // Mẫu KPI: STAFF không truy cập, các vai trò còn lại xem được
   if (coTheXemNhanVien(user?.role)) {
-    mucMenu.push({
+    mucQuanTri.push({
       key: '/admin/kpi-templates',
       icon: <FileTextOutlined />,
       label: <Link to="/admin/kpi-templates">Mẫu KPI</Link>,
+    });
+  }
+
+  if (mucQuanTri.length > 0) {
+    mucMenu.push({
+      key: 'quan-tri',
+      label: 'Quản trị',
+      type: 'group' as const,
+      children: mucQuanTri,
     });
   }
 
@@ -83,7 +127,7 @@ export function AdminLayout() {
                 vì STAFF nhận cây rỗng. */}
             <Typography.Text strong>{user?.fullName}</Typography.Text>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {user?.departmentName ?? 'Chưa gán phòng ban'}
+              {moTaViTri(user)}
             </Typography.Text>
           </Space>
           {user && <Tag color="blue">{ROLE_LABELS[user.role]}</Tag>}
