@@ -120,6 +120,24 @@
 > khi HCNS xác nhận là làm hỏng mốc đối chiếu tuần 11 — mốc đó yêu cầu điểm
 > hệ thống tính ra khớp tuyệt đối với file Excel đang dùng.
 
+### Câu 0c — Việc GIAO KPI đầu kỳ có hạn chót không? CHƯA TRẢ LỜI
+
+Mục 5.5 chốt hạn **hết ngày 02 tháng kế tiếp**, nhưng đó là hạn **nộp KẾT
+QUẢ của kỳ đã xong**. Không có chỗ nào nói giao KPI đầu kỳ phải xong ngày mấy.
+
+**Câu hỏi: việc giao KPI đầu kỳ có hạn chót không? Nếu có là ngày mấy của
+tháng?** (Ví dụ: phiếu phải được ký nhận xong trước ngày 05.)
+
+Chưa có câu trả lời nên mọi việc đầu kỳ — `CHUA_GIAO_KPI`, `CHUA_GUI_KY`,
+`CHO_KY_NHAN`, `CO_Y_KIEN`, `BGD_*` — trả `daysUntilDeadline: null`,
+`isOverdue: false`. Xem hằng `KHONG_CO_HAN` trong
+`src/modules/scorecard/scorecard-query.service.ts`.
+
+Trước đây code gắn hạn ngày 02 cho cả nhóm này. Hệ quả: **ngày 03 hàng
+tháng trang chủ báo đỏ "quá hạn" cho việc còn gần cả tháng để làm** — báo
+động giả, mà báo động giả lặp hàng tháng thì người dùng học cách bỏ qua
+luôn cả cảnh báo thật.
+
 ### Câu 0b — Tổ trưởng do AI giao và chấm KPI? CHƯA TRẢ LỜI
 
 HCNS đã chốt **trưởng bộ phận** do ban giám đốc chấm. Nhưng công ty có hai

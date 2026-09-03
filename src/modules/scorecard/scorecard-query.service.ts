@@ -8,16 +8,32 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DepartmentScopeService } from '../org/department-scope.service.js';
-import { tongTrongSoCap1 } from './scorecard-validation.js';
+import { homNayDangNgay } from '../period/period-calendar.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import type {
   ListScorecardsQuery,
   PaginatedScorecards,
-  ScorecardSummary,
   ViecCanXuLy,
 } from './dto/scorecard.dto.js';
 
 const LIMIT_MAC_DINH = 50;
+
+/**
+ * Việc ĐẦU KỲ — giao KPI, gửi ký, ký nhận, xử lý ý kiến — KHÔNG có hạn chót.
+ *
+ * Hạn ngày 02 ở `quy-tac-nghiep-vu.md` mục 5.5 là hạn **nộp KẾT QUẢ của kỳ
+ * đã kết thúc**, không phải hạn giao KPI đầu kỳ. Gắn nó vào việc đầu kỳ là
+ * bịa ra một hạn HCNS chưa từng đặt, và ngày 03 hàng tháng màn hình sẽ báo
+ * đỏ "quá hạn" cho việc còn cả tháng để làm.
+ *
+ * LÁT CẮT 5 (chấm điểm): việc CUỐI KỲ mới dùng hạn thật — gọi
+ * `tinhTinhTrangHanNop(ky.submitDeadline)` ở `period-calendar.ts`, đừng gắn
+ * lại hạn cho các loại việc bên dưới.
+ *
+ * Câu hỏi đang chờ HCNS: việc giao KPI đầu kỳ có hạn chót không —
+ * xem `docs/no-ky-thuat.md`.
+ */
+const KHONG_CO_HAN = { daysUntilDeadline: null, isOverdue: false } as const;
 
 @Injectable()
 export class ScorecardQueryService {
@@ -157,8 +173,7 @@ export class ScorecardQueryService {
    */
   async pendingMyAction(user: AuthenticatedUser): Promise<ViecCanXuLy[]> {
     const viec: ViecCanXuLy[] = [];
-    const kyHienTai = await this.kyGanNhat();
-    const conLai = this.soNgayConLai(kyHienTai?.submitDeadline ?? null);
+    const ky = await this.kyHienTai();
 
     // --- Ai cũng có thể có phiếu chờ ký ---
     const choKy = await this.prisma.scorecard.count({
@@ -169,10 +184,10 @@ export class ScorecardQueryService {
         type: 'CHO_KY_NHAN',
         message:
           `Bạn có ${choKy} phiếu KPI chờ ký nhận` +
-          (kyHienTai ? ` (${kyHienTai.name})` : ''),
+          (ky ? ` (${ky.name})` : ''),
         count: choKy,
         link: '/kpi/my',
-        daysUntilDeadline: conLai,
+        ...KHONG_CO_HAN,
       });
     }
 
@@ -186,7 +201,7 @@ export class ScorecardQueryService {
         message: `${chuaGui} phiếu KPI chưa gửi cho nhân viên ký nhận`,
         count: chuaGui,
         link: '/kpi/assign',
-        daysUntilDeadline: conLai,
+        ...KHONG_CO_HAN,
       });
     }
 
@@ -199,12 +214,12 @@ export class ScorecardQueryService {
         message: `${coYKien} phiếu KPI bị nhân viên nêu ý kiến, chờ bạn xử lý`,
         count: coYKien,
         link: '/kpi/assign',
-        daysUntilDeadline: conLai,
+        ...KHONG_CO_HAN,
       });
     }
 
     // --- Ban giám đốc: phiếu của trưởng bộ phận ---
-    if (user.role === Role.EXECUTIVE && kyHienTai) {
+    if (user.role === Role.EXECUTIVE && ky) {
       const idTruongBoPhan = (
         await this.prisma.department.findMany({
           where: { managerId: { not: null }, isActive: true },
@@ -215,7 +230,7 @@ export class ScorecardQueryService {
       if (idTruongBoPhan.length > 0) {
         const chuaGuiKy = await this.prisma.scorecard.count({
           where: {
-            periodId: kyHienTai.id,
+            periodId: ky.id,
             ownerUserId: { in: idTruongBoPhan },
             assignStatus: AssignStatus.DRAFT,
           },
@@ -226,13 +241,13 @@ export class ScorecardQueryService {
             message: `${chuaGuiKy} phiếu KPI của trưởng bộ phận chưa gửi ký nhận`,
             count: chuaGuiKy,
             link: '/kpi/assign',
-            daysUntilDeadline: conLai,
+            ...KHONG_CO_HAN,
           });
         }
 
         const daCoPhieu = (
           await this.prisma.scorecard.findMany({
-            where: { periodId: kyHienTai.id, ownerUserId: { in: idTruongBoPhan } },
+            where: { periodId: ky.id, ownerUserId: { in: idTruongBoPhan } },
             select: { ownerUserId: true },
           })
         ).map((s) => s.ownerUserId);
@@ -240,25 +255,25 @@ export class ScorecardQueryService {
         if (chuaCoPhieu > 0) {
           viec.push({
             type: 'BGD_CHUA_GIAO_KPI',
-            message: `${chuaCoPhieu} trưởng bộ phận chưa có phiếu KPI ${kyHienTai.name}`,
+            message: `${chuaCoPhieu} trưởng bộ phận chưa có phiếu KPI ${ky.name}`,
             count: chuaCoPhieu,
             link: '/kpi/assign',
-            daysUntilDeadline: conLai,
+            ...KHONG_CO_HAN,
           });
         }
       }
     }
 
     // --- Quản lý và HR: người chưa được giao KPI trong kỳ hiện tại ---
-    if (kyHienTai && user.role !== Role.STAFF && user.role !== Role.EXECUTIVE) {
-      const chuaGiao = await this.demNguoiChuaCoPhieu(kyHienTai.id, user);
+    if (ky && user.role !== Role.STAFF && user.role !== Role.EXECUTIVE) {
+      const chuaGiao = await this.demNguoiChuaCoPhieu(ky.id, user);
       if (chuaGiao > 0) {
         viec.push({
           type: 'CHUA_GIAO_KPI',
-          message: `${chuaGiao} nhân viên chưa được giao KPI ${kyHienTai.name}`,
+          message: `${chuaGiao} nhân viên chưa được giao KPI ${ky.name}`,
           count: chuaGiao,
           link: '/kpi/assign',
-          daysUntilDeadline: conLai,
+          ...KHONG_CO_HAN,
         });
       }
     }
@@ -545,19 +560,26 @@ export class ScorecardQueryService {
     }
   }
 
-  /** Kỳ tháng gần nhất còn hiệu lực, dùng làm mốc mặc định cho trang chủ. */
-  private async kyGanNhat() {
+  /**
+   * Kỳ THÁNG chứa ngày hôm nay (theo giờ Việt Nam), dùng làm mốc mặc định
+   * cho trang chủ.
+   *
+   * KHÔNG lấy kỳ có `startDate` muộn nhất: tác vụ tự sinh luôn tạo trước
+   * tháng kế tiếp, nên "kỳ mới nhất" là tháng SAU chứ không phải tháng
+   * đang chạy — mọi nhãn và mọi phép đếm ngược sẽ lệch nguyên một tháng.
+   *
+   * Không có kỳ nào chứa hôm nay thì trả `null`, không lấy đại kỳ khác.
+   */
+  private async kyHienTai() {
+    const homNay = homNayDangNgay();
     return this.prisma.period.findFirst({
-      where: { type: 'MONTH' },
-      orderBy: { startDate: 'desc' },
+      where: {
+        type: 'MONTH',
+        startDate: { lte: homNay },
+        endDate: { gte: homNay },
+      },
       select: { id: true, name: true, submitDeadline: true },
     });
-  }
-
-  private soNgayConLai(hanNop: Date | null): number | null {
-    if (!hanNop) return null;
-    const MOT_NGAY = 24 * 60 * 60 * 1000;
-    return Math.ceil((hanNop.getTime() - Date.now()) / MOT_NGAY);
   }
 
   private async demNguoiChuaCoPhieu(

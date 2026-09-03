@@ -9,7 +9,6 @@ import {
   Prisma,
   ScorecardAction,
   type Period,
-  type Scorecard,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DepartmentScopeService } from '../org/department-scope.service.js';

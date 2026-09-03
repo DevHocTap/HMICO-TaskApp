@@ -267,5 +267,11 @@ export interface ViecCanXuLy {
   message: string;
   count: number;
   link: string;
+  /**
+   * Số ngày CÒN LÀM ĐƯỢC, tính cả hôm nay. Không bao giờ âm.
+   * `null` = việc này không có hạn (mọi việc đầu kỳ ở giai đoạn 1).
+   */
   daysUntilDeadline: number | null;
+  /** Đã quá hạn. Tách riêng để giao diện không phải suy từ số âm. */
+  isOverdue: boolean;
 }

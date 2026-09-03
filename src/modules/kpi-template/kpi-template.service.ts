@@ -6,7 +6,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  KpiSection,
   Prisma,
   Role,
   TemplateStatus,

@@ -6,6 +6,7 @@ import {
   kyQuy,
   kyThang,
   namThangHienTai,
+  tinhTinhTrangHanNop,
   quyCuaThang,
 } from './period-calendar.js';
 
@@ -161,5 +162,60 @@ describe('cacKyCanBaoDam — quy tắc bù kỳ', () => {
   it('không sinh trùng mã dù hai tháng cùng quý', () => {
     const ma = cacKyCanBaoDam(new Date('2026-07-05T03:00:00Z')).map((k) => k.code);
     expect(new Set(ma).size).toBe(ma.length);
+  });
+});
+
+/**
+ * Bốn mốc quanh hạn nộp 02/10/2026.
+ *
+ * Quy tắc: hạn là HẾT ngày 02 giờ Việt Nam, nên chính ngày 02 vẫn nộp được.
+ * Giả lập giờ hệ thống bằng mốc UTC tương ứng (VN = UTC+7), không phụ thuộc
+ * ngày chạy thật cũng không phụ thuộc múi giờ của máy chạy test.
+ */
+describe('tinhTinhTrangHanNop — hạn là HẾT ngày 02, giờ Việt Nam', () => {
+  const HAN = new Date(Date.UTC(2026, 9, 2)); // 02/10/2026, kiểu @db.Date
+
+  const truongHop: Array<[string, string, number, boolean]> = [
+    ['01/10 09:00 giờ VN', '2026-10-01T02:00:00Z', 2, false],
+    ['02/10 09:00 giờ VN', '2026-10-02T02:00:00Z', 1, false],
+    ['02/10 23:00 giờ VN', '2026-10-02T16:00:00Z', 1, false],
+    ['03/10 09:00 giờ VN', '2026-10-03T02:00:00Z', 0, true],
+  ];
+
+  for (const [ten, mocUtc, soNgay, quaHan] of truongHop) {
+    it(`${ten} → còn ${soNgay} ngày, quá hạn = ${quaHan}`, () => {
+      expect(tinhTinhTrangHanNop(HAN, new Date(mocUtc))).toEqual({
+        daysUntilDeadline: soNgay,
+        isOverdue: quaHan,
+      });
+    });
+  }
+
+  it('quá hạn nhiều ngày vẫn trả 0, không bao giờ âm', () => {
+    expect(tinhTinhTrangHanNop(HAN, new Date('2026-10-20T02:00:00Z'))).toEqual({
+      daysUntilDeadline: 0,
+      isOverdue: true,
+    });
+  });
+
+  it('không có hạn thì trả null, và không phải quá hạn', () => {
+    expect(tinhTinhTrangHanNop(null, new Date('2026-10-20T02:00:00Z'))).toEqual({
+      daysUntilDeadline: null,
+      isOverdue: false,
+    });
+  });
+
+  /**
+   * Ca mà công thức cũ (`Date.now()` trừ mốc, chia 86400000) sai: 23:00
+   * ngày 02 giờ VN vẫn là 16:00 ngày 02 giờ UTC, nhưng 07:00 ngày 03 giờ VN
+   * lại là 00:00 ngày 03 giờ UTC — biên ngày phải cắt theo giờ VN.
+   */
+  it('23:59 ngày 02 còn nộp được, 00:01 ngày 03 là quá hạn (biên giờ VN)', () => {
+    expect(tinhTinhTrangHanNop(HAN, new Date('2026-10-02T16:59:00Z')).isOverdue).toBe(
+      false,
+    );
+    expect(tinhTinhTrangHanNop(HAN, new Date('2026-10-02T17:01:00Z')).isOverdue).toBe(
+      true,
+    );
   });
 });

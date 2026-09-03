@@ -15,10 +15,17 @@ export const MUI_GIO = 'Asia/Ho_Chi_Minh';
  */
 export const NGAY_HAN_NOP = 2;
 
-/** Năm và tháng hiện tại theo giờ Việt Nam. */
-export function namThangHienTai(bayGio: Date = new Date()): {
+/**
+ * Ngày lịch hiện tại theo giờ Việt Nam.
+ *
+ * Phải đi qua `Intl` chứ không dùng `getDate()`: máy chủ chạy UTC thì
+ * 06:00 ngày 03 giờ VN vẫn là 23:00 ngày 02 giờ UTC, lệch đúng một ngày ở
+ * mọi mốc so sánh.
+ */
+export function ngayLichHienTai(bayGio: Date = new Date()): {
   nam: number;
   thang: number;
+  ngay: number;
 } {
   const phanTich = new Intl.DateTimeFormat('en-CA', {
     timeZone: MUI_GIO,
@@ -26,8 +33,62 @@ export function namThangHienTai(bayGio: Date = new Date()): {
     month: '2-digit',
     day: '2-digit',
   }).format(bayGio);
-  const [nam, thang] = phanTich.split('-').map(Number);
+  const [nam, thang, ngay] = phanTich.split('-').map(Number);
+  return { nam, thang, ngay };
+}
+
+/** Năm và tháng hiện tại theo giờ Việt Nam. */
+export function namThangHienTai(bayGio: Date = new Date()): {
+  nam: number;
+  thang: number;
+} {
+  const { nam, thang } = ngayLichHienTai(bayGio);
   return { nam, thang };
+}
+
+/**
+ * Hôm nay dưới dạng `Date` ngày-thuần, khớp kiểu `@db.Date` của Prisma.
+ * Dùng để so với `Period.startDate` / `Period.endDate`.
+ */
+export function homNayDangNgay(bayGio: Date = new Date()): Date {
+  const { nam, thang, ngay } = ngayLichHienTai(bayGio);
+  return new Date(Date.UTC(nam, thang - 1, ngay));
+}
+
+/** Số ngày kể từ epoch của một `Date` ngày-thuần (UTC). */
+function soNgayEpoch(d: Date): number {
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86_400_000);
+}
+
+export interface TinhTrangHanNop {
+  /**
+   * Số ngày CÒN NỘP ĐƯỢC, tính cả hôm nay. Không bao giờ âm.
+   * `null` khi việc đó không có hạn.
+   */
+  daysUntilDeadline: number | null;
+  isOverdue: boolean;
+}
+
+/**
+ * Đối chiếu hạn nộp với hôm nay theo NGÀY LỊCH giờ Việt Nam.
+ *
+ * Quy tắc nghiệp vụ (`quy-tac-nghiep-vu.md` mục 5.5): hạn là **HẾT ngày
+ * `NGAY_HAN_NOP`** của tháng kế tiếp, nên chính ngày hạn vẫn còn nộp được.
+ * Với hạn 02/10: ngày 01 còn 2, ngày 02 còn 1, ngày 03 là quá hạn.
+ *
+ * So NGÀY LỊCH chứ không so mốc thời gian: `submitDeadline` là `@db.Date`
+ * (nửa đêm UTC), lấy hiệu hai mốc rồi chia 86400000 sẽ lệch đúng 7 tiếng
+ * so với giờ VN — đủ để sai một ngày ở chính hôm hạn chót.
+ */
+export function tinhTinhTrangHanNop(
+  hanNop: Date | null,
+  bayGio: Date = new Date(),
+): TinhTrangHanNop {
+  if (!hanNop) return { daysUntilDeadline: null, isOverdue: false };
+
+  const chenhLech = soNgayEpoch(hanNop) - soNgayEpoch(homNayDangNgay(bayGio));
+  if (chenhLech < 0) return { daysUntilDeadline: 0, isOverdue: true };
+  return { daysUntilDeadline: chenhLech + 1, isOverdue: false };
 }
 
 /** Cộng thêm `soThang` vào một mốc năm/tháng, tự nhảy năm khi vượt tháng 12. */
