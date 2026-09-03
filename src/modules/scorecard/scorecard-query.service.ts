@@ -176,16 +176,23 @@ export class ScorecardQueryService {
     const ky = await this.kyHienTai();
 
     // --- Ai cũng có thể có phiếu chờ ký ---
-    const choKy = await this.prisma.scorecard.count({
+    //
+    // Tên kỳ lấy từ Period của CHÍNH PHIẾU ĐÓ, KHÔNG lấy từ kỳ hiện tại.
+    // Phiếu tháng 8 chưa ký mà sang tháng 9 mới mở trang chủ là chuyện
+    // thường; ghi nhãn theo kỳ hiện tại sẽ báo sai tháng, và người dùng ký
+    // nhận nhầm phiếu của kỳ khác. Cách này cũng không phụ thuộc kyHienTai()
+    // nên không bao giờ ra "(undefined)" hay "()".
+    const phieuChoKy = await this.prisma.scorecard.findMany({
       where: { ownerUserId: user.id, assignStatus: AssignStatus.PROPOSED },
+      select: { period: { select: { name: true } } },
     });
-    if (choKy > 0) {
+    if (phieuChoKy.length > 0) {
+      const tenKy = [...new Set(phieuChoKy.map((p) => p.period.name))];
+      const nhan = tenKy.length === 1 ? tenKy[0] : `${tenKy.length} kỳ`;
       viec.push({
         type: 'CHO_KY_NHAN',
-        message:
-          `Bạn có ${choKy} phiếu KPI chờ ký nhận` +
-          (ky ? ` (${ky.name})` : ''),
-        count: choKy,
+        message: `Bạn có ${phieuChoKy.length} phiếu KPI chờ ký nhận (${nhan})`,
+        count: phieuChoKy.length,
         link: '/kpi/my',
         ...KHONG_CO_HAN,
       });

@@ -234,13 +234,83 @@ describe('pendingMyAction khi không có kỳ tháng nào chứa hôm nay', () =
       const ra = await queries.pendingMyAction(nv);
       expect(ra.map((v) => v.type)).toContain('CHO_KY_NHAN');
       const viec = ra.find((v) => v.type === 'CHO_KY_NHAN')!;
-      // Không có kỳ thì câu chữ không kèm tên kỳ, và vẫn không bịa hạn
-      expect(viec.message).not.toMatch(/Tháng/);
+
+      // Tên kỳ lấy từ Period của CHÍNH PHIẾU (2026-09), KHÔNG từ kỳ hiện
+      // tại — ở mốc 2030 không có kỳ hiện tại nào để lấy.
+      expect(viec.message).toBe('Bạn có 1 phiếu KPI chờ ký nhận (Tháng 09/2026)');
+      // Chốt chặn chuỗi hỏng: không "(undefined)", không "()", không "(null)"
+      expect(viec.message).not.toMatch(/undefined|null|\(\)/);
       expect(viec.daysUntilDeadline).toBeNull();
       expect(viec.isOverdue).toBe(false);
     } finally {
       vi.useRealTimers();
       await prisma.scorecard.delete({ where: { id: phieu.id } });
+    }
+  });
+
+  /**
+   * Ca sai của bản cũ: phiếu thuộc kỳ 2026-08 nhưng nhãn lấy theo kỳ hiện
+   * tại nên ghi "Tháng 09/2026". Người dùng đọc nhãn rồi ký nhận, tưởng
+   * mình vừa ký phiếu tháng 9.
+   */
+  it('nhãn ghi đúng kỳ CỦA PHIẾU, không phải kỳ hiện tại', async () => {
+    const nv = await nguoiDung('sd.nhanvien2@hmico.vn');
+    const ky08 = await prisma.period.findUniqueOrThrow({ where: { code: '2026-08' } });
+    const phieu = await prisma.scorecard.create({
+      data: {
+        ownerUserId: nv.id,
+        periodId: ky08.id,
+        departmentId: nv.departmentId!,
+        departmentName: 'ZTEST phòng',
+        jobTitleName: 'ZTEST chức danh',
+        assignStatus: 'PROPOSED',
+        createdById: nv.id,
+      },
+      select: { id: true },
+    });
+
+    try {
+      // Hôm nay là 03/09/2026 — kỳ hiện tại LÀ 2026-09, khác kỳ của phiếu
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-03T02:00:00Z'));
+      const ra = await queries.pendingMyAction(nv);
+      const viec = ra.find((v) => v.type === 'CHO_KY_NHAN')!;
+      expect(viec.message).toContain('Tháng 08/2026');
+      expect(viec.message).not.toContain('Tháng 09/2026');
+    } finally {
+      vi.useRealTimers();
+      await prisma.scorecard.delete({ where: { id: phieu.id } });
+    }
+  });
+
+  it('phiếu ở nhiều kỳ khác nhau → nhãn ghi số kỳ, không bịa một tên', async () => {
+    const nv = await nguoiDung('sd.nhanvien2@hmico.vn');
+    const ma = ['2026-08', '2026-09'];
+    const ids: string[] = [];
+    for (const code of ma) {
+      const ky = await prisma.period.findUniqueOrThrow({ where: { code } });
+      const p = await prisma.scorecard.create({
+        data: {
+          ownerUserId: nv.id,
+          periodId: ky.id,
+          departmentId: nv.departmentId!,
+          departmentName: 'ZTEST phòng',
+          jobTitleName: 'ZTEST chức danh',
+          assignStatus: 'PROPOSED',
+          createdById: nv.id,
+        },
+        select: { id: true },
+      });
+      ids.push(p.id);
+    }
+
+    try {
+      const ra = await queries.pendingMyAction(nv);
+      const viec = ra.find((v) => v.type === 'CHO_KY_NHAN')!;
+      expect(viec.message).toBe('Bạn có 2 phiếu KPI chờ ký nhận (2 kỳ)');
+      expect(viec.count).toBe(2);
+    } finally {
+      await prisma.scorecard.deleteMany({ where: { id: { in: ids } } });
     }
   });
 });

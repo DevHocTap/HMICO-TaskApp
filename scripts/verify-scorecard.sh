@@ -466,10 +466,17 @@ echo "$KQ" | grep -q '"isOverdue"' && pass "có trường isOverdue tách riêng
 # Xem hằng KHONG_CO_HAN trong scorecard-query.service.ts và Câu 0c ở no-ky-thuat.md.
 echo "$KQ" | grep -q '"daysUntilDeadline": *null' && pass "việc đầu kỳ KHÔNG bịa hạn (null)" || fail "gắn hạn cho việc đầu kỳ: $KQ"
 echo "$KQ" | grep -q '"isOverdue": *false' && pass "việc đầu kỳ không bị báo quá hạn" || fail "$KQ"
-# Nhãn kỳ phải là kỳ chứa HÔM NAY, không phải kỳ mới nhất (tự sinh luôn
-# tạo sẵn tháng kế tiếp — bản cũ lấy nhầm và lệch nguyên một tháng).
+# Nhãn kỳ phải là kỳ CỦA CHÍNH PHIẾU, không phải kỳ hiện tại. Phiếu $SC1
+# thuộc kỳ 2026-08, còn hôm nay đang ở một kỳ khác — bản cũ lấy theo kỳ hiện
+# tại nên báo sai tháng, và người dùng ký nhận nhầm phiếu của kỳ khác.
+TEN_KY_PHIEU=$(sql "SELECT p.name FROM \"Period\" p JOIN \"Scorecard\" s ON s.\"periodId\"=p.id WHERE s.id='$SC1';")
 TEN_KY_NAY=$(sql "SELECT name FROM \"Period\" WHERE type='MONTH' AND \"startDate\"<=CURRENT_DATE AND \"endDate\">=CURRENT_DATE;")
-echo "$KQ" | grep -q "$TEN_KY_NAY" && pass "câu chữ ghi đúng kỳ hiện tại ($TEN_KY_NAY)" || fail "không thấy '$TEN_KY_NAY' trong: $KQ"
+echo "$KQ" | grep -q "$TEN_KY_PHIEU" && pass "câu chữ ghi đúng kỳ CỦA PHIẾU ($TEN_KY_PHIEU)" || fail "không thấy '$TEN_KY_PHIEU' trong: $KQ"
+if [ "$TEN_KY_PHIEU" != "$TEN_KY_NAY" ]; then
+  echo "$KQ" | grep -q "$TEN_KY_NAY" && fail "lấy nhầm kỳ hiện tại ($TEN_KY_NAY)" \
+    || pass "và KHÔNG lấy nhãn theo kỳ hiện tại ($TEN_KY_NAY)"
+fi
+echo "$KQ" | grep -qE "undefined|\(\)" && fail "chuỗi hỏng trong câu chữ: $KQ" || pass "không có '(undefined)' hay '()' trong câu chữ"
 KQ=$(curl -s -H "Authorization: Bearer $AT_TT" "$API/scorecards/pending-my-action")
 echo "$KQ" | grep -qE "chưa gửi|chưa được giao|ý kiến" && pass "trưởng bộ phận thấy việc của mình" || fail "$KQ"
 
