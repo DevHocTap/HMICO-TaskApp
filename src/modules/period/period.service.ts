@@ -1,7 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { PeriodType, type Period } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { cacKyCanBaoDam, type KyCanTao } from './period-calendar.js';
+import type {
+  CreatePeriodDto,
+  ListPeriodsQuery,
+  PeriodSummary,
+} from './dto/period.dto.js';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 
 export interface KetQuaBaoDamKy {
   daTao: string[];
@@ -87,5 +100,205 @@ export class PeriodService {
     });
 
     return true;
+  }
+
+  // ==================================================== truy vấn và CRUD
+
+  /**
+   * Danh sách kỳ, mới nhất trước.
+   *
+   * `scorecardCount` lấy bằng MỘT lệnh groupBy cho cả trang. Đếm trong vòng
+   * lặp là 12 truy vấn cho một năm, và con số đó tăng theo dữ liệu chứ
+   * không đứng yên.
+   */
+  async list(query: ListPeriodsQuery): Promise<PeriodSummary[]> {
+    const ky = await this.prisma.period.findMany({
+      where: {
+        type: query.type,
+        ...(query.year
+          ? {
+              startDate: {
+                gte: new Date(Date.UTC(query.year, 0, 1)),
+                lte: new Date(Date.UTC(query.year, 11, 31)),
+              },
+            }
+          : {}),
+      },
+      orderBy: { startDate: 'desc' },
+      include: { createdBy: { select: { fullName: true } } },
+    });
+    if (ky.length === 0) return [];
+
+    const demTheoKy = await this.prisma.scorecard.groupBy({
+      by: ['periodId'],
+      where: { periodId: { in: ky.map((k) => k.id) } },
+      _count: { _all: true },
+    });
+    const dem = new Map(demTheoKy.map((d) => [d.periodId, d._count._all]));
+
+    return ky.map((k) => ({
+      id: k.id,
+      code: k.code,
+      name: k.name,
+      type: k.type,
+      startDate: k.startDate,
+      endDate: k.endDate,
+      submitDeadline: k.submitDeadline,
+      isLocked: k.isLocked,
+      createdById: k.createdById,
+      createdByName: k.createdBy?.fullName ?? null,
+      scorecardCount: dem.get(k.id) ?? 0,
+    }));
+  }
+
+  /**
+   * Tạo kỳ thủ công. Dùng khi HCNS cần kỳ quá khứ mà tác vụ tự sinh cố ý
+   * không bù — xem `cacKyCanBaoDam`.
+   */
+  async create(
+    dto: CreatePeriodDto,
+    user: AuthenticatedUser,
+    ip?: string | null,
+  ): Promise<Period> {
+    const batDau = this.ngayThuan(dto.startDate);
+    const ketThuc = this.ngayThuan(dto.endDate);
+    if (batDau > ketThuc) {
+      throw new BadRequestException('Ngày bắt đầu phải trước ngày kết thúc');
+    }
+
+    this.assertHanNopHopLe(dto.type, dto.submitDeadline);
+
+    if (dto.parentId) {
+      const cha = await this.prisma.period.findUnique({ where: { id: dto.parentId } });
+      if (!cha) throw new NotFoundException('Không tìm thấy kỳ cha');
+    }
+
+    // Kiểm trước để có thông điệp tiếng Việt rõ ràng; ràng buộc unique của
+    // database vẫn là chốt chặn cuối nếu hai người tạo cùng lúc.
+    const trung = await this.prisma.period.findFirst({
+      where: { OR: [{ code: dto.code }, { name: dto.name }] },
+      select: { code: true, name: true },
+    });
+    if (trung) {
+      throw new ConflictException(
+        trung.code === dto.code
+          ? `Đã có kỳ mang mã "${dto.code}"`
+          : `Đã có kỳ mang tên "${dto.name}"`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const moi = await tx.period.create({
+        data: {
+          code: dto.code,
+          name: dto.name,
+          type: dto.type,
+          startDate: batDau,
+          endDate: ketThuc,
+          submitDeadline: dto.submitDeadline
+            ? this.ngayThuan(dto.submitDeadline)
+            : null,
+          parentId: dto.parentId ?? null,
+          createdById: user.id,
+        },
+      });
+      await this.audit.log(
+        {
+          actorId: user.id,
+          entityType: 'Period',
+          entityId: moi.id,
+          action: 'CREATE',
+          after: { code: moi.code, name: moi.name, type: moi.type },
+          ipAddress: ip,
+        },
+        tx,
+      );
+      return moi;
+    });
+  }
+
+  lock(id: string, user: AuthenticatedUser, ip?: string | null): Promise<Period> {
+    return this.doiTrangThaiKhoa(id, true, user, ip);
+  }
+
+  unlock(id: string, user: AuthenticatedUser, ip?: string | null): Promise<Period> {
+    return this.doiTrangThaiKhoa(id, false, user, ip);
+  }
+
+  // -------------------------------------------------------------- nội bộ
+
+  /**
+   * CHỈ kỳ THÁNG mới khoá được.
+   *
+   * Khoá kỳ quý hay kỳ năm không chặn được gì: điểm quý là trung bình cộng
+   * ba tháng, và khoá kỳ cha KHÔNG lan xuống kỳ con (`quy-tac-nghiep-vu.md`
+   * mục 5.6). Để bấm được một nút không có tác dụng là mời người dùng hiểu
+   * nhầm rằng sổ đã chốt.
+   */
+  private async doiTrangThaiKhoa(
+    id: string,
+    khoa: boolean,
+    user: AuthenticatedUser,
+    ip?: string | null,
+  ): Promise<Period> {
+    const ky = await this.prisma.period.findUnique({ where: { id } });
+    if (!ky) throw new NotFoundException('Không tìm thấy kỳ đánh giá');
+
+    if (ky.type !== PeriodType.MONTH) {
+      throw new BadRequestException(
+        `Chỉ khoá được kỳ THÁNG. "${ky.name}" là kỳ tổng hợp — điểm của nó ` +
+          'tính từ các kỳ tháng bên trong, và khoá kỳ cha không khoá kỳ con.',
+      );
+    }
+    if (ky.isLocked === khoa) {
+      throw new BadRequestException(
+        khoa ? `"${ky.name}" đã bị khoá từ trước` : `"${ky.name}" đang không bị khoá`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const sau = await tx.period.update({
+        where: { id },
+        data: {
+          isLocked: khoa,
+          lockedAt: khoa ? new Date() : null,
+          lockedById: khoa ? user.id : null,
+        },
+      });
+      await this.audit.log(
+        {
+          actorId: user.id,
+          entityType: 'Period',
+          entityId: id,
+          action: khoa ? 'LOCK' : 'UNLOCK',
+          before: { isLocked: ky.isLocked },
+          after: { isLocked: sau.isLocked },
+          ipAddress: ip,
+        },
+        tx,
+      );
+      return sau;
+    });
+  }
+
+  private assertHanNopHopLe(type: PeriodType, hanNop?: string): void {
+    if (hanNop && type !== PeriodType.MONTH) {
+      throw new BadRequestException(
+        'Chỉ kỳ THÁNG mới có hạn nộp. Kỳ quý và kỳ năm chỉ để tổng hợp, ' +
+          'không ai nộp kết quả theo quý.',
+      );
+    }
+  }
+
+  /**
+   * Chuỗi `YYYY-MM-DD` thành `Date` ngày-thuần, khớp cột `@db.Date`.
+   *
+   * Tự ghép `Date.UTC` chứ KHÔNG dùng `new Date('2026-10-02')` — hàm dựng
+   * của JavaScript đọc chuỗi đó theo UTC nhưng đọc `'2026-10-02T00:00'`
+   * theo giờ máy, một khác biệt quá dễ trượt chân.
+   */
+  private ngayThuan(chuoi: string): Date {
+    const [nam, thang, ngay] = chuoi.split('-').map(Number);
+    return new Date(Date.UTC(nam, thang - 1, ngay));
   }
 }

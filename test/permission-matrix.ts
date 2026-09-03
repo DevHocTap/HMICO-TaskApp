@@ -74,6 +74,13 @@ export const MA_TRAN_PHAN_QUYEN: DongPhanQuyen[] = [
   { method: 'DELETE', path: 'kpi-templates/:id', allowedRoles: QUAN_TRI, dataScope: 'none' },
   { method: 'PUT', path: 'kpi-templates/:id/system-items', allowedRoles: [Role.ADMIN], dataScope: 'none', note: 'mẫu hệ thống, chỉ ADMIN' },
 
+  // ----------------------------------------------------------- period
+  // Kỳ đánh giá là dữ liệu toàn công ty, không thuộc phòng ban nào.
+  { method: 'GET', path: 'periods', allowedRoles: DOC_TO_CHUC, dataScope: 'none', note: 'MANAGER/STAFF chọn kỳ từ màn phiếu KPI' },
+  { method: 'POST', path: 'periods', allowedRoles: [Role.ADMIN], dataScope: 'none', note: 'EXECUTIVE chỉ đọc' },
+  { method: 'POST', path: 'periods/:id/lock', allowedRoles: [Role.ADMIN], dataScope: 'none', note: 'chỉ kỳ MONTH, mục 5.6' },
+  { method: 'POST', path: 'periods/:id/unlock', allowedRoles: [Role.ADMIN], dataScope: 'none' },
+
   // -------------------------------------------------------- scorecard
   { method: 'GET', path: 'scorecards/my', allowedRoles: AI_CUNG_DUOC, dataScope: 'owner' },
   { method: 'GET', path: 'scorecards/pending-my-action', allowedRoles: AI_CUNG_DUOC, dataScope: 'owner' },
