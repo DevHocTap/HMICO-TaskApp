@@ -11,10 +11,13 @@ import { DepartmentScopeService } from '../org/department-scope.service.js';
 import { homNayDangNgay } from '../period/period-calendar.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import type {
+  AssignmentBoardQuery,
+  AssignmentBoardRow,
   ListScorecardsQuery,
   PaginatedScorecards,
   ViecCanXuLy,
 } from './dto/scorecard.dto.js';
+import { PhamViGiaoKpi } from './dto/scorecard.dto.js';
 
 const LIMIT_MAC_DINH = 50;
 
@@ -310,6 +313,129 @@ export class ScorecardQueryService {
     }
 
     return viec;
+  }
+
+  // ------------------------------------------------ bảng giao KPI
+
+  /**
+   * Bảng giao KPI: MỘT dòng cho MỖI nhân viên, kể cả người CHƯA có phiếu.
+   *
+   * Endpoint RIÊNG, cố ý không nhập vào `GET /scorecards`. Cái đó là "danh
+   * sách phiếu"; trả về người không có phiếu là cái tên nói dối, và nhiều
+   * chỗ khác đang dựa vào ngữ nghĩa cũ.
+   *
+   * SỐ CÂU SQL CỐ ĐỊNH, không tăng theo số nhân viên:
+   *   1. phạm vi phòng ban   2. cây con (chỉ khi lọc phòng)
+   *   3. phòng ban để lấy tên và trưởng bộ phận
+   *   4. nhân viên           5. phiếu đã có
+   *   6. groupBy tổng trọng số cho CẢ trang
+   *
+   * Không nạp cây item của từng phiếu: với 200 người thì đó là 200 truy vấn
+   * và vài nghìn dòng chỉ để hiện một con số.
+   */
+  async assignmentBoard(
+    query: AssignmentBoardQuery,
+    user: AuthenticatedUser,
+  ): Promise<AssignmentBoardRow[]> {
+    const trongPhamVi = await this.departmentScope.getAccessibleDepartmentIds(user);
+    if (trongPhamVi.length === 0) return [];
+
+    let phongCanXem = trongPhamVi;
+    if (query.departmentId) {
+      // Kiểm thẳng trên danh sách vừa lấy, KHÔNG gọi assertPhongTrongPhamVi:
+      // hàm đó nạp lại phạm vi lần nữa, tốn thêm một truy vấn cho cùng một
+      // câu trả lời.
+      if (!trongPhamVi.includes(query.departmentId)) {
+        throw new ForbiddenException('Bạn không có quyền xem dữ liệu phòng ban này');
+      }
+      const cayCon = await this.departmentScope.getSubtreeIds(query.departmentId);
+      phongCanXem = cayCon.filter((id) => trongPhamVi.includes(id));
+    }
+
+    const phongBan = await this.prisma.department.findMany({
+      where: { id: { in: phongCanXem } },
+      select: { id: true, name: true, managerId: true },
+    });
+    const tenPhong = new Map(phongBan.map((p) => [p.id, p.name]));
+    const laTruongBoPhan = new Set(
+      phongBan.map((p) => p.managerId).filter((x): x is string => !!x),
+    );
+
+    // Ban giám đốc không lọc phòng thì mặc định xem TRƯỞNG BỘ PHẬN toàn công
+    // ty — đó là nhóm họ chịu trách nhiệm giao KPI (mục 5.0). Vai trò khác
+    // muốn lọc như vậy thì truyền scope=managers.
+    const chiTruongBoPhan =
+      query.scope === PhamViGiaoKpi.MANAGERS ||
+      (query.scope === undefined &&
+        user.role === Role.EXECUTIVE &&
+        !query.departmentId);
+
+    const nhanVien = await this.prisma.user.findMany({
+      where: {
+        departmentId: { in: phongCanXem },
+        ...NGUOI_CO_KPI,
+        ...(chiTruongBoPhan ? { id: { in: [...laTruongBoPhan] } } : {}),
+      },
+      select: {
+        id: true,
+        employeeCode: true,
+        fullName: true,
+        departmentId: true,
+        jobTitle: { select: { name: true } },
+      },
+    });
+    if (nhanVien.length === 0) return [];
+
+    const phieu = await this.prisma.scorecard.findMany({
+      where: {
+        periodId: query.periodId,
+        ownerUserId: { in: nhanVien.map((u) => u.id) },
+      },
+      select: {
+        id: true,
+        ownerUserId: true,
+        assignStatus: true,
+        acceptedAt: true,
+        evaluator: { select: { fullName: true } },
+      },
+    });
+    const phieuCua = new Map(phieu.map((p) => [p.ownerUserId!, p]));
+
+    const tongTrongSo = await this.prisma.scorecardItem.groupBy({
+      by: ['scorecardId'],
+      where: { scorecardId: { in: phieu.map((p) => p.id) }, parentId: null },
+      _sum: { weight: true },
+    });
+    const tongCua = new Map(
+      tongTrongSo.map((t) => [t.scorecardId, t._sum.weight?.toString() ?? '0']),
+    );
+
+    const dong: AssignmentBoardRow[] = nhanVien.map((u) => {
+      const p = phieuCua.get(u.id);
+      return {
+        userId: u.id,
+        employeeCode: u.employeeCode,
+        ownerName: u.fullName,
+        jobTitleName: u.jobTitle?.name ?? null,
+        departmentName: tenPhong.get(u.departmentId!) ?? '',
+        isDepartmentManager: laTruongBoPhan.has(u.id),
+        scorecardId: p?.id ?? null,
+        assignStatus: p?.assignStatus ?? null,
+        totalWeight: p ? (tongCua.get(p.id) ?? '0') : null,
+        acceptedAt: p?.acceptedAt ?? null,
+        evaluatorName: p?.evaluator?.fullName ?? null,
+      };
+    });
+
+    // Người CHƯA có phiếu lên đầu: đó là việc còn phải làm, và màn hình này
+    // tồn tại để chỉ ra đúng nhóm đó.
+    const soSanh = new Intl.Collator('vi').compare;
+    return dong.sort(
+      (a, b) =>
+        Number(!!a.scorecardId) - Number(!!b.scorecardId) ||
+        soSanh(a.departmentName, b.departmentName) ||
+        soSanh(a.ownerName, b.ownerName),
+    );
   }
 
   // ------------------------------------------------- kiểm tra sẵn sàng

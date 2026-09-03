@@ -66,7 +66,8 @@ ma() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 jq_() { python3 -c "import json,sys;d=json.load(sys.stdin);print($1)" 2>/dev/null; }
 
 echo "Khởi động API cổng $PORT..."
-PORT=$PORT LOGIN_RATE_LIMIT_PER_MINUTE=200 node dist/main.js > "$TMP/api.log" 2>&1 &
+# PRISMA_LOG_QUERY: để mục cuối ĐẾM số câu SQL, chứng minh không có N+1
+PORT=$PORT LOGIN_RATE_LIMIT_PER_MINUTE=200 PRISMA_LOG_QUERY=1 node dist/main.js > "$TMP/api.log" 2>&1 &
 PID_API=$!
 for _ in $(seq 1 40); do curl -sf -o /dev/null "$API/" 2>/dev/null && break; sleep 0.5; done
 if ! curl -sf -o /dev/null "$API/"; then
@@ -638,6 +639,101 @@ CO_PHIEU_KT=$(sql "WITH RECURSIVE cay AS (SELECT id FROM \"Department\" WHERE co
   [ "$CO_PHIEU_KT" = "2" ] && pass "cây phòng Kỹ thuật: $TONG_KT người hoạt động, $CO_PHIEU_KT đã có phiếu, $((TONG_KT-CO_PHIEU_KT)) chưa có" \
     || fail "mong đợi đúng 2 phiếu trong cây KT, đang có $CO_PHIEU_KT"
 fi
+
+
+# ======================= 8. BẢNG GIAO KPI
+# GET /scorecards chỉ trả phiếu ĐÃ CÓ. Màn giao KPI cần thấy cả người CHƯA
+# được giao — chính cái danh sách phiếu theo định nghĩa không chứa.
+buoc "BẢNG GIAO KPI — MỘT DÒNG MỖI NGƯỜI"
+BOARD="$API/scorecards/assignment-board?periodId=$KY_NAY"
+
+KQ=$(curl -s -H "Authorization: Bearer $AT_TT" "$BOARD&departmentId=$P_KTSD")
+SO_DONG=$(echo "$KQ" | jq_ "len(d)")
+# Đếm từ truy vấn, không viết số
+TONG_KT=$(sql "SELECT count(*) FROM \"User\" u WHERE u.\"departmentId\"='$P_KTSD' AND u.\"isActive\" AND u.role NOT IN ('ADMIN','EXECUTIVE');")
+CO_PHIEU=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"departmentId\"='$P_KTSD' AND \"periodId\"='$KY_NAY';")
+[ "$SO_DONG" = "$TONG_KT" ] && pass "trả đủ $SO_DONG dòng, đúng bằng số nhân viên phòng Kỹ thuật" \
+  || fail "API $SO_DONG dòng, database có $TONG_KT người"
+
+CHUA=$(echo "$KQ" | python3 -c "
+import json,sys
+print(sum(1 for r in json.load(sys.stdin) if r['scorecardId'] is None))" 2>/dev/null)
+[ "$CHUA" = "$((TONG_KT - CO_PHIEU))" ] && pass "$CHUA người chưa có phiếu, khớp database" \
+  || fail "API báo $CHUA chưa có phiếu, database còn $((TONG_KT - CO_PHIEU))"
+
+DAU_DANH_SACH=$(echo "$KQ" | python3 -c "
+import json,sys
+d=json.load(sys.stdin); n=sum(1 for r in d if r['scorecardId'] is None)
+print('OK' if all(r['scorecardId'] is None for r in d[:n]) else 'SAI')" 2>/dev/null)
+[ "$DAU_DANH_SACH" = "OK" ] && pass "người chưa có phiếu nằm ở ĐẦU danh sách" || fail "thứ tự sai"
+
+for TRUONG in userId employeeCode ownerName jobTitleName departmentName scorecardId assignStatus totalWeight acceptedAt evaluatorName isDepartmentManager; do
+  echo "$KQ" | grep -q "\"$TRUONG\"" && pass "có trường $TRUONG" || fail "thiếu trường $TRUONG"
+done
+
+# Người đã có phiếu phải kèm đủ thông tin phiếu
+CO_DU=$(echo "$KQ" | python3 -c "
+import json,sys
+d=[r for r in json.load(sys.stdin) if r['scorecardId']]
+print('OK' if d and all(r['assignStatus'] and r['totalWeight'] for r in d) else 'SAI')" 2>/dev/null)
+[ "$CO_DU" = "OK" ] && pass "dòng đã có phiếu kèm đủ trạng thái và tổng trọng số" || fail "thiếu dữ liệu phiếu"
+
+buoc "BẢNG GIAO KPI — PHÂN QUYỀN VÀ PHẠM VI"
+MA=$(ma -H "Authorization: Bearer $AT_RND" "$BOARD&departmentId=$P_KTSD")
+[ "$MA" = "403" ] && pass "MANAGER R&D xem phòng Kỹ thuật -> 403" || fail "-> $MA (mong đợi 403)"
+MA=$(ma -H "Authorization: Bearer $AT_NV1" "$BOARD")
+[ "$MA" = "403" ] && pass "STAFF -> 403 (không ai tự giao KPI cho mình)" || fail "-> $MA (mong đợi 403)"
+MA=$(ma "$BOARD")
+[ "$MA" = "401" ] && pass "không đăng nhập -> 401" || fail "-> $MA (mong đợi 401)"
+
+# Người đã nghỉ việc KHÔNG được hiện
+sql "UPDATE \"User\" SET \"isActive\"=false WHERE id='$U_NV2';" >/dev/null
+KQ2=$(curl -s -H "Authorization: Bearer $AT_TT" "$BOARD&departmentId=$P_KTSD")
+echo "$KQ2" | grep -q "$U_NV2" && fail "người đã nghỉ việc vẫn hiện trong bảng" \
+  || pass "người isActive = false không xuất hiện"
+[ "$(echo "$KQ2" | jq_ "len(d)")" = "$((TONG_KT - 1))" ] && pass "số dòng giảm đúng 1 sau khi cho nghỉ việc" \
+  || fail "số dòng không giảm đúng"
+sql "UPDATE \"User\" SET \"isActive\"=true WHERE id='$U_NV2';" >/dev/null
+
+# Ban giám đốc không lọc phòng -> mặc định TRƯỞNG BỘ PHẬN toàn công ty
+KQ=$(curl -s -H "Authorization: Bearer $AT_BGD" "$BOARD")
+SO_BGD=$(echo "$KQ" | jq_ "len(d)")
+SO_TRUONG=$(sql "SELECT count(*) FROM \"Department\" d JOIN \"User\" u ON u.id=d.\"managerId\" WHERE d.\"isActive\" AND u.\"isActive\";")
+[ "$SO_BGD" = "$SO_TRUONG" ] && pass "BGĐ không lọc phòng -> đúng $SO_BGD trưởng bộ phận" \
+  || fail "BGĐ thấy $SO_BGD dòng, có $SO_TRUONG trưởng bộ phận"
+TOAN_TRUONG=$(echo "$KQ" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print('OK' if d and all(r['isDepartmentManager'] for r in d) else 'SAI')" 2>/dev/null)
+[ "$TOAN_TRUONG" = "OK" ] && pass "mọi dòng đều là trưởng bộ phận" || fail "lọt người không phải trưởng bộ phận"
+
+# scope=managers cho vai trò khác
+KQ=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$BOARD&scope=managers")
+TOAN_TRUONG=$(echo "$KQ" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print('OK' if d and all(r['isDepartmentManager'] for r in d) else 'SAI')" 2>/dev/null)
+[ "$TOAN_TRUONG" = "OK" ] && pass "scope=managers lọc được cho vai trò khác" || fail "$KQ"
+SO_ALL=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$BOARD" | jq_ "len(d)")
+[ "$SO_ALL" -gt "$SO_TRUONG" ] && pass "ADMIN không lọc -> thấy toàn bộ $SO_ALL người, nhiều hơn $SO_TRUONG trưởng bộ phận" \
+  || fail "ADMIN thấy $SO_ALL, trưởng bộ phận $SO_TRUONG"
+
+buoc "BẢNG GIAO KPI — SỐ CÂU SQL KHÔNG TĂNG THEO SỐ NGƯỜI"
+dem_sql() {
+  local truoc; truoc=$(grep -c 'prisma:query' "$TMP/api.log")
+  curl -s -o /dev/null -H "Authorization: Bearer $1" "$2"
+  sleep 1
+  echo $(( $(grep -c 'prisma:query' "$TMP/api.log") - truoc ))
+}
+sleep 1
+SQL_PHONG=$(dem_sql "$AT_ADMIN" "$BOARD&departmentId=$P_KTSD")
+SQL_CTY=$(dem_sql "$AT_ADMIN" "$BOARD")
+SO_CTY=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$BOARD" | jq_ "len(d)")
+echo "        phòng Kỹ thuật ($TONG_KT người): $SQL_PHONG câu SQL"
+echo "        toàn công ty ($SO_CTY người):    $SQL_CTY câu SQL"
+[ "$SQL_CTY" -le "$SQL_PHONG" ] && pass "toàn công ty KHÔNG tốn nhiều câu SQL hơn một phòng ($SQL_CTY <= $SQL_PHONG)" \
+  || fail "$SQL_PHONG câu cho $TONG_KT người, $SQL_CTY câu cho $SO_CTY người — có N+1"
+[ "$SQL_CTY" -le 8 ] && pass "số câu SQL cố định, dưới ngưỡng 8" || fail "$SQL_CTY câu — quá nhiều"
 
 echo
 printf '%.0s=' {1..60}; echo

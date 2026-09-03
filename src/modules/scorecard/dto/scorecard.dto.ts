@@ -275,3 +275,51 @@ export interface ViecCanXuLy {
   /** Đã quá hạn. Tách riêng để giao diện không phải suy từ số âm. */
   isOverdue: boolean;
 }
+
+/**
+ * Lọc thêm cho bảng giao KPI.
+ *
+ * `managers` = chỉ những người đang là trưởng bộ phận. Ban giám đốc mặc
+ * định thấy nhóm này vì đó là nhóm họ chịu trách nhiệm giao KPI (mục 5.0).
+ */
+export enum PhamViGiaoKpi {
+  ALL = 'all',
+  MANAGERS = 'managers',
+}
+
+export class AssignmentBoardQuery {
+  @IsUUID('4', { message: 'Kỳ đánh giá không hợp lệ' })
+  periodId!: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'Phòng ban không hợp lệ' })
+  departmentId?: string;
+
+  @IsOptional()
+  @IsEnum(PhamViGiaoKpi, { message: 'Phạm vi phải là all hoặc managers' })
+  scope?: PhamViGiaoKpi;
+}
+
+/**
+ * MỘT dòng cho MỖI nhân viên trong phạm vi — kể cả người CHƯA có phiếu.
+ *
+ * Khác hẳn `ScorecardSummary`: đó là danh sách PHIẾU, còn đây là danh sách
+ * NGƯỜI. Màn giao KPI cần biết ai chưa được giao, mà danh sách phiếu thì
+ * theo định nghĩa không chứa những người đó.
+ */
+export interface AssignmentBoardRow {
+  userId: string;
+  employeeCode: string;
+  ownerName: string;
+  jobTitleName: string | null;
+  departmentName: string;
+  /** Đang là trưởng bộ phận — ban giám đốc giao KPI cho nhóm này. */
+  isDepartmentManager: boolean;
+
+  /** Bốn trường dưới đây `null` khi người này CHƯA có phiếu trong kỳ. */
+  scorecardId: string | null;
+  assignStatus: AssignStatus | null;
+  totalWeight: string | null;
+  acceptedAt: Date | null;
+  evaluatorName: string | null;
+}

@@ -86,6 +86,7 @@ export const MA_TRAN_PHAN_QUYEN: DongPhanQuyen[] = [
   { method: 'GET', path: 'scorecards/pending-my-action', allowedRoles: AI_CUNG_DUOC, dataScope: 'owner' },
   { method: 'GET', path: 'scorecards/readiness', allowedRoles: [...GIAO_KPI, Role.EXECUTIVE], dataScope: 'scope' },
   { method: 'GET', path: 'scorecards/readiness/company', allowedRoles: DOC_TO_CHUC, dataScope: 'scope', note: 'danh sách gửi HCNS' },
+  { method: 'GET', path: 'scorecards/assignment-board', allowedRoles: GIAO_KPI_VA_BGD, dataScope: 'scope', note: 'một dòng mỗi NGƯỜI, kể cả người chưa có phiếu; BGĐ mặc định thấy trưởng bộ phận' },
   { method: 'GET', path: 'scorecards', allowedRoles: AI_CUNG_DUOC, dataScope: 'scope', note: 'STAFF chỉ thấy phiếu mình' },
   { method: 'GET', path: 'scorecards/:id', allowedRoles: AI_CUNG_DUOC, dataScope: 'scope' },
   { method: 'POST', path: 'scorecards', allowedRoles: GIAO_KPI_VA_BGD, dataScope: 'scope', note: 'BGĐ sinh phiếu rỗng cho trưởng bộ phận' },

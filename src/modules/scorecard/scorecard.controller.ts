@@ -16,6 +16,7 @@ import { ScorecardService } from './scorecard.service.js';
 import { ScorecardQueryService } from './scorecard-query.service.js';
 import { ScorecardAssignService } from './scorecard-assign.service.js';
 import {
+  AssignmentBoardQuery,
   BatchCreateScorecardDto,
   BatchProposeDto,
   CopyFromPeriodDto,
@@ -81,6 +82,24 @@ export class ScorecardController {
   @Get('readiness/company')
   readinessCompany(@CurrentUser() user: AuthenticatedUser) {
     return this.queries.readinessToanCongTy(user);
+  }
+
+  /**
+   * Bảng giao KPI: MỘT dòng cho MỖI nhân viên, kể cả người CHƯA có phiếu.
+   *
+   * `GET /scorecards` chỉ trả phiếu ĐÃ CÓ, nên không dùng được cho màn này —
+   * cái nó không trả về mới đúng là thứ màn hình cần chỉ ra.
+   *
+   * `EXECUTIVE` không truyền `departmentId` thì mặc định thấy TRƯỞNG BỘ PHẬN
+   * toàn công ty. `STAFF` không vào — không ai tự giao KPI cho mình.
+   */
+  @Roles(...VAI_TRO_GIAO_KPI_VA_BGD)
+  @Get('assignment-board')
+  assignmentBoard(
+    @Query() query: AssignmentBoardQuery,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.queries.assignmentBoard(query, user);
   }
 
   @Get()

@@ -92,8 +92,15 @@ Sau buổi chốt 03/09 với HCNS và ban giám đốc, đã áp:
 - `ADMIN` và `EXECUTIVE` không có phiếu KPI. BGĐ vẫn chấm trưởng phòng.
 - Khoá/mở kỳ mở cho `HR` và `EXECUTIVE`.
 
-Việc tiếp: mở quyền soạn KPI trực tiếp trên phiếu cho trưởng phòng, rồi
-ba màn hình.
+Đã làm tiếp sau đó:
+- **Trưởng phòng tự soạn KPI trên phiếu** (câu C3): `MANAGER` sinh được
+  phiếu rỗng, bỏ chặn "chức danh đã có mẫu thì phải dùng mẫu".
+- **`GET /scorecards/assignment-board`** — MỘT dòng cho MỖI nhân viên, kể
+  cả người CHƯA có phiếu. `GET /scorecards` chỉ trả phiếu đã có nên không
+  dùng được cho màn giao KPI. Ban giám đốc không lọc phòng thì mặc định
+  thấy trưởng bộ phận toàn công ty.
+
+**Backend lát cắt 4 xong hẳn. Việc tiếp: ba màn hình.**
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 
