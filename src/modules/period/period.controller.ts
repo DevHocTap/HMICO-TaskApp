@@ -21,18 +21,22 @@ interface RequestInfo {
   ip?: string;
 }
 
-/**
- * Kỳ đánh giá là dữ liệu TOÀN CÔNG TY, không thuộc phòng ban nào, nên không
- * đi qua `getAccessibleDepartmentIds`. Đọc mở cho ba vai trò quản trị;
- * MANAGER và STAFF không cần — họ chọn kỳ từ chính màn hình phiếu KPI.
- */
-const VAI_TRO_DOC = [Role.ADMIN, Role.HR, Role.EXECUTIVE] as const;
-
 @Controller('periods')
 export class PeriodController {
   constructor(private readonly service: PeriodService) {}
 
-  @Roles(...VAI_TRO_DOC)
+  /**
+   * Đọc: MỌI vai trò đã đăng nhập.
+   *
+   * Kỳ đánh giá là dữ liệu TOÀN CÔNG TY, không thuộc phòng ban nào, nên
+   * không đi qua `getAccessibleDepartmentIds` và không có gì để giấu: đây
+   * chỉ là danh sách tháng. Mọi màn hình phiếu KPI đều cần nó để đổ vào ô
+   * chọn kỳ — `/kpi/assign` của MANAGER, `/kpi/my` của STAFF.
+   *
+   * Siết vai trò ở đây là bắt giao diện đi đường vòng lấy tên kỳ từ chỗ
+   * khác, đúng cái bẫy đã ghi ở `docs/no-ky-thuat.md` mục cây phòng ban
+   * rỗng cho STAFF.
+   */
   @Get()
   list(@Query() query: ListPeriodsQuery) {
     return this.service.list(query);

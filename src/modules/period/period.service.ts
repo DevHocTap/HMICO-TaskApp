@@ -8,7 +8,7 @@ import {
 import { PeriodType, type Period } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
-import { cacKyCanBaoDam, type KyCanTao } from './period-calendar.js';
+import { MUI_GIO, cacKyCanBaoDam, type KyCanTao } from './period-calendar.js';
 import type {
   CreatePeriodDto,
   ListPeriodsQuery,
@@ -250,9 +250,16 @@ export class PeriodService {
           'tính từ các kỳ tháng bên trong, và khoá kỳ cha không khoá kỳ con.',
       );
     }
+    // Nói rõ TRẠNG THÁI HIỆN TẠI, không báo lỗi chung chung: người bấm nút
+    // cần biết kỳ đang ở đâu và làm gì tiếp, chứ không phải biết mình vừa
+    // bấm sai.
     if (ky.isLocked === khoa) {
       throw new BadRequestException(
-        khoa ? `"${ky.name}" đã bị khoá từ trước` : `"${ky.name}" đang không bị khoá`,
+        khoa
+          ? `Kỳ "${ky.name}" đã được khoá${this.khoaLuc(ky.lockedAt)}. ` +
+            'Sổ của kỳ này đang chốt — muốn sửa điểm thì phải mở kỳ trước.'
+          : `Kỳ "${ky.name}" đang mở, không cần mở lại. ` +
+            'Điểm của kỳ này vẫn sửa được bình thường.',
       );
     }
 
@@ -279,6 +286,20 @@ export class PeriodService {
       );
       return sau;
     });
+  }
+
+  /** " lúc 14:30 ngày 03/09/2026" — giờ Việt Nam, hoặc chuỗi rỗng nếu không rõ. */
+  private khoaLuc(moc: Date | null): string {
+    if (!moc) return '';
+    const d = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: MUI_GIO,
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(moc);
+    return ` lúc ${d}`;
   }
 
   private assertHanNopHopLe(type: PeriodType, hanNop?: string): void {

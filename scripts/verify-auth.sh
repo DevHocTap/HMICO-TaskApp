@@ -13,6 +13,9 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# Chốt chặn: script này xoá dữ liệu, chỉ được chạy trên database cục bộ.
+. "$(dirname "$0")/_chi-chay-cuc-bo.sh"
+
 PORT_NORMAL=3101
 PORT_SHORT=3102
 PORT_RATE=3103

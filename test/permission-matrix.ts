@@ -76,7 +76,7 @@ export const MA_TRAN_PHAN_QUYEN: DongPhanQuyen[] = [
 
   // ----------------------------------------------------------- period
   // Kỳ đánh giá là dữ liệu toàn công ty, không thuộc phòng ban nào.
-  { method: 'GET', path: 'periods', allowedRoles: DOC_TO_CHUC, dataScope: 'none', note: 'MANAGER/STAFF chọn kỳ từ màn phiếu KPI' },
+  { method: 'GET', path: 'periods', allowedRoles: AI_CUNG_DUOC, dataScope: 'none', note: 'danh sách tháng, không có gì để giấu; mọi màn KPI cần để đổ ô chọn kỳ' },
   { method: 'POST', path: 'periods', allowedRoles: [Role.ADMIN], dataScope: 'none', note: 'EXECUTIVE chỉ đọc' },
   { method: 'POST', path: 'periods/:id/lock', allowedRoles: [Role.ADMIN], dataScope: 'none', note: 'chỉ kỳ MONTH, mục 5.6' },
   { method: 'POST', path: 'periods/:id/unlock', allowedRoles: [Role.ADMIN], dataScope: 'none' },

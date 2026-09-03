@@ -10,6 +10,9 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# Chốt chặn: script này xoá dữ liệu, chỉ được chạy trên database cục bộ.
+. "$(dirname "$0")/_chi-chay-cuc-bo.sh"
+
 PORT=3121
 API="http://localhost:$PORT"
 MAT_KHAU="${SEED_PASSWORD:-Hmico@2026}"

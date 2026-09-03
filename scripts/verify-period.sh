@@ -10,6 +10,9 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# Chốt chặn: script này xoá dữ liệu, chỉ được chạy trên database cục bộ.
+. "$(dirname "$0")/_chi-chay-cuc-bo.sh"
+
 PORT=3192
 API="http://localhost:$PORT"
 MAT_KHAU="${SEED_PASSWORD:-Hmico@2026}"
@@ -84,18 +87,24 @@ KY_Q3=$(sql "SELECT id FROM \"Period\" WHERE type='QUARTER' ORDER BY \"startDate
 KY_NAM=$(sql "SELECT id FROM \"Period\" WHERE type='YEAR' ORDER BY \"startDate\" LIMIT 1;")
 
 # ================================================ 1. ĐỌC DANH SÁCH
-buoc "GET /periods — PHÂN QUYỀN ĐỌC"
-for CAP in "ADMIN:$AT_ADMIN" "HR:$AT_HR" "EXECUTIVE:$AT_BGD"; do
+# Danh sách kỳ chỉ là danh sách tháng, không có gì để giấu. MỌI vai trò đã
+# đăng nhập đều đọc được — mọi màn hình phiếu KPI cần nó để đổ ô chọn kỳ.
+buoc "GET /periods — MỌI VAI TRÒ ĐÃ ĐĂNG NHẬP ĐỌC ĐƯỢC"
+for CAP in "ADMIN:$AT_ADMIN" "HR:$AT_HR" "EXECUTIVE:$AT_BGD" "MANAGER:$AT_TP" "STAFF:$AT_NV"; do
   VAI=${CAP%%:*}; TOK=${CAP#*:}
   MA=$(ma -H "Authorization: Bearer $TOK" "$API/periods")
   [ "$MA" = "200" ] && pass "$VAI đọc được danh sách kỳ" || fail "$VAI -> $MA (mong đợi 200)"
 done
-MA=$(ma -H "Authorization: Bearer $AT_TP" "$API/periods")
-[ "$MA" = "403" ] && pass "MANAGER -> 403" || fail "MANAGER -> $MA (mong đợi 403)"
-MA=$(ma -H "Authorization: Bearer $AT_NV" "$API/periods")
-[ "$MA" = "403" ] && pass "STAFF -> 403" || fail "STAFF -> $MA (mong đợi 403)"
 MA=$(ma "$API/periods")
 [ "$MA" = "401" ] && pass "không đăng nhập -> 401" || fail "-> $MA (mong đợi 401)"
+
+# scorecardCount giữ nguyên cho mọi vai trò: đây là số phiếu của cả kỳ,
+# không phải dữ liệu của riêng phòng nào.
+SO_A=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/periods" | jq_ "len(d)")
+SO_S=$(curl -s -H "Authorization: Bearer $AT_NV" "$API/periods" | jq_ "len(d)")
+[ "$SO_A" = "$SO_S" ] && pass "STAFF thấy đúng $SO_S kỳ, bằng ADMIN" || fail "ADMIN $SO_A, STAFF $SO_S"
+curl -s -H "Authorization: Bearer $AT_NV" "$API/periods" | grep -q '"scorecardCount"' \
+  && pass "STAFF vẫn nhận scorecardCount" || fail "STAFF thiếu scorecardCount"
 
 buoc "GET /periods — NỘI DUNG VÀ BỘ LỌC"
 KQ=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/periods")
@@ -221,6 +230,11 @@ SO_LOG=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Period' AN
 
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/periods/$KY_08/lock")
 [ "$MA" = "400" ] && pass "khoá kỳ đã khoá -> 400, không ghi log trùng" || fail "-> $MA (mong đợi 400)"
+# Thông điệp phải nói rõ TRẠNG THÁI HIỆN TẠI, không phải lỗi chung chung
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/periods/$KY_08/lock")
+echo "$KQ" | grep -q "đã được khoá" && pass "thông điệp nói rõ kỳ ĐÃ ĐƯỢC KHOÁ" || fail "$KQ"
+echo "$KQ" | grep -q "mở kỳ trước" && pass "và chỉ ra việc cần làm tiếp" || fail "$KQ"
+printf '        \033[2m%s\033[0m\n' "$(echo "$KQ" | jq_ "d['message']")"
 SO_LOG=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Period' AND action='LOCK' AND \"entityId\"='$KY_08';")
 [ "$SO_LOG" = "1" ] && pass "vẫn đúng 1 dòng AuditLog LOCK" || fail "$SO_LOG dòng"
 
@@ -243,6 +257,9 @@ SO_LOG=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Period' AN
 [ "$SO_LOG" = "1" ] && pass "có AuditLog UNLOCK" || fail "$SO_LOG dòng"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/periods/$KY_08/unlock")
 [ "$MA" = "400" ] && pass "mở kỳ đang không khoá -> 400" || fail "-> $MA (mong đợi 400)"
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/periods/$KY_08/unlock")
+echo "$KQ" | grep -q "đang mở" && pass "thông điệp nói rõ kỳ ĐANG MỞ" || fail "$KQ"
+printf '        \033[2m%s\033[0m\n' "$(echo "$KQ" | jq_ "d['message']")"
 
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/periods/00000000-0000-4000-8000-000000000000/lock")
 [ "$MA" = "404" ] && pass "khoá kỳ không tồn tại -> 404" || fail "-> $MA (mong đợi 404)"
@@ -265,6 +282,10 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_TP" "$API/periods/$KY_08/lock")
 [ "$MA" = "403" ] && pass "MANAGER khoá kỳ -> 403" || fail "-> $MA (mong đợi 403)"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_NV" "$API/periods/$KY_08/lock")
 [ "$MA" = "403" ] && pass "STAFF khoá kỳ -> 403" || fail "-> $MA (mong đợi 403)"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_TP" -H 'Content-Type: application/json' -d "$BODY" "$API/periods")
+[ "$MA" = "403" ] && pass "MANAGER tạo kỳ -> 403 (đọc được không có nghĩa ghi được)" || fail "-> $MA (mong đợi 403)"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_NV" -H 'Content-Type: application/json' -d "$BODY" "$API/periods")
+[ "$MA" = "403" ] && pass "STAFF tạo kỳ -> 403" || fail "-> $MA (mong đợi 403)"
 
 SO_LEN=$(sql "SELECT count(*) FROM \"Period\" WHERE code='ZTEST-99';")
 [ "$SO_LEN" = "0" ] && pass "không kỳ nào lọt qua bằng vai trò không đủ quyền" || fail "$SO_LEN kỳ đã lọt"
