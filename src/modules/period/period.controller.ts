@@ -21,6 +21,9 @@ interface RequestInfo {
   ip?: string;
 }
 
+/** Ai được chốt sổ tháng — HCNS chốt 03/09/2026, câu A5. */
+const VAI_TRO_CHOT_SO = [Role.ADMIN, Role.HR, Role.EXECUTIVE] as const;
+
 @Controller('periods')
 export class PeriodController {
   constructor(private readonly service: PeriodService) {}
@@ -43,13 +46,12 @@ export class PeriodController {
   }
 
   /**
-   * Ba thao tác dưới đây CHỈ ADMIN.
+   * Tạo kỳ thủ công: ADMIN và HR.
    *
-   * EXECUTIVE cố ý chỉ đọc: `quy-tac-nghiep-vu.md` mục 5.6 hiện ghi khoá kỳ
-   * là quyền ADMIN. Đang có câu hỏi chờ HCNS về việc chuyển quyền chốt sổ
-   * sang ban giám đốc — xem `docs/no-ky-thuat.md`. Chưa chốt thì chưa mở.
+   * Kỳ hàng tháng do tác vụ định kỳ tự sinh; đường tạo tay chỉ dùng khi cần
+   * một kỳ quá khứ mà tác vụ cố ý không bù.
    */
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.HR)
   @Post()
   create(
     @Body() dto: CreatePeriodDto,
@@ -59,7 +61,17 @@ export class PeriodController {
     return this.service.create(dto, user, req.ip);
   }
 
-  @Roles(Role.ADMIN)
+  /**
+   * Khoá và mở kỳ: ADMIN, HR, EXECUTIVE — HCNS chốt 03/09/2026 (câu A5).
+   *
+   * Khoá kỳ là quyết định NGHIỆP VỤ (chốt sổ tháng), không phải thao tác kỹ
+   * thuật, nên người chốt sổ phải là HCNS hoặc ban giám đốc. ADMIN giữ quyền
+   * theo câu A4 — tài khoản quản trị có toàn quyền.
+   *
+   * Trưởng phòng muốn sửa điểm của kỳ đã chốt thì gửi yêu cầu cho HCNS hoặc
+   * ban giám đốc mở lại; mọi lần mở đều ghi nhật ký kèm tên người thao tác.
+   */
+  @Roles(...VAI_TRO_CHOT_SO)
   @HttpCode(HttpStatus.OK)
   @Post(':id/lock')
   lock(
@@ -70,7 +82,7 @@ export class PeriodController {
     return this.service.lock(id, user, req.ip);
   }
 
-  @Roles(Role.ADMIN)
+  @Roles(...VAI_TRO_CHOT_SO)
   @HttpCode(HttpStatus.OK)
   @Post(':id/unlock')
   unlock(

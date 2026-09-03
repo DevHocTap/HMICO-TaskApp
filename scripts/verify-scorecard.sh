@@ -297,13 +297,21 @@ echo "$KQ" | grep -q "blockedEmployees" && pass "nêu đích danh người bị 
 # phòng "chặn thật" đổi theo tiến trình chạy.
 SO_CHAN=$(echo "$KQ" | jq_ "len(d['departmentsWithoutManager'])")
 SO_RONG=$(echo "$KQ" | jq_ "len(d['emptyOrgUnits'])")
-DB_CHAN=$(sql "SELECT count(*) FROM \"Department\" d WHERE d.\"managerId\" IS NULL AND d.\"isActive\" AND EXISTS (SELECT 1 FROM \"User\" u WHERE u.\"departmentId\"=d.id AND u.\"isActive\");")
-DB_RONG=$(sql "SELECT count(*) FROM \"Department\" d WHERE d.\"managerId\" IS NULL AND d.\"isActive\" AND NOT EXISTS (SELECT 1 FROM \"User\" u WHERE u.\"departmentId\"=d.id AND u.\"isActive\");")
+# Loại ADMIN đúng như API: HCNS chốt 03/09/2026 (câu A4) rằng tài khoản quản
+# trị hệ thống không áp KPI, nên nó không làm phòng nào thành "chặn thật".
+DB_CHAN=$(sql "SELECT count(*) FROM \"Department\" d WHERE d.\"managerId\" IS NULL AND d.\"isActive\" AND EXISTS (SELECT 1 FROM \"User\" u WHERE u.\"departmentId\"=d.id AND u.\"isActive\" AND u.role <> 'ADMIN');")
+DB_RONG=$(sql "SELECT count(*) FROM \"Department\" d WHERE d.\"managerId\" IS NULL AND d.\"isActive\" AND NOT EXISTS (SELECT 1 FROM \"User\" u WHERE u.\"departmentId\"=d.id AND u.\"isActive\" AND u.role <> 'ADMIN');")
 [ "$SO_CHAN" = "$DB_CHAN" ] && pass "phòng chặn thật khớp database ($SO_CHAN phòng có nhân sự, thiếu trưởng)" \
   || fail "API báo $SO_CHAN, database có $DB_CHAN"
 [ "$SO_RONG" = "$DB_RONG" ] && pass "đơn vị rỗng người khớp database ($SO_RONG đơn vị)" \
   || fail "API báo $SO_RONG, database có $DB_RONG"
-echo "$KQ" | grep -q '"code":"HCNS"' && pass "Phòng HCNS nằm trong danh sách chặn thật" || fail "thiếu HCNS"
+# HCNS chốt 03/09/2026 (câu B1): phòng HCNS đã có trưởng bộ phận, nên KHÔNG
+# còn nằm trong danh sách chặn. Trước đây đây chính là ca chặn thật duy nhất.
+echo "$KQ" | grep -q '"code":"HCNS"' && fail "Phòng HCNS vẫn bị chặn dù đã có trưởng bộ phận" \
+  || pass "Phòng HCNS đã có trưởng bộ phận, không còn bị chặn"
+# Tài khoản quản trị hệ thống KHÔNG được xuất hiện ở bất kỳ danh sách nào
+echo "$KQ" | grep -q 'HM001' && fail "tài khoản quản trị hệ thống lọt vào danh sách KPI" \
+  || pass "tài khoản quản trị hệ thống không bị áp KPI (câu A4)"
 CHAN_CO_NGUOI=$(echo "$KQ" | jq_ "all(p['headcount']>0 for p in d['departmentsWithoutManager'])")
 [ "$CHAN_CO_NGUOI" = "True" ] && pass "mọi phòng trong danh sách chặn đều thật sự có người" || fail "có phòng rỗng lọt vào"
 MA=$(ma -H "Authorization: Bearer $AT_RND" "$API/scorecards/readiness/company")

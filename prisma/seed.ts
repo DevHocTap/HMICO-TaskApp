@@ -68,6 +68,7 @@ const JOB_TITLES: Array<{
   },
   { code: 'TT', name: 'Tổ trưởng', dept: null, description: 'Dùng chung cho mọi tổ' },
   { code: 'BGD-GD', name: 'Giám đốc', dept: 'BGD' },
+  { code: 'HCNS-TP', name: 'Trưởng phòng Hành chính nhân sự', dept: 'HCNS' },
   { code: 'HCNS-CV', name: 'Chuyên viên Hành chính nhân sự', dept: 'HCNS' },
   { code: 'KD-NV', name: 'Nhân viên Kinh doanh', dept: null },
 ];
@@ -77,7 +78,14 @@ interface SeedUser {
   email: string;
   fullName: string;
   role: Role;
-  dept: string;
+  /**
+   * `null` = KHÔNG thuộc phòng ban nào.
+   *
+   * Chỉ tài khoản quản trị hệ thống dùng tới: HCNS chốt 03/09/2026 (câu A4)
+   * rằng đó là tài khoản kỹ thuật, không phải một vị trí nhân sự — không
+   * thuộc phòng ban, không cần trưởng bộ phận, không áp KPI.
+   */
+  dept: string | null;
   jobTitle?: string;
   level?: string;
   /** employeeCode của người quản lý trực tiếp. */
@@ -92,7 +100,7 @@ const USERS: SeedUser[] = [
     email: 'admin@hmico.vn',
     fullName: 'Quản trị hệ thống',
     role: Role.ADMIN,
-    dept: 'HMICO',
+    dept: null,
   },
   {
     employeeCode: 'HM002',
@@ -104,6 +112,19 @@ const USERS: SeedUser[] = [
     level: 'E1',
   },
   {
+    // HCNS chốt 03/09/2026 (câu B1): phòng HCNS phải có trưởng bộ phận để
+    // chạy thử. Trước đây phòng này có người mà không có trưởng, nên chuyên
+    // viên HCNS không sinh được phiếu KPI.
+    employeeCode: 'HM015',
+    email: 'truongphong.hcns@hmico.vn',
+    fullName: 'Trưởng phòng Hành chính nhân sự',
+    role: Role.HR,
+    dept: 'HCNS',
+    jobTitle: 'HCNS-TP',
+    level: 'M2',
+    managerOf: 'HCNS',
+  },
+  {
     employeeCode: 'HM003',
     email: 'hcns@hmico.vn',
     fullName: 'Chuyên viên Hành chính nhân sự',
@@ -111,6 +132,7 @@ const USERS: SeedUser[] = [
     dept: 'HCNS',
     jobTitle: 'HCNS-CV',
     level: 'S3',
+    manager: 'HM015',
   },
 
   // --- Trưởng bộ phận: mỗi phòng có nhân viên đều có một người ---
@@ -308,7 +330,7 @@ async function seedUsers(
         fullName: u.fullName,
         passwordHash,
         role: u.role,
-        departmentId: dept.get(u.dept)!,
+        departmentId: u.dept ? dept.get(u.dept)! : null,
         jobTitleId: u.jobTitle ? jobTitle.get(u.jobTitle)! : null,
         level: u.level ?? null,
         mustChangePassword: true,

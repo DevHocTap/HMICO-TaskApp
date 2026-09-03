@@ -281,19 +281,29 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/periods/00000000-0000
 [ "$MA" = "404" ] && pass "khoá kỳ không tồn tại -> 404" || fail "-> $MA (mong đợi 404)"
 
 # ================================================ 5. GHI: CHỈ ADMIN
-buoc "PHÂN QUYỀN GHI — EXECUTIVE CHỈ ĐỌC"
-BODY='{"code":"ZTEST-99","name":"ZTEST không được tạo","type":"MONTH","startDate":"2025-09-01","endDate":"2025-09-30"}'
-MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' -d "$BODY" "$API/periods")
-[ "$MA" = "403" ] && pass "EXECUTIVE tạo kỳ -> 403" || fail "-> $MA (mong đợi 403)"
+# HCNS chốt 03/09/2026 (câu A5): chốt sổ tháng là quyết định NGHIỆP VỤ, nên
+# HCNS và ban giám đốc khoá được kỳ. Trưởng phòng và nhân viên thì không —
+# muốn sửa điểm kỳ đã chốt phải gửi yêu cầu cho HCNS hoặc BGĐ.
+buoc "PHÂN QUYỀN GHI — HCNS VÀ BGĐ CHỐT SỔ ĐƯỢC"
+BODY='{"code":"ZTEST-99","name":"ZTEST tạo bởi HCNS","type":"MONTH","startDate":"2025-09-01","endDate":"2025-09-30"}'
 MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" "$API/periods/$KY_08/lock")
-[ "$MA" = "403" ] && pass "EXECUTIVE khoá kỳ -> 403" || fail "-> $MA (mong đợi 403)"
+[ "$MA" = "200" ] && pass "EXECUTIVE khoá kỳ -> 200" || fail "-> $MA (mong đợi 200)"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" "$API/periods/$KY_08/unlock")
-[ "$MA" = "403" ] && pass "EXECUTIVE mở kỳ -> 403" || fail "-> $MA (mong đợi 403)"
+[ "$MA" = "200" ] && pass "EXECUTIVE mở kỳ -> 200" || fail "-> $MA (mong đợi 200)"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_HR" "$API/periods/$KY_08/lock")
+[ "$MA" = "200" ] && pass "HR khoá kỳ -> 200" || fail "-> $MA (mong đợi 200)"
+KHOA_BOI=$(sql "SELECT COALESCE(\"lockedById\",'(null)') FROM \"Period\" WHERE id='$KY_08';")
+U_HR=$(sql "SELECT id FROM \"User\" WHERE email='hcns@hmico.vn';")
+[ "$KHOA_BOI" = "$U_HR" ] && pass "ghi đúng HCNS là người chốt sổ" || fail "lockedById=$KHOA_BOI"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_HR" "$API/periods/$KY_08/unlock")
+[ "$MA" = "200" ] && pass "HR mở kỳ -> 200" || fail "-> $MA (mong đợi 200)"
 
 MA=$(ma -X POST -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' -d "$BODY" "$API/periods")
-[ "$MA" = "403" ] && pass "HR tạo kỳ -> 403" || fail "-> $MA (mong đợi 403)"
-MA=$(ma -X POST -H "Authorization: Bearer $AT_HR" "$API/periods/$KY_08/lock")
-[ "$MA" = "403" ] && pass "HR khoá kỳ -> 403" || fail "-> $MA (mong đợi 403)"
+[ "$MA" = "201" ] && pass "HR tạo kỳ -> 201" || fail "-> $MA (mong đợi 201)"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' \
+  -d '{"code":"ZTEST-98","name":"ZTEST BGĐ không tạo được","type":"MONTH","startDate":"2025-10-01","endDate":"2025-10-31"}' "$API/periods")
+[ "$MA" = "403" ] && pass "EXECUTIVE tạo kỳ -> 403 (chốt sổ khác với dựng kỳ)" || fail "-> $MA (mong đợi 403)"
+
 MA=$(ma -X POST -H "Authorization: Bearer $AT_TP" "$API/periods/$KY_08/lock")
 [ "$MA" = "403" ] && pass "MANAGER khoá kỳ -> 403" || fail "-> $MA (mong đợi 403)"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_NV" "$API/periods/$KY_08/lock")
@@ -303,7 +313,7 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_TP" -H 'Content-Type: application/
 MA=$(ma -X POST -H "Authorization: Bearer $AT_NV" -H 'Content-Type: application/json' -d "$BODY" "$API/periods")
 [ "$MA" = "403" ] && pass "STAFF tạo kỳ -> 403" || fail "-> $MA (mong đợi 403)"
 
-SO_LEN=$(sql "SELECT count(*) FROM \"Period\" WHERE code='ZTEST-99';")
+SO_LEN=$(sql "SELECT count(*) FROM \"Period\" WHERE code='ZTEST-98';")
 [ "$SO_LEN" = "0" ] && pass "không kỳ nào lọt qua bằng vai trò không đủ quyền" || fail "$SO_LEN kỳ đã lọt"
 
 # ================================================ 6. TỰ DỌN

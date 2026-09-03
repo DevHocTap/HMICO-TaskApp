@@ -19,6 +19,23 @@ import type {
 const LIMIT_MAC_DINH = 50;
 
 /**
+ * Vai trò KHÔNG áp KPI — HCNS chốt 03/09/2026 (câu A4).
+ *
+ * Tài khoản quản trị hệ thống là tài khoản KỸ THUẬT, không phải một vị trí
+ * nhân sự: không thuộc phòng ban nào, không cần trưởng bộ phận, không có
+ * phiếu KPI. Trước đây nó nằm trong danh sách "chưa được giao KPI" và kéo
+ * theo cả đơn vị Công ty HMICO vào danh sách chặn — báo động giả duy nhất
+ * mà không ai xử lý được, vì không có gì để xử lý.
+ */
+const VAI_TRO_KHONG_AP_KPI: Role[] = [Role.ADMIN];
+
+/** Điều kiện Prisma: chỉ nhân sự thật sự được giao KPI. */
+const NGUOI_CO_KPI = {
+  isActive: true,
+  role: { notIn: VAI_TRO_KHONG_AP_KPI },
+} as const;
+
+/**
  * Việc ĐẦU KỲ — giao KPI, gửi ký, ký nhận, xử lý ý kiến — KHÔNG có hạn chót.
  *
  * Hạn ngày 02 ở `quy-tac-nghiep-vu.md` mục 5.5 là hạn **nộp KẾT QUẢ của kỳ
@@ -306,7 +323,7 @@ export class ScorecardQueryService {
     if (!phong) throw new NotFoundException('Không tìm thấy phòng ban');
 
     const nhanVien = await this.prisma.user.findMany({
-      where: { departmentId, isActive: true },
+      where: { departmentId, ...NGUOI_CO_KPI },
       include: { jobTitle: { select: { id: true, name: true } } },
       orderBy: { employeeCode: 'asc' },
     });
@@ -405,7 +422,7 @@ export class ScorecardQueryService {
         orderBy: { code: 'asc' },
       }),
       this.prisma.user.findMany({
-        where: { departmentId: { in: trongPhamVi }, isActive: true },
+        where: { departmentId: { in: trongPhamVi }, ...NGUOI_CO_KPI },
         include: {
           jobTitle: { select: { id: true, code: true, name: true } },
           department: { select: { code: true, name: true } },
@@ -603,7 +620,7 @@ export class ScorecardQueryService {
     return this.prisma.user.count({
       where: {
         departmentId: { in: trongPhamVi },
-        isActive: true,
+        ...NGUOI_CO_KPI,
         id: { notIn: daCo.map((s) => s.ownerUserId!).filter(Boolean) },
       },
     });
