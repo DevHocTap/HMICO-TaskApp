@@ -129,7 +129,7 @@ SO_API=$(echo "$KQ" | jq_ "len(d)")
 SO_DB=$(sql "SELECT count(*) FROM \"Period\";")
 [ "$SO_API" = "$SO_DB" ] && pass "trả đủ $SO_API kỳ, khớp số đếm trong database" || fail "API $SO_API, database $SO_DB"
 
-for TRUONG in id code name type startDate endDate submitDeadline isLocked createdById scorecardCount; do
+for TRUONG in id code name type startDate endDate assignDeadline selfScoreDeadline managerScoreDeadline submitDeadline isLocked createdById scorecardCount; do
   echo "$KQ" | grep -q "\"$TRUONG\"" && pass "có trường $TRUONG" || fail "thiếu trường $TRUONG"
 done
 
@@ -179,10 +179,27 @@ RONG_DB=$(sql "SELECT count(*) FROM \"Period\" p WHERE NOT EXISTS (SELECT 1 FROM
 xoa_phieu_cua_script "\"periodId\"='$KY_08'"
 xoa_auditlog_cua_script "\"entityType\"='Scorecard'"
 
+buoc "BỐN MỐC TRONG THÁNG (HCNS chốt câu A2)"
+# Toàn bộ chu trình nằm TRONG chính tháng đó. Bản trước đặt hạn nộp ở ngày 02
+# THÁNG SAU — lệch hẳn một tháng.
+MOC=$(sql "SELECT \"assignDeadline\"::text || '|' || \"selfScoreDeadline\"::text || '|' || \"managerScoreDeadline\"::text || '|' || \"submitDeadline\"::text FROM \"Period\" WHERE code='2026-09';")
+[ "$MOC" = "2026-08-25|2026-09-25|2026-09-29|2026-09-30" ] \
+  && pass "kỳ 2026-09: lên KPI 25/08, tự chấm 25/09, TP chấm 29/09, gửi HCNS 30/09" \
+  || fail "mốc kỳ 2026-09 = $MOC"
+# Hạn lên KPI phải nằm ở THÁNG TRƯỚC kỳ đó
+SO_SAI=$(sql "SELECT count(*) FROM \"Period\" WHERE type='MONTH' AND \"assignDeadline\" >= \"startDate\";")
+[ "$SO_SAI" = "0" ] && pass "hạn lên KPI của mọi kỳ đều nằm trước ngày đầu kỳ" || fail "$SO_SAI kỳ sai"
+# Ba mốc còn lại phải nằm trong lòng kỳ
+SO_SAI=$(sql "SELECT count(*) FROM \"Period\" WHERE type='MONTH' AND (\"selfScoreDeadline\" < \"startDate\" OR \"submitDeadline\" > \"endDate\" OR \"managerScoreDeadline\" > \"submitDeadline\");")
+[ "$SO_SAI" = "0" ] && pass "tự chấm -> TP chấm -> gửi HCNS đúng thứ tự và nằm trong kỳ" || fail "$SO_SAI kỳ sai"
+# Kỳ quý và năm không có mốc nào
+SO_SAI=$(sql "SELECT count(*) FROM \"Period\" WHERE type <> 'MONTH' AND (\"assignDeadline\" IS NOT NULL OR \"selfScoreDeadline\" IS NOT NULL OR \"managerScoreDeadline\" IS NOT NULL OR \"submitDeadline\" IS NOT NULL);")
+[ "$SO_SAI" = "0" ] && pass "kỳ quý và kỳ năm không có mốc nào" || fail "$SO_SAI kỳ tổng hợp có mốc"
+
 # ================================================ 3. TẠO KỲ
 buoc "POST /periods — TẠO KỲ THỦ CÔNG"
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
-  -d '{"code":"ZTEST-01","name":"ZTEST Tháng thử 01","type":"MONTH","startDate":"2025-01-01","endDate":"2025-01-31","submitDeadline":"2025-02-02"}' \
+  -d '{"code":"ZTEST-01","name":"ZTEST Tháng thử 01","type":"MONTH","startDate":"2025-01-01","endDate":"2025-01-31","assignDeadline":"2024-12-25","selfScoreDeadline":"2025-01-25","managerScoreDeadline":"2025-01-29","submitDeadline":"2025-01-30"}' \
   "$API/periods")
 KY_MOI=$(echo "$KQ" | jq_ "d['id']")
 [ -n "$KY_MOI" ] && pass "ADMIN tạo được kỳ tháng" || fail "không tạo được: $KQ"
@@ -194,8 +211,9 @@ TU_SINH=$(sql "SELECT COALESCE(\"createdById\",'(null)') FROM \"Period\" WHERE c
 [ "$TU_SINH" = "(null)" ] && pass "kỳ hệ thống tự sinh có createdById = NULL" || fail "createdById=$TU_SINH, mong đợi NULL"
 
 # Ngày phải lưu nguyên vẹn, không lệch múi giờ
-NGAY=$(sql "SELECT \"startDate\"::text || '|' || \"endDate\"::text || '|' || \"submitDeadline\"::text FROM \"Period\" WHERE code='ZTEST-01';")
-[ "$NGAY" = "2025-01-01|2025-01-31|2025-02-02" ] && pass "ngày lưu đúng nguyên văn, không lệch múi giờ" || fail "lưu ra: $NGAY"
+NGAY=$(sql "SELECT \"startDate\"::text || '|' || \"endDate\"::text || '|' || \"assignDeadline\"::text || '|' || \"selfScoreDeadline\"::text || '|' || \"managerScoreDeadline\"::text || '|' || \"submitDeadline\"::text FROM \"Period\" WHERE code='ZTEST-01';")
+[ "$NGAY" = "2025-01-01|2025-01-31|2024-12-25|2025-01-25|2025-01-29|2025-01-30" ] \
+  && pass "cả sáu ngày lưu đúng nguyên văn, không lệch múi giờ" || fail "lưu ra: $NGAY"
 
 SO_LOG=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Period' AND action='CREATE' AND \"entityId\"='$KY_MOI';")
 [ "$SO_LOG" = "1" ] && pass "có AuditLog CREATE" || fail "$SO_LOG dòng AuditLog CREATE"
@@ -214,13 +232,16 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: applicati
 
 # Ràng buộc (b): submitDeadline chỉ dành cho kỳ MONTH
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
-  -d '{"code":"ZTEST-Q1","name":"ZTEST Quý thử 1","type":"QUARTER","startDate":"2025-01-01","endDate":"2025-03-31","submitDeadline":"2025-04-02"}' "$API/periods")
-echo "$KQ" | grep -q "Chỉ kỳ THÁNG mới có hạn nộp" && pass "tạo QUARTER kèm submitDeadline -> 400 kèm lý do" || fail "$KQ"
+  -d '{"code":"ZTEST-Q1","name":"ZTEST Quý thử 1","type":"QUARTER","startDate":"2025-01-01","endDate":"2025-03-31","submitDeadline":"2025-03-30"}' "$API/periods")
+echo "$KQ" | grep -q "Chỉ kỳ THÁNG mới có hạn gửi HCNS" && pass "tạo QUARTER kèm submitDeadline -> 400, nêu đúng tên hạn" || fail "$KQ"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
-  -d '{"code":"ZTEST-Q1","name":"ZTEST Quý thử 1","type":"QUARTER","startDate":"2025-01-01","endDate":"2025-03-31","submitDeadline":"2025-04-02"}' "$API/periods")
+  -d '{"code":"ZTEST-Q1","name":"ZTEST Quý thử 1","type":"QUARTER","startDate":"2025-01-01","endDate":"2025-03-31","submitDeadline":"2025-03-30"}' "$API/periods")
 [ "$MA" = "400" ] && pass "và đúng mã 400" || fail "-> $MA (mong đợi 400)"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
-  -d '{"code":"ZTEST-Y1","name":"ZTEST Năm thử","type":"YEAR","startDate":"2025-01-01","endDate":"2025-12-31","submitDeadline":"2026-01-02"}' "$API/periods")
+  -d '{"code":"ZTEST-Q3","name":"ZTEST Quý thử 3","type":"QUARTER","startDate":"2025-07-01","endDate":"2025-09-30","selfScoreDeadline":"2025-09-25"}' "$API/periods")
+[ "$MA" = "400" ] && pass "tạo QUARTER kèm hạn tự đánh giá -> 400" || fail "-> $MA (mong đợi 400)"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d '{"code":"ZTEST-Y1","name":"ZTEST Năm thử","type":"YEAR","startDate":"2025-01-01","endDate":"2025-12-31","assignDeadline":"2024-12-25"}' "$API/periods")
 [ "$MA" = "400" ] && pass "tạo YEAR kèm submitDeadline -> 400" || fail "-> $MA (mong đợi 400)"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d '{"code":"ZTEST-Q2","name":"ZTEST Quý thử 2","type":"QUARTER","startDate":"2025-04-01","endDate":"2025-06-30"}' "$API/periods")

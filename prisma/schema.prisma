@@ -168,8 +168,17 @@ model Period {
   startDate DateTime @db.Date
   endDate   DateTime @db.Date
 
-  /// Hạn nộp kết quả về HCNS — ngày 02 tháng kế tiếp (docs mục 5.5).
+  /// Bốn mốc trong tháng (docs mục 5.5, HCNS chốt 03/09/2026).
+  /// CHỈ kỳ MONTH mới có; kỳ quý và năm để NULL.
   /// Là dữ liệu chứ không hard-code, vì công ty có thể đổi mốc.
+  ///
+  /// Hạn trưởng phòng lên KPI cho kỳ này — ngày 25 THÁNG TRƯỚC kỳ đó.
+  assignDeadline DateTime? @db.Date
+  /// Hạn nhân viên tự đánh giá — ngày 25 của chính kỳ đó.
+  selfScoreDeadline DateTime? @db.Date
+  /// Hạn trưởng phòng chấm xong và chốt — ngày 29.
+  managerScoreDeadline DateTime? @db.Date
+  /// Hạn trưởng phòng gửi HCNS tổng hợp — ngày 30.
   submitDeadline DateTime? @db.Date
 
   /// Khoá kỳ CHỈ ảnh hưởng chính kỳ đó, không lan xuống kỳ con.

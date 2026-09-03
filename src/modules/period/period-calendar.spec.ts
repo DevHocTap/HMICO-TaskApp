@@ -6,6 +6,7 @@ import {
   kyQuy,
   kyThang,
   namThangHienTai,
+  soNgayCuaThang,
   tinhTinhTrangHanNop,
   quyCuaThang,
 } from './period-calendar.js';
@@ -55,12 +56,12 @@ describe('kyThang', () => {
     expect(k.name).toBe('Tháng 09/2026');
     expect(iso(k.startDate)).toBe('2026-09-01');
     expect(iso(k.endDate)).toBe('2026-09-30');
-    expect(iso(k.submitDeadline)).toBe('2026-10-02');
+    expect(iso(k.submitDeadline)).toBe('2026-09-30');
     expect(k.parentCode).toBe('2026-Q3');
   });
 
   it('tháng 12 thì hạn nộp rơi sang năm sau', () => {
-    expect(iso(kyThang(2026, 12).submitDeadline)).toBe('2027-01-02');
+    expect(iso(kyThang(2026, 12).submitDeadline)).toBe('2026-12-30');
   });
 
   it('tháng 2 năm thường có 28 ngày', () => {
@@ -155,7 +156,7 @@ describe('cacKyCanBaoDam — quy tắc bù kỳ', () => {
       expect(q1.startDate.toISOString().slice(0, 10)).toBe('2027-01-01');
       expect(q1.endDate.toISOString().slice(0, 10)).toBe('2027-03-31');
       const t1 = theoMa.get('2027-01')!;
-      expect(t1.submitDeadline!.toISOString().slice(0, 10)).toBe('2027-02-02');
+      expect(t1.submitDeadline!.toISOString().slice(0, 10)).toBe('2027-01-30');
     });
   });
 
@@ -217,5 +218,75 @@ describe('tinhTinhTrangHanNop — hạn là HẾT ngày 02, giờ Việt Nam', (
     expect(tinhTinhTrangHanNop(HAN, new Date('2026-10-02T17:01:00Z')).isOverdue).toBe(
       true,
     );
+  });
+});
+
+/**
+ * Bốn mốc HCNS chốt 03/09/2026 (câu A2). Toàn bộ nằm TRONG chính tháng đó —
+ * bản trước đặt hạn nộp ở ngày 02 THÁNG SAU, lệch hẳn một tháng.
+ */
+describe('kyThang — bốn mốc trong tháng', () => {
+  const iso = (d: Date | null) => d!.toISOString().slice(0, 10);
+
+  it('tháng 09/2026: lên KPI 25/08, tự chấm 25/09, TP chấm 29/09, gửi HCNS 30/09', () => {
+    const k = kyThang(2026, 9);
+    expect(iso(k.assignDeadline)).toBe('2026-08-25');
+    expect(iso(k.selfScoreDeadline)).toBe('2026-09-25');
+    expect(iso(k.managerScoreDeadline)).toBe('2026-09-29');
+    expect(iso(k.submitDeadline)).toBe('2026-09-30');
+  });
+
+  it('hạn lên KPI nằm ở THÁNG TRƯỚC, kể cả khi vắt qua năm', () => {
+    // Trưởng phòng lên KPI tháng 01/2027 vào ngày 25/12/2026
+    expect(iso(kyThang(2027, 1).assignDeadline)).toBe('2026-12-25');
+  });
+
+  /**
+   * Ca dễ trượt nhất: `Date.UTC(2027, 1, 30)` KHÔNG báo lỗi, nó lặng lẽ trôi
+   * sang 02/03. Hạn nộp của tháng 2 rơi vào tháng 3 mà không ai nhìn ra.
+   */
+  it('tháng 2 kẹp về ngày cuối tháng, không trôi sang tháng 3', () => {
+    const t2 = kyThang(2027, 2); // 2027 không nhuận -> 28 ngày
+    expect(iso(t2.selfScoreDeadline)).toBe('2027-02-25');
+    expect(iso(t2.managerScoreDeadline)).toBe('2027-02-28');
+    expect(iso(t2.submitDeadline)).toBe('2027-02-28');
+    expect(iso(t2.endDate)).toBe('2027-02-28');
+  });
+
+  it('tháng 2 năm nhuận kẹp về 29', () => {
+    const t2 = kyThang(2028, 2);
+    expect(iso(t2.managerScoreDeadline)).toBe('2028-02-29');
+    expect(iso(t2.submitDeadline)).toBe('2028-02-29');
+  });
+
+  it('tháng 30 ngày: hạn gửi HCNS đúng ngày cuối tháng', () => {
+    expect(iso(kyThang(2026, 4).submitDeadline)).toBe('2026-04-30');
+    expect(iso(kyThang(2026, 4).managerScoreDeadline)).toBe('2026-04-29');
+  });
+
+  it('mọi hạn đều nằm trong lòng kỳ, trừ hạn lên KPI (ở tháng trước)', () => {
+    for (let thang = 1; thang <= 12; thang++) {
+      const k = kyThang(2027, thang);
+      expect(k.selfScoreDeadline!.getTime()).toBeGreaterThanOrEqual(k.startDate.getTime());
+      expect(k.submitDeadline!.getTime()).toBeLessThanOrEqual(k.endDate.getTime());
+      expect(k.managerScoreDeadline!.getTime()).toBeLessThanOrEqual(k.submitDeadline!.getTime());
+      expect(k.assignDeadline!.getTime()).toBeLessThan(k.startDate.getTime());
+    }
+  });
+
+  it('kỳ quý và kỳ năm không có mốc nào', () => {
+    for (const k of [kyQuy(2026, 3), kyNam(2026)]) {
+      expect(k.assignDeadline).toBeNull();
+      expect(k.selfScoreDeadline).toBeNull();
+      expect(k.managerScoreDeadline).toBeNull();
+      expect(k.submitDeadline).toBeNull();
+    }
+  });
+
+  it('soNgayCuaThang đúng cả năm nhuận', () => {
+    expect(soNgayCuaThang(2027, 2)).toBe(28);
+    expect(soNgayCuaThang(2028, 2)).toBe(29);
+    expect(soNgayCuaThang(2026, 4)).toBe(30);
+    expect(soNgayCuaThang(2026, 12)).toBe(31);
   });
 });

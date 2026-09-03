@@ -84,6 +84,9 @@ export class PeriodService {
         type: ky.type,
         startDate: ky.startDate,
         endDate: ky.endDate,
+        assignDeadline: ky.assignDeadline,
+        selfScoreDeadline: ky.selfScoreDeadline,
+        managerScoreDeadline: ky.managerScoreDeadline,
         submitDeadline: ky.submitDeadline,
         parentId,
         // createdById = null nghĩa là hệ thống tự tạo, không phải người tạo
@@ -143,6 +146,9 @@ export class PeriodService {
       type: k.type,
       startDate: k.startDate,
       endDate: k.endDate,
+      assignDeadline: k.assignDeadline,
+      selfScoreDeadline: k.selfScoreDeadline,
+      managerScoreDeadline: k.managerScoreDeadline,
       submitDeadline: k.submitDeadline,
       isLocked: k.isLocked,
       createdById: k.createdById,
@@ -166,7 +172,7 @@ export class PeriodService {
       throw new BadRequestException('Ngày bắt đầu phải trước ngày kết thúc');
     }
 
-    this.assertHanNopHopLe(dto.type, dto.submitDeadline);
+    this.assertHanHopLe(dto);
 
     if (dto.parentId) {
       const cha = await this.prisma.period.findUnique({ where: { id: dto.parentId } });
@@ -195,9 +201,10 @@ export class PeriodService {
           type: dto.type,
           startDate: batDau,
           endDate: ketThuc,
-          submitDeadline: dto.submitDeadline
-            ? this.ngayThuan(dto.submitDeadline)
-            : null,
+          assignDeadline: this.ngayThuanHoacNull(dto.assignDeadline),
+          selfScoreDeadline: this.ngayThuanHoacNull(dto.selfScoreDeadline),
+          managerScoreDeadline: this.ngayThuanHoacNull(dto.managerScoreDeadline),
+          submitDeadline: this.ngayThuanHoacNull(dto.submitDeadline),
           parentId: dto.parentId ?? null,
           createdById: user.id,
         },
@@ -302,13 +309,36 @@ export class PeriodService {
     return ` lúc ${d}`;
   }
 
-  private assertHanNopHopLe(type: PeriodType, hanNop?: string): void {
-    if (hanNop && type !== PeriodType.MONTH) {
+  /**
+   * Bốn mốc trong tháng chỉ có nghĩa với kỳ THÁNG.
+   *
+   * Kỳ quý và kỳ năm chỉ để tổng hợp — không ai tự đánh giá theo quý, cũng
+   * không ai gửi HCNS kết quả quý.
+   */
+  private assertHanHopLe(dto: CreatePeriodDto): void {
+    if (dto.type === PeriodType.MONTH) return;
+
+    const daDat = (
+      [
+        ['hạn lên KPI', dto.assignDeadline],
+        ['hạn tự đánh giá', dto.selfScoreDeadline],
+        ['hạn chấm điểm', dto.managerScoreDeadline],
+        ['hạn gửi HCNS', dto.submitDeadline],
+      ] as const
+    )
+      .filter(([, v]) => !!v)
+      .map(([ten]) => ten);
+
+    if (daDat.length > 0) {
       throw new BadRequestException(
-        'Chỉ kỳ THÁNG mới có hạn nộp. Kỳ quý và kỳ năm chỉ để tổng hợp, ' +
-          'không ai nộp kết quả theo quý.',
+        `Chỉ kỳ THÁNG mới có ${daDat.join(', ')}. Kỳ quý và kỳ năm chỉ để ` +
+          'tổng hợp, không ai nộp kết quả theo quý.',
       );
     }
+  }
+
+  private ngayThuanHoacNull(chuoi?: string): Date | null {
+    return chuoi ? this.ngayThuan(chuoi) : null;
   }
 
   /**

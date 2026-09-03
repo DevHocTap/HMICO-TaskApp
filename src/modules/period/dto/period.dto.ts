@@ -44,9 +44,25 @@ export class CreatePeriodDto {
   @Matches(DANG_NGAY, { message: `Ngày kết thúc: ${LOI_NGAY}` })
   endDate!: string;
 
-  /** CHỈ kỳ MONTH được có hạn nộp. Kỳ quý và năm chỉ để tổng hợp. */
+  /**
+   * Bốn mốc dưới đây CHỈ kỳ MONTH được có. Kỳ quý và năm chỉ để tổng hợp.
+   * Bỏ trống thì kỳ tạo tay không có hạn nào — khác với kỳ tự sinh, vốn
+   * luôn đủ bốn mốc.
+   */
   @IsOptional()
-  @Matches(DANG_NGAY, { message: `Hạn nộp: ${LOI_NGAY}` })
+  @Matches(DANG_NGAY, { message: `Hạn lên KPI: ${LOI_NGAY}` })
+  assignDeadline?: string;
+
+  @IsOptional()
+  @Matches(DANG_NGAY, { message: `Hạn tự đánh giá: ${LOI_NGAY}` })
+  selfScoreDeadline?: string;
+
+  @IsOptional()
+  @Matches(DANG_NGAY, { message: `Hạn chấm điểm: ${LOI_NGAY}` })
+  managerScoreDeadline?: string;
+
+  @IsOptional()
+  @Matches(DANG_NGAY, { message: `Hạn gửi HCNS: ${LOI_NGAY}` })
   submitDeadline?: string;
 
   /** Kỳ cha: tháng thuộc quý, quý thuộc năm. Bỏ trống thì để rời. */
@@ -76,6 +92,13 @@ export interface PeriodSummary {
   type: PeriodType;
   startDate: Date;
   endDate: Date;
+  /** Hạn trưởng phòng lên KPI cho kỳ này — ngày 25 THÁNG TRƯỚC. */
+  assignDeadline: Date | null;
+  /** Hạn nhân viên tự đánh giá — ngày 25. */
+  selfScoreDeadline: Date | null;
+  /** Hạn trưởng phòng chấm xong và chốt — ngày 29. */
+  managerScoreDeadline: Date | null;
+  /** Hạn gửi HCNS tổng hợp — ngày 30. */
   submitDeadline: Date | null;
   isLocked: boolean;
   /** NULL = hệ thống tự sinh; có giá trị = người tạo tay. */

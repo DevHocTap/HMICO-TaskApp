@@ -104,31 +104,31 @@ describe('tinhTinhTrangHanNop với submitDeadline đọc thẳng từ database'
     await app.close();
   });
 
-  it('kỳ 2026-09 có hạn nộp 02/10/2026 trong DB', async () => {
+  it('kỳ 2026-09 có hạn gửi HCNS 30/09/2026 trong DB', async () => {
     const ky = await prisma.period.findUnique({
       where: { code: '2026-09' },
       select: { submitDeadline: true },
     });
-    expect(ky?.submitDeadline?.toISOString().slice(0, 10)).toBe('2026-10-02');
+    expect(ky?.submitDeadline?.toISOString().slice(0, 10)).toBe('2026-09-30');
   });
 
-  it('hôm nay 02/10 giờ VN → còn 1 ngày, CHƯA quá hạn', async () => {
+  it('hôm nay 30/09 giờ VN → còn 1 ngày, CHƯA quá hạn', async () => {
     const ky = await prisma.period.findUnique({
       where: { code: '2026-09' },
       select: { submitDeadline: true },
     });
     expect(
-      tinhTinhTrangHanNop(ky!.submitDeadline, new Date('2026-10-02T02:00:00Z')),
+      tinhTinhTrangHanNop(ky!.submitDeadline, new Date('2026-09-30T02:00:00Z')),
     ).toEqual({ daysUntilDeadline: 1, isOverdue: false });
   });
 
-  it('hôm nay 03/10 giờ VN → quá hạn', async () => {
+  it('hôm nay 01/10 giờ VN → quá hạn', async () => {
     const ky = await prisma.period.findUnique({
       where: { code: '2026-09' },
       select: { submitDeadline: true },
     });
     expect(
-      tinhTinhTrangHanNop(ky!.submitDeadline, new Date('2026-10-03T02:00:00Z')),
+      tinhTinhTrangHanNop(ky!.submitDeadline, new Date('2026-10-01T02:00:00Z')),
     ).toEqual({ daysUntilDeadline: 0, isOverdue: true });
   });
 });

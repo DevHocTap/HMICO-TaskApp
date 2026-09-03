@@ -8,12 +8,26 @@ import { PeriodType } from '@prisma/client';
 export const MUI_GIO = 'Asia/Ho_Chi_Minh';
 
 /**
- * Hạn nộp kết quả về HCNS: ngày thứ N của tháng kế tiếp.
+ * Bốn mốc trong tháng — HCNS chốt 03/09/2026 (câu A2).
  *
- * Biểu mẫu ghi "trước ngày 02 tháng kế tiếp" — chưa rõ là hết ngày 01 hay
- * hết ngày 02, HCNS sẽ chốt sau. Đổi đúng một số ở đây là xong.
+ * Toàn bộ chu trình nằm TRONG chính tháng đó, không tràn sang tháng sau:
+ *
+ * | Ngày   | Việc                                          | Ai            |
+ * |--------|-----------------------------------------------|---------------|
+ * | 25     | Tự đánh giá KPI tháng này                     | Nhân viên     |
+ * | 25     | Lên KPI cho THÁNG SAU                         | Trưởng phòng  |
+ * | 27–29  | Chấm điểm, chốt, giải quyết tranh chấp        | Trưởng phòng  |
+ * | 30     | Gửi HCNS tổng hợp                             | Trưởng phòng  |
+ *
+ * Vì việc giao KPI tháng sau làm vào ngày 25 tháng này, **hạn giao KPI của
+ * một kỳ nằm ở THÁNG TRƯỚC kỳ đó**.
+ *
+ * Bản trước ghi hạn nộp là "hết ngày 02 tháng kế tiếp" — sai hẳn tháng.
  */
-export const NGAY_HAN_NOP = 2;
+export const NGAY_LEN_KPI_THANG_SAU = 25;
+export const NGAY_TU_DANH_GIA = 25;
+export const NGAY_CHAM_DIEM = 29;
+export const NGAY_GUI_HCNS = 30;
 
 /**
  * Ngày lịch hiện tại theo giờ Việt Nam.
@@ -78,9 +92,9 @@ export interface TinhTrangHanNop {
 /**
  * Đối chiếu hạn nộp với hôm nay theo NGÀY LỊCH giờ Việt Nam.
  *
- * Quy tắc nghiệp vụ (`quy-tac-nghiep-vu.md` mục 5.5): hạn là **HẾT ngày
- * `NGAY_HAN_NOP`** của tháng kế tiếp, nên chính ngày hạn vẫn còn nộp được.
- * Với hạn 02/10: ngày 01 còn 2, ngày 02 còn 1, ngày 03 là quá hạn.
+ * Quy tắc nghiệp vụ (`quy-tac-nghiep-vu.md` mục 5.5): mọi hạn đều tính là
+ * **HẾT ngày đó**, nên chính ngày hạn vẫn còn làm được.
+ * Với hạn 30/09: ngày 29 còn 2, ngày 30 còn 1, ngày 01/10 là quá hạn.
  *
  * So NGÀY LỊCH chứ không so mốc thời gian: lấy hiệu hai mốc rồi chia
  * 86400000 sẽ lệch đúng 7 tiếng so với giờ VN — đủ để sai một ngày ở chính
@@ -148,23 +162,50 @@ export interface KyCanTao {
   type: PeriodType;
   startDate: Date;
   endDate: Date;
-  /** CHỈ kỳ tháng có hạn nộp. Kỳ quý và năm chỉ để tổng hợp. */
+  /**
+   * Bốn hạn dưới đây CHỈ kỳ tháng mới có. Kỳ quý và năm chỉ để tổng hợp,
+   * không ai nộp kết quả theo quý.
+   */
+  /** Hạn trưởng phòng lên KPI cho kỳ này — ngày 25 THÁNG TRƯỚC. */
+  assignDeadline: Date | null;
+  /** Hạn nhân viên tự đánh giá — ngày 25 của chính kỳ này. */
+  selfScoreDeadline: Date | null;
+  /** Hạn trưởng phòng chấm xong và chốt — ngày 29. */
+  managerScoreDeadline: Date | null;
+  /** Hạn gửi HCNS tổng hợp — ngày 30. */
   submitDeadline: Date | null;
   /** Mã kỳ cha, hoặc null nếu là kỳ năm. */
   parentCode: string | null;
 }
 
+/** Số ngày của một tháng. Ngày 0 của tháng sau chính là ngày cuối tháng này. */
+export const soNgayCuaThang = (nam: number, thang: number): number =>
+  new Date(Date.UTC(nam, thang, 0)).getUTCDate();
+
+/**
+ * Ngày thứ `ngayTrongThang`, KẸP về ngày cuối tháng nếu tháng không đủ dài.
+ *
+ * HCNS chốt 03/09/2026: tháng 2 thì lấy ngày cuối cùng của tháng. Không kẹp
+ * thì `Date.UTC(2027, 1, 30)` lặng lẽ trôi sang 02/03 — hạn nộp của tháng 2
+ * rơi vào tháng 3, và không ai nhìn ra cho tới lúc đối chiếu số.
+ */
+function ngayKep(nam: number, thang: number, ngayTrongThang: number): Date {
+  return ngay(nam, thang, Math.min(ngayTrongThang, soNgayCuaThang(nam, thang)));
+}
+
 export function kyThang(nam: number, thang: number): KyCanTao {
-  const hanNop = congThang(nam, thang, 1);
+  // Trưởng phòng lên KPI cho tháng này vào ngày 25 THÁNG TRƯỚC
+  const truoc = congThang(nam, thang, -1);
   return {
     code: maKyThang(nam, thang),
     name: `Tháng ${String(thang).padStart(2, '0')}/${nam}`,
     type: PeriodType.MONTH,
     startDate: ngay(nam, thang, 1),
-    // Ngày 0 của tháng sau chính là ngày cuối tháng này — không cần bảng
-    // số ngày, cũng đúng luôn với năm nhuận.
     endDate: new Date(Date.UTC(nam, thang, 0)),
-    submitDeadline: ngay(hanNop.nam, hanNop.thang, NGAY_HAN_NOP),
+    assignDeadline: ngayKep(truoc.nam, truoc.thang, NGAY_LEN_KPI_THANG_SAU),
+    selfScoreDeadline: ngayKep(nam, thang, NGAY_TU_DANH_GIA),
+    managerScoreDeadline: ngayKep(nam, thang, NGAY_CHAM_DIEM),
+    submitDeadline: ngayKep(nam, thang, NGAY_GUI_HCNS),
     parentCode: maKyQuy(nam, quyCuaThang(thang)),
   };
 }
@@ -177,6 +218,9 @@ export function kyQuy(nam: number, quy: number): KyCanTao {
     type: PeriodType.QUARTER,
     startDate: ngay(nam, thangDau, 1),
     endDate: new Date(Date.UTC(nam, thangDau + 2, 0)),
+    assignDeadline: null,
+    selfScoreDeadline: null,
+    managerScoreDeadline: null,
     submitDeadline: null,
     parentCode: maKyNam(nam),
   };
@@ -189,6 +233,9 @@ export function kyNam(nam: number): KyCanTao {
     type: PeriodType.YEAR,
     startDate: ngay(nam, 1, 1),
     endDate: ngay(nam, 12, 31),
+    assignDeadline: null,
+    selfScoreDeadline: null,
+    managerScoreDeadline: null,
     submitDeadline: null,
     parentCode: null,
   };

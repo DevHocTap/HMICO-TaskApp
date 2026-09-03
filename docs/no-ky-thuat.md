@@ -120,23 +120,20 @@
 > khi HCNS xác nhận là làm hỏng mốc đối chiếu tuần 11 — mốc đó yêu cầu điểm
 > hệ thống tính ra khớp tuyệt đối với file Excel đang dùng.
 
-### Câu 0c — Việc GIAO KPI đầu kỳ có hạn chót không? CHƯA TRẢ LỜI
+### Câu 0c — ĐÃ TRẢ LỜI (03/09/2026)
 
-Mục 5.5 chốt hạn **hết ngày 02 tháng kế tiếp**, nhưng đó là hạn **nộp KẾT
-QUẢ của kỳ đã xong**. Không có chỗ nào nói giao KPI đầu kỳ phải xong ngày mấy.
+**Việc giao KPI đầu kỳ CÓ hạn: ngày 25 tháng trước.** Trưởng phòng lên KPI
+cho tháng sau vào ngày 25 tháng này.
 
-**Câu hỏi: việc giao KPI đầu kỳ có hạn chót không? Nếu có là ngày mấy của
-tháng?** (Ví dụ: phiếu phải được ký nhận xong trước ngày 05.)
+Toàn bộ lịch trong tháng — bốn mốc 25 / 25 / 27–29 / 30 — xem
+`docs/quy-tac-nghiep-vu.md` mục 5.5. Lịch cũ ("hết ngày 02 tháng kế tiếp")
+đã bỏ hẳn: nó sai một tháng.
 
-Chưa có câu trả lời nên mọi việc đầu kỳ — `CHUA_GIAO_KPI`, `CHUA_GUI_KY`,
-`CHO_KY_NHAN`, `CO_Y_KIEN`, `BGD_*` — trả `daysUntilDeadline: null`,
-`isOverdue: false`. Xem hằng `KHONG_CO_HAN` trong
-`src/modules/scorecard/scorecard-query.service.ts`.
-
-Trước đây code gắn hạn ngày 02 cho cả nhóm này. Hệ quả: **ngày 03 hàng
-tháng trang chủ báo đỏ "quá hạn" cho việc còn gần cả tháng để làm** — báo
-động giả, mà báo động giả lặp hàng tháng thì người dùng học cách bỏ qua
-luôn cả cảnh báo thật.
+Còn một việc chưa làm: `pending-my-action` hiện vẫn trả
+`daysUntilDeadline: null` cho mọi việc đầu kỳ (hằng `KHONG_CO_HAN` trong
+`src/modules/scorecard/scorecard-query.service.ts`). Nay đã có
+`Period.assignDeadline` thật thì phải nối vào — **làm ở lát cắt màn hình**,
+cùng lúc dựng trang "Việc của tôi".
 
 ### Câu 0b — Tổ trưởng do AI giao và chấm KPI? CHƯA TRẢ LỜI
 

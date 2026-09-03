@@ -387,47 +387,79 @@ Người đã vô hiệu hoá không đăng nhập tự chấm được, nên: *
 một cột `managerScore`**, `selfScore` để trống, **bắt buộc ghi lý do** vào
 `Scorecard.noSelfScoreReason`. Phiếu vẫn nộp về HCNS bình thường.
 
-### 5.5 Hạn nộp
+### 5.5 Lịch trong tháng — bốn mốc
 
-**CHỈ kỳ THÁNG có hạn nộp.** Kỳ quý và kỳ năm để `submitDeadline = NULL`.
+**HCNS chốt 03/09/2026 (câu A2). Toàn bộ chu trình nằm TRONG chính tháng
+đó, không tràn sang tháng sau.**
+
+| Ngày | Việc | Ai | Cột |
+|---|---|---|---|
+| 25 | Lên KPI cho **tháng sau** | Trưởng phòng | `assignDeadline` của kỳ sau |
+| 25 | Tự đánh giá KPI tháng này | Nhân viên | `selfScoreDeadline` |
+| 27–29 | Chấm điểm, chốt, giải quyết tranh chấp | Trưởng phòng | `managerScoreDeadline` |
+| 30 | Gửi HCNS tổng hợp | Trưởng phòng | `submitDeadline` |
+
+Vì việc lên KPI tháng sau làm vào ngày 25 tháng này, **`assignDeadline` của
+một kỳ nằm ở THÁNG TRƯỚC kỳ đó.** Kỳ tháng 09 có `assignDeadline = 25/08`.
+
+**Tháng ngắn thì kẹp về ngày cuối tháng.** Tháng 02/2027 có 28 ngày nên
+`managerScoreDeadline` và `submitDeadline` đều là 28/02. Không kẹp thì
+`Date.UTC(2027, 1, 30)` lặng lẽ trôi sang 02/03 — hạn nộp của tháng 2 rơi
+vào tháng 3 mà không ai nhìn ra cho tới lúc đối chiếu số.
+
+**CHỈ kỳ THÁNG có bốn mốc này.** Kỳ quý và kỳ năm để `NULL`.
 
 Lý do: phiếu KPI luôn gắn với kỳ tháng, không có phiếu nào gắn trực tiếp
-vào kỳ quý hay kỳ năm — hai loại đó chỉ để tổng hợp. Đặt hạn nộp cho chúng
-là tạo ra một cái mốc không ai phải đáp ứng, rồi bảng theo dõi tiến độ sẽ
-báo "quá hạn" cho thứ chưa từng có ai được giao.
+vào kỳ quý hay kỳ năm — hai loại đó chỉ để tổng hợp. Đặt hạn cho chúng là
+tạo ra một cái mốc không ai phải đáp ứng, rồi bảng theo dõi tiến độ sẽ báo
+"quá hạn" cho thứ chưa từng có ai được giao.
 
-Cột `submitDeadline` vì vậy phải **nullable**.
+Bốn cột vì vậy đều **nullable**.
 
-**HCNS đã chốt: hạn là HẾT ngày 02 của tháng kế tiếp.** `NGAY_HAN_NOP = 2`
-trong `src/modules/period/period-calendar.ts` giữ nguyên.
+#### Ngữ nghĩa đếm ngược
 
-Hệ quả cho phần đếm ngược ở trang "Việc của tôi":
+Mọi hạn tính là **HẾT ngày đó** — chính ngày hạn vẫn còn làm được:
 
-| Hôm nay | Hiển thị |
+| Hôm nay | Hiển thị (hạn 30/09) |
 |---|---|
-| Ngày 01 | còn 2 ngày |
-| **Ngày 02** | **còn 1 ngày** — vẫn nộp được |
-| Ngày 03 | **quá hạn** |
+| Ngày 29 | còn 2 ngày |
+| **Ngày 30** | **còn 1 ngày** — vẫn nộp được |
+| Ngày 01/10 | **quá hạn** |
 
-Ngày 02 vẫn là ngày làm việc hợp lệ, không được hiện "hết hạn hôm nay" hay
-số âm. Sang ngày 03 mới tính quá hạn.
+Không được hiện "hết hạn hôm nay" hay số âm.
+`tinhTinhTrangHanNop()` trong `src/modules/period/period-calendar.ts` trả
+`daysUntilDeadline` (không bao giờ âm) và `isOverdue` tách riêng.
 
+So NGÀY LỊCH theo giờ Việt Nam, không so mốc thời gian — xem comment tại
+hàm đó để biết vì sao `hanNop` không được quy đổi múi giờ còn `bayGio` thì
+bắt buộc phải quy đổi.
 
-Kết quả phải về HCNS **trước ngày 02 của tháng kế tiếp** (lưu ở
-`Period.dueDate`, không hard-code). Hệ thống:
-- Nhắc nhân viên chưa tự chấm từ ngày 28
-- Nhắc trưởng bộ phận chưa chấm từ ngày 30
-- HCNS xem được phòng nào chưa nộp, không phải đi đòi từng phòng
+#### Nhắc việc
 
 Giai đoạn 1 "nhắc" nghĩa là **hiện trên trang "Việc của tôi"**, không phải
-gửi thông báo.
+gửi thông báo. HCNS xem được phòng nào chưa nộp, không phải đi đòi từng phòng.
 
 Đây là chỗ hệ thống tạo giá trị rõ nhất so với Excel.
 
+> **Lịch cũ đã BỎ:** trước 03/09/2026 tài liệu ghi hạn nộp là "hết ngày 02
+> tháng kế tiếp" (`NGAY_HAN_NOP = 2`). Sai hẳn một tháng so với thực tế.
+
 ### 5.6 Khoá kỳ
 
-Chỉ `ADMIN` khoá/mở kỳ. Kỳ đã khoá thì không sửa được điểm. Mở lại phải ghi
-`AuditLog`.
+**HCNS chốt 03/09/2026 (câu A5): `ADMIN`, `HR` và `EXECUTIVE` khoá/mở kỳ.**
+
+Chốt sổ tháng là quyết định **nghiệp vụ**, không phải thao tác kỹ thuật —
+người quyết định thời điểm chốt phải là HCNS hoặc ban giám đốc. `ADMIN` giữ
+quyền theo câu A4 (tài khoản quản trị có toàn quyền).
+
+Trưởng phòng muốn sửa điểm của kỳ đã chốt thì **gửi yêu cầu cho HCNS hoặc
+ban giám đốc** mở lại. Kỳ đã khoá thì không sửa được điểm. Mọi lần khoá và
+mở đều ghi `AuditLog` cùng transaction với thao tác.
+
+**Chỉ kỳ THÁNG khoá được.** Khoá kỳ quý hay kỳ năm không chặn được gì —
+điểm quý là trung bình cộng ba tháng, và khoá kỳ cha KHÔNG lan xuống kỳ con.
+Để bấm được một nút không có tác dụng là mời người dùng hiểu nhầm rằng sổ
+đã chốt.
 
 **Khoá kỳ CHỈ ảnh hưởng đúng kỳ đó, không lan xuống kỳ con.**
 
@@ -634,7 +666,7 @@ Bốn tầng, `parentId` xử lý được. **Cần chốt**: trưởng chi nhá
 - Kỳ **QUÝ** và **NĂM** dùng `Period.parentId` để tổng hợp.
   **Điểm quý = trung bình cộng ba tháng.** Không phải tổng.
   (Cột `parentId` dựng sẵn, nhưng luồng tổng hợp quý/năm hoãn sau tháng 11.)
-- Kỳ tháng tạo tự động trước 7 ngày, `dueDate` = ngày 02 tháng kế tiếp.
+- Kỳ tháng tạo tự động (tháng này + tháng kế tiếp), kèm bốn mốc ở mục 5.5.
 
 Chu kỳ tháng nghĩa là 200 người × 12 tháng = **2.400 phiếu mỗi năm**. Điều
 này khiến các tính năng ở mục 10 trở thành bắt buộc, không phải tuỳ chọn.
