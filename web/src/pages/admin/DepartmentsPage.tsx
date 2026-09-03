@@ -29,6 +29,7 @@ import {
   taoPhongBan,
   voHieuHoaPhongBan,
 } from '../../api/org';
+import { laySanSangCongTy } from '../../api/scorecard';
 import { layThongBaoLoi } from '../../api/client';
 import type { DepartmentNode } from '../../types/org';
 import { useAuth } from '../../auth/useAuth';
@@ -82,7 +83,28 @@ export function DepartmentsPage() {
     enabled: Boolean(idPhongDangSua),
   });
 
-  const soPhongThieuTruong = danhSachPhang.filter((d) => !d.managerId).length;
+  /**
+   * Phòng nào THẬT SỰ bị chặn — lấy từ backend, KHÔNG tự đếm `!managerId`.
+   *
+   * Đếm mọi phòng thiếu trưởng là sai: 8 đơn vị tổ chức chưa có nhân sự nào
+   * (Công ty HMICO, Hà Nội, Chi nhánh HCM, Phòng Dự án…) và Ban giám đốc
+   * (giám đốc không bị chấm điểm) đều không cần trưởng bộ phận. Bản trước
+   * báo đỏ cả 10 trong khi KHÔNG phòng nào bị chặn — báo động giả lặp mỗi
+   * lần mở màn hình thì người dùng học cách bỏ qua luôn cả cảnh báo thật.
+   *
+   * `readiness/company` đã tách sẵn hai loại; quyền gọi đúng bằng quyền vào
+   * màn này (ADMIN, HR, EXECUTIVE).
+   */
+  const { data: sanSang } = useQuery({
+    queryKey: ['scorecards', 'readiness', 'company'],
+    queryFn: laySanSangCongTy,
+  });
+
+  const phongBiChan = sanSang?.departmentsWithoutManager ?? [];
+  const maPhongBiChan = useMemo(
+    () => new Set(phongBiChan.map((p) => p.code)),
+    [phongBiChan],
+  );
 
   function lamMoi() {
     void queryClient.invalidateQueries({ queryKey: ['departments'] });
@@ -157,10 +179,11 @@ export function DepartmentsPage() {
           {node.code}
         </Typography.Text>
         <Tag style={{ marginInlineEnd: 0 }}>{node.userCount} người</Tag>
-        {!node.managerId && (
-          // Phòng thiếu trưởng bộ phận thì KPI của phòng đó không ai duyệt
-          // được, và lỗi chỉ lộ ra cuối tháng khi nhân viên đã nộp kết quả.
-          <Tooltip title="Chưa có trưởng bộ phận — KPI của phòng này sẽ không ai duyệt được">
+        {maPhongBiChan.has(node.code) && (
+          // CHỈ cảnh báo phòng đang có nhân sự mà thiếu trưởng bộ phận: những
+          // người đó không sinh được phiếu KPI. Đơn vị chưa có ai thì chưa
+          // cần trưởng — cảnh báo ở đó là báo động giả.
+          <Tooltip title="Phòng đang có nhân sự nhưng chưa có trưởng bộ phận — những người này không sinh được phiếu KPI">
             <WarningOutlined style={{ color: '#faad14' }} />
           </Tooltip>
         )}
@@ -224,12 +247,28 @@ export function DepartmentsPage() {
 
       {!coQuyenGhi && <ReadOnlyNotice role={nguoiDangDangNhap?.role} />}
 
-      {soPhongThieuTruong > 0 && (
+      {phongBiChan.length > 0 && (
         <Alert
           type="warning"
           showIcon
-          message={`${soPhongThieuTruong} phòng ban chưa có trưởng bộ phận`}
-          description="KPI của những phòng này sẽ không ai duyệt được. Các nút có dấu cảnh báo màu vàng là những phòng còn thiếu."
+          message={`${phongBiChan.length} phòng đang có nhân sự nhưng chưa có trưởng bộ phận`}
+          description={
+            <>
+              <div>
+                {phongBiChan.reduce((tong, p) => tong + p.headcount, 0)} người trong
+                các phòng này không sinh được phiếu KPI, vì hệ thống không biết ai
+                là người chấm. Các nút có dấu cảnh báo màu vàng là những phòng còn
+                thiếu.
+              </div>
+              <div style={{ marginTop: 6 }}>
+                {phongBiChan.map((p) => (
+                  <Tag key={p.code} color="warning" style={{ marginTop: 4 }}>
+                    {p.name} — {p.headcount} người
+                  </Tag>
+                ))}
+              </div>
+            </>
+          }
         />
       )}
 
