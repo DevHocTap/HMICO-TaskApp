@@ -19,15 +19,22 @@ import type {
 const LIMIT_MAC_DINH = 50;
 
 /**
- * Vai trò KHÔNG áp KPI — HCNS chốt 03/09/2026 (câu A4).
+ * Vai trò KHÔNG áp KPI — HCNS chốt 03/09/2026.
  *
- * Tài khoản quản trị hệ thống là tài khoản KỸ THUẬT, không phải một vị trí
- * nhân sự: không thuộc phòng ban nào, không cần trưởng bộ phận, không có
- * phiếu KPI. Trước đây nó nằm trong danh sách "chưa được giao KPI" và kéo
- * theo cả đơn vị Công ty HMICO vào danh sách chặn — báo động giả duy nhất
- * mà không ai xử lý được, vì không có gì để xử lý.
+ * - `ADMIN` (câu A4): tài khoản quản trị hệ thống là tài khoản KỸ THUẬT,
+ *   không phải một vị trí nhân sự — không thuộc phòng ban, không cần trưởng
+ *   bộ phận, không có phiếu KPI.
+ * - `EXECUTIVE` (câu A3): **giám đốc không bị chấm điểm.** Ban giám đốc chấm
+ *   trưởng phòng, nhưng không ai chấm ngược lại ban giám đốc.
+ *
+ * Trước đây cả hai nằm trong danh sách "chưa được giao KPI" và kéo theo hai
+ * đơn vị vào danh sách chặn — báo động giả không ai xử lý được, vì không có
+ * gì để xử lý.
+ *
+ * CHỈ chặn việc CÓ phiếu. Ban giám đốc vẫn là NGƯỜI CHẤM của trưởng phòng —
+ * hai việc khác nhau, đừng gộp.
  */
-const VAI_TRO_KHONG_AP_KPI: Role[] = [Role.ADMIN];
+const VAI_TRO_KHONG_AP_KPI: Role[] = [Role.ADMIN, Role.EXECUTIVE];
 
 /** Điều kiện Prisma: chỉ nhân sự thật sự được giao KPI. */
 const NGUOI_CO_KPI = {

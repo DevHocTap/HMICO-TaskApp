@@ -9,6 +9,12 @@ import * as argon2 from 'argon2';
 // Đuôi .ts (không phải .js): file này chỉ do node chạy trực tiếp bằng cơ chế
 // bóc kiểu của Node 22, không đi qua tsc nên không có bản .js được sinh ra.
 import { MAU_KPI_PHONG_KY_THUAT } from './kpi-templates.data.ts';
+import {
+  kyNam,
+  kyQuy,
+  kyThang,
+  type KyCanTao,
+} from '../src/modules/period/period-calendar.ts';
 
 const prisma = new PrismaClient();
 
@@ -27,9 +33,11 @@ const DEPARTMENTS: Array<{ code: string; name: string; parent?: string }> = [
   { code: 'DA', name: 'Phòng Dự án', parent: 'HN' },
   { code: 'MH', name: 'Phòng Mua hàng', parent: 'HN' },
   { code: 'RND', name: 'Phòng R&D', parent: 'HN' },
+  // HCNS chốt 03/09/2026 (câu C1): Shop Drawing và Bảo hành bảo trì là
+  // CHỨC DANH nhân viên, không phải đơn vị tổ chức. Cả bốn nhóm đều nằm
+  // thẳng dưới Phòng Kỹ thuật và do một trưởng phòng duy nhất phụ trách —
+  // công ty chỉ có một cấp quản lý, không có tổ trưởng.
   { code: 'KT', name: 'Phòng Kỹ thuật', parent: 'HN' },
-  { code: 'KT-BT', name: 'Tổ Bảo trì bảo hành', parent: 'KT' },
-  { code: 'KT-SD', name: 'Tổ Shop Drawing', parent: 'KT' },
   { code: 'TCKT', name: 'Phòng Tài chính kế toán', parent: 'HN' },
   { code: 'HCNS', name: 'Phòng Hành chính nhân sự', parent: 'HN' },
 
@@ -53,11 +61,18 @@ const JOB_TITLES: Array<{
   dept: string | null;
   description?: string;
 }> = [
-  // Bốn chức danh phòng Kỹ thuật — có biểu mẫu KPI thật
+  // Bốn chức danh phòng Kỹ thuật — có biểu mẫu KPI thật.
+  // Cả bốn thuộc thẳng Phòng Kỹ thuật (HCNS chốt câu C1).
   { code: 'KT-KSTK', name: 'Kỹ sư triển khai', dept: 'KT' },
   { code: 'KT-KSCH', name: 'Kỹ sư cấu hình', dept: 'KT' },
-  { code: 'KT-SD-NV', name: 'Nhân viên Shop Drawing', dept: 'KT-SD' },
-  { code: 'KT-BH-NV', name: 'Nhân viên Bảo hành', dept: 'KT-BT' },
+  { code: 'KT-SD-NV', name: 'Nhân viên Shop Drawing', dept: 'KT' },
+  { code: 'KT-BH-NV', name: 'Nhân viên Bảo hành bảo trì', dept: 'KT' },
+  {
+    code: 'KT-PP',
+    name: 'Phó phòng Kỹ thuật',
+    dept: 'KT',
+    description: 'Chức danh, KHÔNG có quyền chấm — quyền như nhân viên thường',
+  },
 
   // Chức danh dùng chung, chưa đối chiếu biểu mẫu thật
   {
@@ -66,7 +81,6 @@ const JOB_TITLES: Array<{
     dept: null,
     description: 'Dùng chung cho mọi phòng',
   },
-  { code: 'TT', name: 'Tổ trưởng', dept: null, description: 'Dùng chung cho mọi tổ' },
   { code: 'BGD-GD', name: 'Giám đốc', dept: 'BGD' },
   { code: 'HCNS-TP', name: 'Trưởng phòng Hành chính nhân sự', dept: 'HCNS' },
   { code: 'HCNS-CV', name: 'Chuyên viên Hành chính nhân sự', dept: 'HCNS' },
@@ -156,27 +170,28 @@ const USERS: SeedUser[] = [
     level: 'M2',
     managerOf: 'RND',
   },
+  // HCNS chốt 03/09/2026: hai người này trước đây là Tổ trưởng giữ quyền
+  // MANAGER. Công ty không có cấp tổ trưởng — họ là nhân viên như mọi người,
+  // do trưởng phòng Kỹ thuật chấm.
   {
     employeeCode: 'HM006',
-    email: 'totruong.shopdrawing@hmico.vn',
-    fullName: 'Tổ trưởng Shop Drawing',
-    role: Role.MANAGER,
-    dept: 'KT-SD',
-    jobTitle: 'TT',
-    level: 'M1',
+    email: 'sd.nhanvien3@hmico.vn',
+    fullName: 'Nhân viên Shop Drawing 3',
+    role: Role.STAFF,
+    dept: 'KT',
+    jobTitle: 'KT-SD-NV',
+    level: 'S3',
     manager: 'HM004',
-    managerOf: 'KT-SD',
   },
   {
     employeeCode: 'HM007',
-    email: 'totruong.baotri@hmico.vn',
-    fullName: 'Tổ trưởng Bảo trì bảo hành',
-    role: Role.MANAGER,
-    dept: 'KT-BT',
-    jobTitle: 'TT',
-    level: 'M1',
+    email: 'kt.phophong@hmico.vn',
+    fullName: 'Phó phòng Kỹ thuật',
+    role: Role.STAFF,
+    dept: 'KT',
+    jobTitle: 'KT-PP',
+    level: 'S3',
     manager: 'HM004',
-    managerOf: 'KT-BT',
   },
   {
     employeeCode: 'HM008',
@@ -195,30 +210,30 @@ const USERS: SeedUser[] = [
     email: 'sd.nhanvien1@hmico.vn',
     fullName: 'Nhân viên Shop Drawing 1',
     role: Role.STAFF,
-    dept: 'KT-SD',
+    dept: 'KT',
     jobTitle: 'KT-SD-NV',
     level: 'S2',
-    manager: 'HM006',
+    manager: 'HM004',
   },
   {
     employeeCode: 'HM010',
     email: 'sd.nhanvien2@hmico.vn',
     fullName: 'Nhân viên Shop Drawing 2',
     role: Role.STAFF,
-    dept: 'KT-SD',
+    dept: 'KT',
     jobTitle: 'KT-SD-NV',
     level: 'S1',
-    manager: 'HM006',
+    manager: 'HM004',
   },
   {
     employeeCode: 'HM011',
     email: 'bh.nhanvien1@hmico.vn',
     fullName: 'Nhân viên Bảo hành 1',
     role: Role.STAFF,
-    dept: 'KT-BT',
+    dept: 'KT',
     jobTitle: 'KT-BH-NV',
     level: 'S2',
-    manager: 'HM007',
+    manager: 'HM004',
   },
   {
     employeeCode: 'HM012',
@@ -358,50 +373,35 @@ async function seedUsers(
   return byCode;
 }
 
+/**
+ * Bốn kỳ mẫu: năm 2026 -> quý 3 -> tháng 08, 09.
+ *
+ * Dùng CHÍNH `period-calendar.ts` chứ không tự viết ngày. Trước đây seed
+ * chép tay `submitDeadline: '2026-10-02'`; khi HCNS đổi lịch sang bốn mốc
+ * 25/25/29/30 thì lịch trong code đổi còn seed thì không, và test đỏ ở chỗ
+ * chẳng liên quan gì. Một nguồn sự thật cho ngày tháng, không hai.
+ */
 async function seedPeriods() {
-  // Năm 2026 -> Quý 3 -> tháng 08, 09.
-  // dueDate = ngày 02 tháng kế tiếp (docs mục 5.5).
-  const nam = await prisma.period.create({
-    data: {
-      code: '2026',
-      name: 'Năm 2026',
-      type: PeriodType.YEAR,
-      startDate: new Date('2026-01-01'),
-      endDate: new Date('2026-12-31'),
-    },
-  });
-  const quy = await prisma.period.create({
-    data: {
-      code: '2026-Q3',
-      name: 'Quý 3/2026',
-      type: PeriodType.QUARTER,
-      parentId: nam.id,
-      startDate: new Date('2026-07-01'),
-      endDate: new Date('2026-09-30'),
-    },
-  });
-  await prisma.period.create({
-    data: {
-      code: '2026-08',
-      name: 'Tháng 08/2026',
-      type: PeriodType.MONTH,
-      parentId: quy.id,
-      startDate: new Date('2026-08-01'),
-      endDate: new Date('2026-08-31'),
-      submitDeadline: new Date('2026-09-02'),
-    },
-  });
-  await prisma.period.create({
-    data: {
-      code: '2026-09',
-      name: 'Tháng 09/2026',
-      type: PeriodType.MONTH,
-      parentId: quy.id,
-      startDate: new Date('2026-09-01'),
-      endDate: new Date('2026-09-30'),
-      submitDeadline: new Date('2026-10-02'),
-    },
-  });
+  const tao = async (k: KyCanTao, parentId: string | null) =>
+    prisma.period.create({
+      data: {
+        code: k.code,
+        name: k.name,
+        type: k.type,
+        parentId,
+        startDate: k.startDate,
+        endDate: k.endDate,
+        assignDeadline: k.assignDeadline,
+        selfScoreDeadline: k.selfScoreDeadline,
+        managerScoreDeadline: k.managerScoreDeadline,
+        submitDeadline: k.submitDeadline,
+      },
+    });
+
+  const nam = await tao(kyNam(2026), null);
+  const quy = await tao(kyQuy(2026, 3), nam.id);
+  await tao(kyThang(2026, 8), quy.id);
+  await tao(kyThang(2026, 9), quy.id);
 }
 
 async function seedComplianceTemplate() {

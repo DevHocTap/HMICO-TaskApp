@@ -81,8 +81,19 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
 
 ## Đang làm
 
-**Tuần 7–8: `scorecard`** — chưa bắt đầu. Giao KPI theo tháng, ký nhận,
-sao chép từ kỳ trước.
+**Lát cắt 4 — `scorecard`, backend XONG, giao diện chưa bắt đầu.**
+
+Sau buổi chốt 03/09 với HCNS và ban giám đốc, đã áp:
+- Lịch trong tháng đổi sang **bốn mốc 25 / 25 / 29 / 30** (mục 5.5 viết
+  lại). Lịch cũ "ngày 02 tháng kế tiếp" sai hẳn một tháng.
+- **Chỉ còn MỘT cấp quản lý.** Bỏ hai đơn vị Tổ Shop Drawing và Tổ Bảo trì;
+  Shop Drawing, Bảo hành, Phó phòng đều là chức danh. Không còn phòng nào
+  bị chặn (trước là 3).
+- `ADMIN` và `EXECUTIVE` không có phiếu KPI. BGĐ vẫn chấm trưởng phòng.
+- Khoá/mở kỳ mở cho `HR` và `EXECUTIVE`.
+
+Việc tiếp: mở quyền soạn KPI trực tiếp trên phiếu cho trưởng phòng, rồi
+ba màn hình.
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 
@@ -99,15 +110,24 @@ sao chép từ kỳ trước.
 
 ## Chưa quyết
 
-- Trưởng chi nhánh HCM có xem được dữ liệu Hà Nội không (mặc định: không)
-- Tên bốn chức danh thật phòng Kỹ thuật — seed đang để tạm
-- Số lượng nhân sự thực tế từng phòng
-- Định dạng file Excel nhân sự của HR
+Ngày 03/09/2026 HCNS và ban giám đốc đã chốt 15 câu — xem
+`docs/no-ky-thuat.md`. Còn treo:
+
+- **KPI 3 năm giao cho phòng ban, băm nhỏ xuống năm / quý / tháng.**
+  Giai đoạn 1 đã cắt KPI cấp phòng ban; câu trả lời mở lại. Lớn ngang cả
+  lát cắt 4 cộng 5 — **làm sau mốc tháng 11**, không kịp trước.
+- **HCNS và BGĐ sửa điểm trưởng phòng đã chấm, kèm highlight.** Chưa có
+  trong schema. Đề xuất: thêm cột điểm điều chỉnh riêng, KHÔNG ghi đè điểm
+  gốc — điểm là căn cứ tính lương, mất bản gốc là mất bằng chứng.
+- **Đơn vị đo cho ô Mục tiêu** (%, số nguyên, triệu đồng) và ngưỡng
+  Min/Max — điều kiện bắt buộc trước khi bật tính điểm tự động.
+- **Mốc nghiệm thu thay thế.** Bốn file Excel chỉ là mẫu tham khảo nên mốc
+  "khớp tuyệt đối với Excel" không còn nghĩa. HCNS nói để sau.
 
 ## Việc cần làm ngoài code
 
-- [ ] Xin file Excel nhân sự của HR (chặn tuần 3–4)
-- [ ] Xin bốn file Excel KPI phòng Kỹ thuật (chặn tuần 5–6)
+- [x] ~~Xin file Excel nhân sự của HR~~ — không cần, nhập tay (chốt 03/09)
+- [x] ~~Xin bốn file Excel KPI phòng Kỹ thuật~~ — đã có, đã nhập
 - [ ] Trình sếp mốc mới: một phòng chạy thật tháng 11 thay vì toàn công ty
       ngày 31/12. **Làm sớm nhất** — đổi mốc lúc còn 4 tháng là điều chỉnh
       kế hoạch, đổi mốc vào tháng 12 là báo cáo thất bại.

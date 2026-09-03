@@ -185,7 +185,7 @@ else
   }
   ID_RND=$(lay_id_phong RND)
   ID_KT=$(lay_id_phong KT)
-  ID_KTSD=$(lay_id_phong KT-SD)
+  ID_KTHCM=$(lay_id_phong KT-HCM)
   ID_HN=$(lay_id_phong HN)
 
   MA=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AT_RND" "$API/departments/$ID_RND")
@@ -194,8 +194,8 @@ else
   MA=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AT_RND" "$API/departments/$ID_KT")
   [ "$MA" = "403" ] && pass "xem phòng KHÁC (Kỹ thuật) -> 403" || fail "xem phòng Kỹ thuật -> $MA (mong đợi 403) — LỖ HỔNG PHÂN QUYỀN"
 
-  MA=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AT_RND" "$API/departments/$ID_KTSD")
-  [ "$MA" = "403" ] && pass "xem tổ con phòng khác (Shop Drawing) -> 403" || fail "xem Shop Drawing -> $MA (mong đợi 403) — LỖ HỔNG PHÂN QUYỀN"
+  MA=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AT_RND" "$API/departments/$ID_KTHCM")
+  [ "$MA" = "403" ] && pass "xem phòng chi nhánh khác (Kỹ thuật HCM) -> 403" || fail "xem Kỹ thuật HCM -> $MA (mong đợi 403) — LỖ HỔNG PHÂN QUYỀN"
 
   MA=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AT_RND" "$API/departments/$ID_HN")
   [ "$MA" = "403" ] && pass "xem phòng CHA (Hà Nội) -> 403" || fail "xem phòng cha -> $MA (mong đợi 403) — LỖ HỔNG PHÂN QUYỀN"
@@ -268,7 +268,7 @@ CAY_STAFF=$(curl -s -H "Authorization: Bearer $AT_STAFF" "$API_SHORT/departments
 [ "$CAY_STAFF" = "[]" ] && pass "STAFF nhận cây RỖNG" || fail "STAFF nhận: $CAY_STAFF (mong đợi [])"
 
 CAY_ADMIN=$(curl -s -H "Authorization: Bearer $AT" "$API/departments/tree")
-if echo "$CAY_ADMIN" | grep -q '"code":"HMICO"' && echo "$CAY_ADMIN" | grep -q '"code":"KT-SD"'; then
+if echo "$CAY_ADMIN" | grep -q '"code":"HMICO"' && echo "$CAY_ADMIN" | grep -q '"code":"KT-HCM"'; then
   pass "đối chứng: ADMIN thấy toàn bộ cây"
 else
   fail "ADMIN không thấy đủ cây"

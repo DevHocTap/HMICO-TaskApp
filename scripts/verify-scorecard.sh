@@ -102,8 +102,9 @@ fi
 AT_ADMIN=$(token_cua admin@hmico.vn)
 AT_HR=$(token_cua hcns@hmico.vn)
 AT_KT=$(token_cua truongphong.kythuat@hmico.vn)
-AT_SD=$(token_cua to.shopdrawing@hmico.vn 2>/dev/null)
-AT_TT=$(token_cua totruong.shopdrawing@hmico.vn)
+# HCNS chốt 03/09/2026: công ty chỉ có MỘT cấp quản lý. Không còn tổ trưởng —
+# trưởng phòng Kỹ thuật là người chấm duy nhất của cả phòng.
+AT_TT=$(token_cua truongphong.kythuat@hmico.vn)
 AT_RND=$(token_cua truongphong.rnd@hmico.vn)
 AT_BGD=$(token_cua giamdoc@hmico.vn)
 AT_NV1=$(token_cua sd.nhanvien1@hmico.vn)
@@ -111,7 +112,7 @@ AT_NV2=$(token_cua sd.nhanvien2@hmico.vn)
 
 KY_08=$(sql "SELECT id FROM \"Period\" WHERE code='2026-08';")
 KY_09=$(sql "SELECT id FROM \"Period\" WHERE code='2026-09';")
-P_KTSD=$(sql "SELECT id FROM \"Department\" WHERE code='KT-SD';")
+P_KTSD=$(sql "SELECT id FROM \"Department\" WHERE code='KT';")
 P_RND=$(sql "SELECT id FROM \"Department\" WHERE code='RND';")
 P_KT=$(sql "SELECT id FROM \"Department\" WHERE code='KT';")
 U_NV1=$(sql "SELECT id FROM \"User\" WHERE email='sd.nhanvien1@hmico.vn';")
@@ -140,7 +141,7 @@ LOI_CON=$(sql "SELECT count(*) FROM (SELECT p.id, sum(c.weight) s FROM \"Scoreca
 [ "$LOI_CON" = "0" ] && pass "mọi nhóm KPI con đều đúng 100" || fail "$LOI_CON nhóm sai"
 
 SNAP=$(sql "SELECT \"jobTitleName\" || '|' || \"departmentName\" || '|' || COALESCE(\"evaluatorId\",'') FROM \"Scorecard\" WHERE id='$SC1';")
-echo "$SNAP" | grep -q "Nhân viên Shop Drawing|Tổ Shop Drawing|" && pass "chụp đúng chức danh, phòng ban, người chấm" || fail "snapshot: $SNAP"
+echo "$SNAP" | grep -q "Nhân viên Shop Drawing|Phòng Kỹ thuật|" && pass "chụp đúng chức danh, phòng ban, người chấm" || fail "snapshot: $SNAP"
 
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"userId\":\"$U_NV1\",\"periodId\":\"$KY_08\"}" "$API/scorecards")
@@ -159,14 +160,18 @@ buoc "SINH HÀNG LOẠT"
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"departmentId\":\"$P_KTSD\",\"periodId\":\"$KY_08\"}" "$API/scorecards/batch")
 TAO=$(echo "$KQ" | jq_ "d['created']"); BQ=$(echo "$KQ" | jq_ "d['skipped']")
-# Tổ Shop Drawing có 3 người: 1 đã có phiếu, 1 mang chức danh "Tổ trưởng"
-# chưa có mẫu xuất bản, còn 1 tạo được.
-[ "$TAO" = "1" ] && pass "tạo 1 phiếu cho người đủ điều kiện" || fail "created=$TAO (mong đợi 1)"
-[ "$BQ" = "2" ] && pass "bỏ qua 2 người, không làm hỏng cả lô" || fail "skipped=$BQ (mong đợi 2)"
+# Đếm từ truy vấn, không viết số: seed đổi thì kỳ vọng đổi theo.
+# Phòng Kỹ thuật có 1 trưởng phòng (chức danh "Trưởng phòng" chưa có mẫu, do
+# BGĐ giao phiếu rỗng) và các nhân viên có mẫu; 1 người đã có phiếu từ mục 1.
+TONG_KT=$(sql "SELECT count(*) FROM \"User\" WHERE \"departmentId\"='$P_KTSD' AND \"isActive\";")
+DA_CO=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"departmentId\"='$P_KTSD' AND \"periodId\"='$KY_08';")
+CO_MAU=$(sql "SELECT count(*) FROM \"User\" u WHERE u.\"departmentId\"='$P_KTSD' AND u.\"isActive\" AND EXISTS (SELECT 1 FROM \"KpiTemplate\" t WHERE t.\"jobTitleId\"=u.\"jobTitleId\" AND t.status='PUBLISHED' AND t.\"isActive\" AND NOT t.\"isSystem\");")
+[ "$TAO" = "$((CO_MAU - 1))" ] && pass "tạo $TAO phiếu, đúng bằng số người có mẫu trừ người đã có phiếu" \
+  || fail "created=$TAO, có mẫu $CO_MAU, đã có phiếu 1"
+[ "$BQ" = "$((TONG_KT - CO_MAU + 1))" ] && pass "bỏ qua $BQ người, không làm hỏng cả lô" \
+  || fail "skipped=$BQ, tổng $TONG_KT người, $CO_MAU người có mẫu"
 echo "$KQ" | grep -q "Đã có phiếu" && pass "nêu lý do: đã có phiếu" || fail "không nêu: $KQ"
-# Tổ trưởng bị chặn vì tự chấm chính mình — lý do này bắt TRƯỚC cả việc tra
-# mẫu KPI, vì nó là vấn đề căn bản hơn.
-# Tổ trưởng: chức danh quản lý không có mẫu KPI — dùng đường sinh phiếu rỗng
+# Trưởng phòng: chức danh quản lý không có mẫu KPI — dùng đường sinh phiếu rỗng
 echo "$KQ" | grep -q "chưa có mẫu KPI" && pass "nêu lý do: chức danh quản lý chưa có mẫu" || fail "không nêu: $KQ"
 echo "$KQ" | grep -q "sinh phiếu rỗng" && pass "gợi ý đúng hướng xử lý" || fail "không gợi ý: $KQ"
 
@@ -187,12 +192,13 @@ echo "$KQ" | jq_ "d['ready']" | grep -qi false && pass "báo phòng MKT chưa s�
 echo "$KQ" | jq_ "d['missingDepartmentManager']" | grep -qi true && pass "chỉ đúng: thiếu trưởng bộ phận" || fail "$KQ"
 echo "$KQ" | grep -q "Nhân viên thử" && pass "liệt kê đúng người thiếu chức danh" || fail "không liệt kê người thiếu chức danh"
 KQ=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/scorecards/readiness?departmentId=$P_KTSD")
-# Tổ Shop Drawing có trưởng bộ phận và ai cũng có chức danh, NHƯNG chức danh
-# "Tổ trưởng" chưa có mẫu KPI nào xuất bản — đây là thiếu sót thật của dữ
-# liệu seed, và endpoint phải chỉ ra được.
-echo "$KQ" | jq_ "d['missingDepartmentManager']" | grep -qi false && pass "tổ Shop Drawing: đã có trưởng bộ phận" || fail "$KQ"
-echo "$KQ" | jq_ "d['employeesWithoutJobTitle']" | grep -q '^\[\]$' && pass "tổ Shop Drawing: ai cũng có chức danh" || fail "$KQ"
-echo "$KQ" | grep -q "Tổ trưởng" && pass "chỉ ra chức danh 'Tổ trưởng' chưa có mẫu xuất bản" || fail "$KQ"
+# Phòng Kỹ thuật có trưởng bộ phận và ai cũng có chức danh, NHƯNG chức danh
+# "Trưởng phòng" và "Phó phòng Kỹ thuật" chưa có mẫu KPI nào xuất bản —
+# endpoint phải chỉ ra được.
+echo "$KQ" | jq_ "d['missingDepartmentManager']" | grep -qi false && pass "phòng Kỹ thuật: đã có trưởng bộ phận" || fail "$KQ"
+echo "$KQ" | jq_ "d['employeesWithoutJobTitle']" | grep -q '^\[\]$' && pass "phòng Kỹ thuật: ai cũng có chức danh" || fail "$KQ"
+echo "$KQ" | grep -q "Trưởng phòng" && pass "chỉ ra chức danh 'Trưởng phòng' chưa có mẫu xuất bản" || fail "$KQ"
+echo "$KQ" | grep -q "Phó phòng" && pass "chỉ ra cả 'Phó phòng Kỹ thuật' — chức danh, không phải cấp quản lý" || fail "$KQ"
 
 buoc "CHỈ ĐỊNH NGƯỜI CHẤM THỦ CÔNG (đường thoát)"
 U_ADMIN=$(sql "SELECT id FROM \"User\" WHERE email='admin@hmico.vn';")
@@ -206,7 +212,10 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: applicati
 buoc "CHẶN TỰ CHẤM CHÍNH MÌNH"
 # Trưởng bộ phận nay do BAN GIÁM ĐỐC chấm nên không còn tự chấm nữa.
 # Tự chấm chỉ xảy ra khi ai đó CHỈ ĐỊNH TAY chính người nhận làm người chấm.
-# Dùng nhân viên phòng Kỹ thuật: U_NV2 là dữ liệu mà test sao chép phía sau cần
+# Dùng nhân viên phòng Kỹ thuật: U_NV2 là dữ liệu mà test sao chép phía sau cần.
+# Người này đã được lô hàng loạt bên trên tạo phiếu (cả phòng Kỹ thuật giờ nằm
+# trong một đơn vị) nên phải dọn trước, nếu không mọi thứ ở đây trả 409.
+xoa_phieu_cua_script "\"ownerUserId\"='$U_KTNV'"
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"userId\":\"$U_KTNV\",\"periodId\":\"$KY_08\",\"evaluatorId\":\"$U_KTNV\"}" "$API/scorecards")
 echo "$KQ" | grep -q "tự chấm chính mình" && pass "chỉ định chính người nhận làm người chấm -> bị chặn" \
@@ -218,7 +227,7 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: applicati
 xoa_phieu_cua_script "\"ownerUserId\"='$U_KTNV'"
 
 # Trưởng bộ phận: chỉ BAN GIÁM ĐỐC mới chấm được
-U_TT2=$(sql "SELECT id FROM \"User\" WHERE email='totruong.shopdrawing@hmico.vn';")
+U_TT2=$(sql "SELECT id FROM \"User\" WHERE email='truongphong.kythuat@hmico.vn';")
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"userId\":\"$U_TT2\",\"periodId\":\"$KY_08\",\"emptyTemplate\":true,\"evaluatorId\":\"$U_ADMIN\"}" "$API/scorecards")
 echo "$KQ" | grep -q "chỉ ban giám đốc mới chấm được" \
@@ -297,10 +306,12 @@ echo "$KQ" | grep -q "blockedEmployees" && pass "nêu đích danh người bị 
 # phòng "chặn thật" đổi theo tiến trình chạy.
 SO_CHAN=$(echo "$KQ" | jq_ "len(d['departmentsWithoutManager'])")
 SO_RONG=$(echo "$KQ" | jq_ "len(d['emptyOrgUnits'])")
-# Loại ADMIN đúng như API: HCNS chốt 03/09/2026 (câu A4) rằng tài khoản quản
-# trị hệ thống không áp KPI, nên nó không làm phòng nào thành "chặn thật".
-DB_CHAN=$(sql "SELECT count(*) FROM \"Department\" d WHERE d.\"managerId\" IS NULL AND d.\"isActive\" AND EXISTS (SELECT 1 FROM \"User\" u WHERE u.\"departmentId\"=d.id AND u.\"isActive\" AND u.role <> 'ADMIN');")
-DB_RONG=$(sql "SELECT count(*) FROM \"Department\" d WHERE d.\"managerId\" IS NULL AND d.\"isActive\" AND NOT EXISTS (SELECT 1 FROM \"User\" u WHERE u.\"departmentId\"=d.id AND u.\"isActive\" AND u.role <> 'ADMIN');")
+# Loại đúng những vai trò API loại — HCNS chốt 03/09/2026:
+#   ADMIN     (câu A4) tài khoản kỹ thuật, không áp KPI
+#   EXECUTIVE (câu A3) giám đốc không bị chấm điểm
+# Hai vai trò này không làm phòng nào thành "chặn thật".
+DB_CHAN=$(sql "SELECT count(*) FROM \"Department\" d WHERE d.\"managerId\" IS NULL AND d.\"isActive\" AND EXISTS (SELECT 1 FROM \"User\" u WHERE u.\"departmentId\"=d.id AND u.\"isActive\" AND u.role NOT IN ('ADMIN','EXECUTIVE'));")
+DB_RONG=$(sql "SELECT count(*) FROM \"Department\" d WHERE d.\"managerId\" IS NULL AND d.\"isActive\" AND NOT EXISTS (SELECT 1 FROM \"User\" u WHERE u.\"departmentId\"=d.id AND u.\"isActive\" AND u.role NOT IN ('ADMIN','EXECUTIVE'));")
 [ "$SO_CHAN" = "$DB_CHAN" ] && pass "phòng chặn thật khớp database ($SO_CHAN phòng có nhân sự, thiếu trưởng)" \
   || fail "API báo $SO_CHAN, database có $DB_CHAN"
 [ "$SO_RONG" = "$DB_RONG" ] && pass "đơn vị rỗng người khớp database ($SO_RONG đơn vị)" \

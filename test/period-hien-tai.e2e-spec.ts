@@ -187,7 +187,7 @@ describe('pendingMyAction khi không có kỳ tháng nào chứa hôm nay', () =
     vi.setSystemTime(new Date('2030-05-15T02:00:00Z'));
     for (const email of [
       'sd.nhanvien1@hmico.vn',
-      'totruong.shopdrawing@hmico.vn',
+      'truongphong.kythuat@hmico.vn',
       'hcns@hmico.vn',
       'giamdoc@hmico.vn',
     ]) {

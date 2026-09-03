@@ -86,7 +86,7 @@ AT_BGD=$(token_cua giamdoc@hmico.vn)
 
 ID_RND=$(sql "SELECT id FROM \"Department\" WHERE code='RND';")
 ID_KT=$(sql "SELECT id FROM \"Department\" WHERE code='KT';")
-ID_KTSD=$(sql "SELECT id FROM \"Department\" WHERE code='KT-SD';")
+ID_KTHCM=$(sql "SELECT id FROM \"Department\" WHERE code='KT-HCM';")
 ID_HN=$(sql "SELECT id FROM \"Department\" WHERE code='HN';")
 ID_MKT=$(sql "SELECT id FROM \"Department\" WHERE code='MKT';")
 U_SD1=$(sql "SELECT id FROM \"User\" WHERE email='sd.nhanvien1@hmico.vn';")
@@ -158,8 +158,9 @@ def d(ns):
         yield n
         yield from d(n['children'])
 print(len(list(d(json.load(sys.stdin)))))" 2>/dev/null)
-[ "$SO_PHONG" = "16" ] && pass "EXECUTIVE thấy đủ 16 phòng ban" \
-  || fail "EXECUTIVE thấy $SO_PHONG phòng (mong đợi 16)"
+SO_PHONG_DB=$(sql "SELECT count(*) FROM \"Department\" WHERE \"isActive\";")
+[ "$SO_PHONG" = "$SO_PHONG_DB" ] && pass "EXECUTIVE thấy đủ $SO_PHONG phòng ban, khớp database" \
+  || fail "EXECUTIVE thấy $SO_PHONG phòng, database có $SO_PHONG_DB"
 
 for EP in "/job-titles" "/users?limit=100"; do
   MA=$(ma -H "Authorization: Bearer $AT_BGD" "$API$EP")
@@ -209,8 +210,9 @@ MA=$(ma -X PATCH -H "Authorization: Bearer $AT_BGD" "$API/users/$U_SD1/activate"
 
 # ===================================================== RÀNG BUỘC CÂY
 buoc "RÀNG BUỘC PHÒNG BAN"
+# HN là cha của KT: đặt HN vào dưới KT là tạo vòng lặp
 MA=$(ma -X PATCH -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
-  -d "{\"parentId\":\"$ID_KTSD\"}" "$API/departments/$ID_KT")
+  -d "{\"parentId\":\"$ID_KT\"}" "$API/departments/$ID_HN")
 [ "$MA" = "400" ] && pass "chuyển phòng vào nhánh con của nó -> 400" \
   || fail "vòng lặp cây -> $MA (mong đợi 400)"
 
@@ -218,7 +220,7 @@ MA=$(ma -X PATCH -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: applicat
   -d "{\"parentId\":\"$ID_KT\"}" "$API/departments/$ID_KT")
 [ "$MA" = "400" ] && pass "đặt chính nó làm phòng cha -> 400" || fail "tự làm cha -> $MA (mong đợi 400)"
 
-MA=$(ma -X DELETE -H "Authorization: Bearer $AT_ADMIN" "$API/departments/$ID_KTSD")
+MA=$(ma -X DELETE -H "Authorization: Bearer $AT_ADMIN" "$API/departments/$ID_KTHCM")
 [ "$MA" = "400" ] && pass "vô hiệu hoá phòng còn nhân viên -> 400" \
   || fail "vô hiệu hoá phòng còn người -> $MA (mong đợi 400)"
 
@@ -257,7 +259,7 @@ buoc "AUDIT LOG — AuditService phải thật sự được gọi"
 # mọi truy vấn bên dưới đã lọc theo entityId của tài khoản thử, nên không
 # cần dọn gì cả.
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
-  -d "{\"employeeCode\":\"ZTEST01\",\"email\":\"ztest01@hmico.vn\",\"fullName\":\"Tài khoản thử\",\"role\":\"STAFF\",\"departmentId\":\"$ID_KTSD\"}" \
+  -d "{\"employeeCode\":\"ZTEST01\",\"email\":\"ztest01@hmico.vn\",\"fullName\":\"Tài khoản thử\",\"role\":\"STAFF\",\"departmentId\":\"$ID_KT\"}" \
   "$API/users")
 U_TEST=$(echo "$KQ" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
 MK_TAM=$(echo "$KQ" | python3 -c "import json,sys;print(json.load(sys.stdin).get('temporaryPassword',''))" 2>/dev/null)
@@ -341,12 +343,12 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_RND" -H 'Content-Type: application
 buoc "BẪY PHÒNG BAN MẤT TRƯỞNG BỘ PHẬN"
 # Phòng không có trưởng bộ phận thì KPI không ai duyệt, và lỗi chỉ lộ ra
 # cuối tháng khi nhân viên đã nộp kết quả.
-U_TT_SD=$(sql "SELECT id FROM \"User\" WHERE email='totruong.shopdrawing@hmico.vn';")
+U_TT_SD=$(sql "SELECT id FROM \"User\" WHERE email='truongphong.kythuat@hmico.vn';")
 KQ=$(curl -s -X PATCH -H "Authorization: Bearer $AT_ADMIN" "$API/users/$U_TT_SD/deactivate")
 echo "$KQ" | grep -q "trưởng bộ phận" \
   && pass "vô hiệu hoá trưởng bộ phận -> bị chặn, nêu tên phòng" \
   || fail "vô hiệu hoá trưởng bộ phận không bị chặn — $KQ"
-echo "$KQ" | grep -q "Tổ Shop Drawing" \
+echo "$KQ" | grep -q "Phòng Kỹ thuật" \
   && pass "thông báo nêu đúng tên phòng đang phụ trách" \
   || fail "thông báo không nêu tên phòng — $KQ"
 
@@ -367,7 +369,7 @@ echo "$CAY" | grep -q '"userCount"' \
 # ===================================================== VÒNG LẶP QUẢN LÝ
 buoc "VÒNG LẶP QUAN HỆ QUẢN LÝ"
 U_KT=$(sql "SELECT id FROM \"User\" WHERE email='truongphong.kythuat@hmico.vn';")
-U_TT=$(sql "SELECT id FROM \"User\" WHERE email='totruong.shopdrawing@hmico.vn';")
+U_TT=$(sql "SELECT id FROM \"User\" WHERE email='sd.nhanvien3@hmico.vn';")
 MA=$(ma -X PATCH -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"managerId\":\"$U_TT\"}" "$API/users/$U_KT")
 [ "$MA" = "400" ] && pass "đặt cấp dưới làm quản lý của cấp trên -> 400" \

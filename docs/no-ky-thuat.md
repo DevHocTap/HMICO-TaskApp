@@ -105,11 +105,11 @@
       `SEED_PASSWORD`). Mọi tài khoản có `mustChangePassword = true`, nhưng
       **không được chạy seed trên môi trường thật**.
 - [ ] Chức danh các phòng NGOÀI phòng Kỹ thuật trong seed là tạm (Trưởng
-      phòng, Tổ trưởng, Giám đốc, Chuyên viên HCNS, Nhân viên Kinh doanh)
-      — chưa đối chiếu biểu mẫu thật. Bốn chức danh phòng Kỹ thuật đã đúng
-      theo Excel.
-- [ ] **Import nhân sự từ Excel chưa làm** — chưa có file mẫu của HR nên
-      chưa biết định dạng cột. Làm ở lát cắt riêng, đừng đoán cấu trúc.
+      phòng, Giám đốc, Trưởng phòng HCNS, Chuyên viên HCNS, Nhân viên Kinh
+      doanh) — chưa đối chiếu biểu mẫu thật. HCNS chốt 03/09/2026: **cứ chạy
+      mẫu, tên thật sẽ nhập vào sau khi chạy** (câu D3).
+- [x] ~~Import nhân sự từ Excel~~ — **HCNS chốt 03/09/2026 (câu D1): KHÔNG
+      cần.** Nhân sự thêm tay khi chạy. Bỏ khỏi phạm vi, không phải hoãn.
 
 ## Câu hỏi chờ HCNS trả lời về mẫu KPI
 
@@ -135,29 +135,23 @@ Còn một việc chưa làm: `pending-my-action` hiện vẫn trả
 `Period.assignDeadline` thật thì phải nối vào — **làm ở lát cắt màn hình**,
 cùng lúc dựng trang "Việc của tôi".
 
-### Câu 0b — Tổ trưởng do AI giao và chấm KPI? CHƯA TRẢ LỜI
+### Câu 0b — ĐÃ TRẢ LỜI (03/09/2026)
 
-HCNS đã chốt **trưởng bộ phận** do ban giám đốc chấm. Nhưng công ty có hai
-cấp quản lý:
+**Công ty KHÔNG có cấp tổ trưởng. Chỉ có Trưởng phòng và Phó phòng.**
 
-| Cấp | Ví dụ | Ai giao và chấm |
-|---|---|---|
-| Trưởng phòng | Trưởng phòng Kỹ thuật | Ban giám đốc — **đã chốt** |
-| **Tổ trưởng** | Tổ trưởng Shop Drawing, Tổ trưởng Bảo trì | **chưa rõ** |
+- **Phó phòng chỉ là CHỨC DANH**, quyền như nhân viên thường, KHÔNG chấm điểm.
+- **Shop Drawing và Bảo hành bảo trì là chức danh nhân viên**, không phải
+  đơn vị tổ chức. Cả bốn nhóm của phòng Kỹ thuật (Kỹ sư triển khai, Kỹ sư
+  cấu hình, Nhân viên Shop Drawing, Nhân viên Bảo hành bảo trì) nằm thẳng
+  dưới Phòng Kỹ thuật.
+- **Ban giám đốc chấm điểm cho Trưởng phòng.**
+- **Giám đốc không bị chấm điểm** — không ai chấm ngược lại ban giám đốc.
 
-Hệ thống hiện gộp cả hai: bất kỳ ai là `Department.managerId` đều được ban
-giám đốc chấm và dùng phiếu rỗng. **Đây là suy diễn khi viết code, không
-phải điều HCNS nói.**
+Đã áp vào seed: bỏ hai đơn vị `KT-SD`, `KT-BT`; HM006 và HM007 từ `MANAGER`
+thành `STAFF`; bỏ chức danh `TT` (Tổ trưởng); thêm `KT-PP` (Phó phòng).
 
-Hai khả năng:
-- Ban giám đốc chấm cả tổ trưởng — code hiện tại đúng, không phải sửa
-- **Trưởng phòng chấm tổ trưởng** — hợp lý hơn về mặt quản lý, vì tổ trưởng
-  báo cáo trực tiếp cho trưởng phòng. Khi đó phải sửa `nguoiChamDuKien()`
-  để phân biệt cấp phòng với cấp tổ
-
-Ảnh hưởng thực tế: 2 trong 5 người đang là trưởng bộ phận là **tổ trưởng**.
-
-Cũng chưa rõ tổ trưởng có mẫu KPI riêng hay dùng phiếu rỗng như trưởng phòng.
+Hệ quả: **chỉ còn MỘT cấp quản lý**, nên `nguoiChamDuKien()` không phải
+phân biệt cấp phòng với cấp tổ. **Không còn phòng nào bị chặn** (trước là 3).
 
 ### Câu 0 — ĐÃ TRẢ LỜI (31/08)
 

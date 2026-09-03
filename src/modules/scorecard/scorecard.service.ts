@@ -565,12 +565,17 @@ export class ScorecardService {
     // Nghỉ việc thì mọi thứ khác không còn ý nghĩa
     if (!nguoi.isActive) return 'Đã nghỉ việc';
 
-    // HCNS chốt 03/09/2026 (câu A4): tài khoản quản trị hệ thống là tài khoản
-    // KỸ THUẬT, không phải một vị trí nhân sự — không thuộc phòng ban, không
-    // cần trưởng bộ phận, KHÔNG áp KPI. Chặn ở đây thay vì chỉ ẩn khỏi danh
-    // sách, để không ai sinh phiếu cho nó bằng đường chỉ định thẳng userId.
+    // HCNS chốt 03/09/2026: hai vai trò này KHÔNG có phiếu KPI.
+    // Chặn ở đây thay vì chỉ ẩn khỏi danh sách, để không ai sinh phiếu cho
+    // họ bằng đường chỉ định thẳng userId.
+    //
+    // Ban giám đốc vẫn là NGƯỜI CHẤM của trưởng phòng — chặn ở đây chỉ là
+    // "không có phiếu của chính mình", không đụng tới vai trò người chấm.
     if (nguoi.role === Role.ADMIN) {
       return 'Tài khoản quản trị hệ thống không áp KPI';
+    }
+    if (nguoi.role === Role.EXECUTIVE) {
+      return 'Ban giám đốc không bị chấm điểm KPI';
     }
 
     const lyDo: string[] = [];

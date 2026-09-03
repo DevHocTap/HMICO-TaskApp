@@ -290,15 +290,21 @@ trực tiếp vào phiếu** của họ, qua đường sinh phiếu rỗng
 (`POST /scorecards` với `emptyTemplate: true`): phiếu chỉ dựng sẵn Mục 2,
 Mục 1 để trống.
 
-> **Phạm vi của quy tắc này: HCNS mới xác nhận cho TRƯỞNG BỘ PHẬN.**
+> **Đã chốt hết 03/09/2026 — không còn chỗ mơ hồ.**
 >
-> Hệ thống hiện áp dụng cho **mọi người là `Department.managerId`**, tức
-> gồm cả **tổ trưởng** (tổ Shop Drawing, tổ Bảo trì). Đó là suy diễn từ mã
-> nguồn, **chưa được HCNS xác nhận** — xem `docs/no-ky-thuat.md`.
+> **Công ty chỉ có MỘT cấp quản lý: Trưởng phòng.** Không có tổ trưởng.
+> `Department.managerId` vì vậy luôn là một trưởng phòng, và
+> `nguoiChamDuKien()` không phải phân biệt cấp nào với cấp nào.
 >
-> Nếu HCNS trả lời tổ trưởng do trưởng phòng giao thay vì ban giám đốc, chỗ
-> sửa là hàm `nguoiChamDuKien()` trong `scorecard.service.ts`: phân biệt
-> cấp phòng với cấp tổ thay vì gộp chung một tập `laTruongBoPhan`.
+> **Phó phòng chỉ là chức danh** — quyền như nhân viên thường, KHÔNG chấm
+> điểm, và có phiếu KPI như mọi nhân viên khác.
+>
+> **Shop Drawing và Bảo hành bảo trì là CHỨC DANH**, không phải đơn vị tổ
+> chức. Hai đơn vị `KT-SD` và `KT-BT` đã bỏ khỏi cây phòng ban.
+>
+> **Ban giám đốc không bị chấm điểm** — `ADMIN` và `EXECUTIVE` không có
+> phiếu KPI. Nhưng ban giám đốc vẫn là NGƯỜI CHẤM của trưởng phòng; hai
+> việc khác nhau, đừng gộp.
 
 Người nhập là ban giám đốc, **không phải trưởng bộ phận tự nhập cho mình**.
 Nhập xong, hai bên trao đổi và chốt theo đúng luồng `PROPOSED → ACCEPTED`
