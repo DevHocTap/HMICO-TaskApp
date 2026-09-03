@@ -27,13 +27,21 @@ buoc() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 sql() { docker exec kpi-postgres psql -U kpi_dev -d kpi_db -t -A -c "$1" 2>/dev/null; }
 
+# Mốc dữ liệu: script chỉ được xoá thứ CHÍNH NÓ tạo ra. Xem file để hiểu
+# vì sao Scorecard và AuditLog cần cơ chế này thay vì tiền tố ZTEST.
+. "$(dirname "$0")/_moc-du-lieu.sh"
+
 don_du_lieu_thu() {
-  # Xoá phiếu và kỳ thử. KHÔNG đụng bốn mẫu KPI thật và bốn kỳ của seed.
+  # CHỈ xoá thứ script tạo ra:
+  #  - Scorecard / AuditLog: theo mốc id chụp lúc bắt đầu (không có cột nào
+  #    đánh dấu được, vì chúng tạo qua API cho tài khoản seed thật)
+  #  - Period / User: theo tiền tố ZTEST
+  #  - Khoá kỳ: khôi phục đúng trạng thái cũ, KHÔNG mở khoá tất cả
+  # KHÔNG dùng DELETE không điều kiện ở bất kỳ đâu.
+  xoa_phieu_cua_script
+  xoa_auditlog_cua_script
+  khoi_phuc_khoa_ky
   docker exec kpi-postgres psql -U kpi_dev -d kpi_db -c "
-    DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\");
-    DELETE FROM \"ScorecardItem\";
-    DELETE FROM \"Scorecard\";
-    DELETE FROM \"AuditLog\";
     DELETE FROM \"Period\" WHERE code LIKE 'ZTEST%';
     DELETE FROM \"RefreshToken\" WHERE \"userId\" IN (SELECT id FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%');
     DELETE FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%';
@@ -43,8 +51,9 @@ don_du_lieu_thu() {
 don_dep() {
   [ -n "${PID_API:-}" ] && kill "$PID_API" 2>/dev/null
   wait 2>/dev/null
-  rm -rf "$TMP"
   don_du_lieu_thu
+  bo_moc_du_lieu
+  rm -rf "$TMP"
 }
 trap don_dep EXIT
 
@@ -64,7 +73,26 @@ if ! curl -sf -o /dev/null "$API/"; then
   echo "Không khởi động được API:"; tail -20 "$TMP/api.log"; exit 1
 fi
 
+# Chụp mốc TRƯỚC khi dọn: mọi thứ đang có trong database từ giờ được coi là
+# dữ liệu của người dùng, script không bao giờ đụng tới.
+chup_moc_du_lieu
 don_du_lieu_thu
+
+# Tiền điều kiện: các kỳ script cần phải đang MỞ.
+#
+# Script KHÔNG tự mở khoá: kỳ bị khoá là quyết định của người dùng, không
+# phải rác của lần chạy trước. Trước đây phần dọn mở khoá tất tay, nên lỗi
+# này không bao giờ lộ ra — nó im lặng huỷ quyết định của người dùng.
+KY_DANG_KHOA=$(sql "SELECT string_agg(code, ', ') FROM \"Period\" WHERE code IN ('2026-08', '2026-09') AND \"isLocked\";")
+if [ -n "$KY_DANG_KHOA" ]; then
+  echo
+  echo "DỪNG: các kỳ sau đang bị khoá nên script không thao tác được: $KY_DANG_KHOA"
+  echo "Script cố ý KHÔNG tự mở — khoá kỳ là quyết định của bạn."
+  echo "Mở bằng: POST /periods/<id>/unlock, hoặc"
+  echo "  docker exec kpi-postgres psql -U kpi_dev -d kpi_db -c \\"
+  echo "    \"UPDATE \\\"Period\\\" SET \\\"isLocked\\\"=false WHERE code IN ('2026-08', '2026-09');\""
+  exit 1
+fi
 
 if [ -z "$(token_cua admin@hmico.vn)" ]; then
   echo; echo "Không đăng nhập được bằng tài khoản seed (admin@hmico.vn)."
@@ -124,7 +152,7 @@ TEN_TRUOC=$(sql "SELECT name FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1'
 sql "UPDATE \"KpiTemplateItem\" SET name='ĐÃ BỊ SỬA SAU KHI LẬP PHIẾU' WHERE id=(SELECT \"templateItemId\" FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1' AND \"parentId\" IS NULL AND section='BSC_WORK' ORDER BY \"displayOrder\" LIMIT 1);" >/dev/null
 TEN_SAU=$(sql "SELECT name FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1' AND \"parentId\" IS NULL AND section='BSC_WORK' ORDER BY \"displayOrder\" LIMIT 1;")
 [ "$TEN_TRUOC" = "$TEN_SAU" ] && pass "sửa mẫu xong, nội dung phiếu KHÔNG đổi" || fail "phiếu đổi theo mẫu: '$TEN_TRUOC' -> '$TEN_SAU'"
-sql "UPDATE \"KpiTemplateItem\" SET name='$TEN_TRUOC' WHERE name='ĐÃ BỊ SỬA SAU KHI LẬP PHIẾU';" >/dev/null
+sql "UPDATE \"KpiTemplateItem\" SET name='$TEN_TRUOC' WHERE id=(SELECT \"templateItemId\" FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1' AND \"parentId\" IS NULL AND section='BSC_WORK' ORDER BY \"displayOrder\" LIMIT 1);" >/dev/null
 
 # ============================================ 3. HÀNG LOẠT
 buoc "SINH HÀNG LOẠT"
@@ -187,9 +215,7 @@ echo "$KQ" | grep -q "tự chấm chính mình" && pass "chỉ định chính ng
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"userId\":\"$U_KTNV\",\"periodId\":\"$KY_08\",\"evaluatorId\":\"$U_ADMIN\"}" "$API/scorecards")
 [ "$MA" = "201" ] && pass "chỉ định người chấm khác cho nhân viên thường -> 201" || fail "-> $MA"
-sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_KTNV');" >/dev/null
-sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_KTNV');" >/dev/null
-sql "DELETE FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_KTNV';" >/dev/null
+xoa_phieu_cua_script "\"ownerUserId\"='$U_KTNV'"
 
 # Trưởng bộ phận: chỉ BAN GIÁM ĐỐC mới chấm được
 U_TT2=$(sql "SELECT id FROM \"User\" WHERE email='totruong.shopdrawing@hmico.vn';")
@@ -284,9 +310,7 @@ MA=$(ma -H "Authorization: Bearer $AT_RND" "$API/scorecards/readiness/company")
 [ "$MA" = "403" ] && pass "MANAGER không xem được readiness toàn công ty -> 403" || fail "-> $MA"
 
 # Dọn phiếu trưởng phòng để không ảnh hưởng phần sau
-sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\"='$SC_TP';" >/dev/null
-sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC_TP';" >/dev/null
-sql "DELETE FROM \"Scorecard\" WHERE id='$SC_TP';" >/dev/null
+xoa_phieu_cua_script "id='$SC_TP'"
 
 buoc "LUỒNG KÝ NHẬN"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' -d '{}' "$API/scorecards/$SC1/propose")
@@ -415,10 +439,7 @@ echo "$KQ" | jq_ "d['created']" | grep -q '^0$' && pass "chép lần hai: bỏ q
 echo "$KQ" | grep -q "Đã có phiếu" && pass "nêu lý do bỏ qua" || fail "không nêu lý do"
 
 buoc "SAO CHÉP BỎ QUA NGƯỜI ĐÃ NGHỈ VIỆC"
-sql "UPDATE \"Scorecard\" SET \"periodId\"='$KY_08' WHERE false;" >/dev/null
-sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"periodId\"='$KY_09');" >/dev/null
-sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"periodId\"='$KY_09');" >/dev/null
-sql "DELETE FROM \"Scorecard\" WHERE \"periodId\"='$KY_09';" >/dev/null
+xoa_phieu_cua_script "\"periodId\"='$KY_09'"
 sql "UPDATE \"User\" SET \"isActive\"=false WHERE id='$U_NV2';" >/dev/null
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"departmentId\":\"$P_KTSD\",\"sourcePeriodId\":\"$KY_08\",\"targetPeriodId\":\"$KY_09\"}" \
@@ -504,9 +525,7 @@ else
   pass "tìm được kỳ chứa hôm nay bằng truy vấn, không viết cứng mã kỳ"
 
   # Dọn sạch kỳ hiện tại trước, vì các mục trên có tạo phiếu ở đây
-  sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"periodId\"='$KY_NAY');" >/dev/null
-  sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"periodId\"='$KY_NAY');" >/dev/null
-  sql "DELETE FROM \"Scorecard\" WHERE \"periodId\"='$KY_NAY';" >/dev/null
+  xoa_phieu_cua_script "\"periodId\"='$KY_NAY'"
 
   SC_NEN1=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
     -d "{\"userId\":\"$U_NV1\",\"periodId\":\"$KY_NAY\"}" "$API/scorecards" | jq_ "d['id']")
@@ -525,7 +544,9 @@ else
   # Số người trong cây phòng Kỹ thuật CHƯA có phiếu — con số màn giao KPI cần.
   # Tính bằng truy vấn, không viết số: seed đổi thì kỳ vọng đổi theo.
   TONG_KT=$(sql "WITH RECURSIVE cay AS (SELECT id FROM \"Department\" WHERE code='KT' UNION ALL SELECT d.id FROM \"Department\" d JOIN cay ON d.\"parentId\"=cay.id) SELECT count(*) FROM \"User\" u JOIN cay ON u.\"departmentId\"=cay.id WHERE u.\"isActive\";")
-  CO_PHIEU_KT=$(sql "WITH RECURSIVE cay AS (SELECT id FROM \"Department\" WHERE code='KT' UNION ALL SELECT d.id FROM \"Department\" d JOIN cay ON d.\"parentId\"=cay.id) SELECT count(*) FROM \"Scorecard\" s JOIN cay ON s.\"departmentId\"=cay.id WHERE s.\"periodId\"='$KY_NAY';")
+    # Chỉ đếm phiếu do SCRIPT tạo: phiếu người dùng tạo tay không được làm
+  # sai kỳ vọng, cũng không bị script xoá đi cho khớp số.
+CO_PHIEU_KT=$(sql "WITH RECURSIVE cay AS (SELECT id FROM \"Department\" WHERE code='KT' UNION ALL SELECT d.id FROM \"Department\" d JOIN cay ON d.\"parentId\"=cay.id) SELECT count(*) FROM \"Scorecard\" s JOIN cay ON s.\"departmentId\"=cay.id WHERE s.\"periodId\"='$KY_NAY' AND s.$PHIEU_CUA_SCRIPT;")
   [ "$CO_PHIEU_KT" = "2" ] && pass "cây phòng Kỹ thuật: $TONG_KT người hoạt động, $CO_PHIEU_KT đã có phiếu, $((TONG_KT-CO_PHIEU_KT)) chưa có" \
     || fail "mong đợi đúng 2 phiếu trong cây KT, đang có $CO_PHIEU_KT"
 fi

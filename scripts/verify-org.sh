@@ -251,7 +251,11 @@ buoc "AUDIT LOG — AuditService phải thật sự được gọi"
 
 # Mọi thao tác phá huỷ dưới đây chạy trên MỘT TÀI KHOẢN THỬ do chính script
 # tạo ra, không đụng vào dữ liệu seed.
-sql "DELETE FROM \"AuditLog\";" > /dev/null
+#
+# Trước đây mỗi mục bắt đầu bằng `DELETE FROM "AuditLog"` để đếm từ 0 —
+# xoá sạch nhật ký của cả hệ thống chỉ để một phép đếm ra số đẹp. Bỏ hẳn:
+# mọi truy vấn bên dưới đã lọc theo entityId của tài khoản thử, nên không
+# cần dọn gì cả.
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"employeeCode\":\"ZTEST01\",\"email\":\"ztest01@hmico.vn\",\"fullName\":\"Tài khoản thử\",\"role\":\"STAFF\",\"departmentId\":\"$ID_KTSD\"}" \
   "$API/users")
@@ -267,23 +271,21 @@ SO=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE action='CREATE' AND \"entityId
 [ "$SO" = "1" ] && pass "có bản ghi audit CREATE" || fail "có $SO bản ghi CREATE (mong đợi 1)"
 
 # --- đổi vai trò ---
-sql "DELETE FROM \"AuditLog\";" > /dev/null
 MA=$(ma -X PATCH -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d '{"role":"MANAGER"}' "$API/users/$U_TEST")
 [ "$MA" = "200" ] && pass "đổi vai trò nhân viên -> 200" || fail "đổi vai trò -> $MA"
 sleep 0.3
 SO=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE action='CHANGE_ROLE' AND \"entityId\"='$U_TEST';")
 [ "$SO" = "1" ] && pass "có ĐÚNG 1 bản ghi audit CHANGE_ROLE" || fail "có $SO bản ghi (mong đợi 1)"
-ACTOR=$(sql "SELECT \"actorId\" FROM \"AuditLog\" WHERE action='CHANGE_ROLE';")
+ACTOR=$(sql "SELECT \"actorId\" FROM \"AuditLog\" WHERE action='CHANGE_ROLE' AND \"entityId\"='$U_TEST';")
 [ "$ACTOR" = "$U_ADMIN" ] && pass "actorId đúng là người thực hiện" || fail "actorId=$ACTOR (mong đợi $U_ADMIN)"
-BEFORE=$(sql "SELECT before->>'role' FROM \"AuditLog\" WHERE action='CHANGE_ROLE';")
-AFTER=$(sql "SELECT after->>'role' FROM \"AuditLog\" WHERE action='CHANGE_ROLE';")
+BEFORE=$(sql "SELECT before->>'role' FROM \"AuditLog\" WHERE action='CHANGE_ROLE' AND \"entityId\"='$U_TEST';")
+AFTER=$(sql "SELECT after->>'role' FROM \"AuditLog\" WHERE action='CHANGE_ROLE' AND \"entityId\"='$U_TEST';")
 [ "$BEFORE" = "STAFF" ] && [ "$AFTER" = "MANAGER" ] \
   && pass "before/after đúng: $BEFORE -> $AFTER" \
   || fail "before=$BEFORE after=$AFTER (mong đợi STAFF -> MANAGER)"
 
 # --- đặt lại mật khẩu ---
-sql "DELETE FROM \"AuditLog\";" > /dev/null
 RT_TRUOC=$(curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
   -d "{\"email\":\"ztest01@hmico.vn\",\"password\":\"$MK_TAM\"}" \
   | python3 -c "import json,sys;print(json.load(sys.stdin).get('refreshToken',''))" 2>/dev/null)
@@ -295,7 +297,7 @@ echo "$KQ" | grep -q temporaryPassword && pass "đặt lại mật khẩu trả 
 sleep 0.3
 SO=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE action='RESET_PASSWORD' AND \"entityId\"='$U_TEST';")
 [ "$SO" = "1" ] && pass "có bản ghi audit RESET_PASSWORD" || fail "có $SO bản ghi (mong đợi 1)"
-NOI_DUNG=$(sql "SELECT COALESCE(before::text,'') || COALESCE(after::text,'') FROM \"AuditLog\" WHERE action='RESET_PASSWORD';")
+NOI_DUNG=$(sql "SELECT COALESCE(before::text,'') || COALESCE(after::text,'') FROM \"AuditLog\" WHERE action='RESET_PASSWORD' AND \"entityId\"='$U_TEST';")
 if echo "$NOI_DUNG" | grep -qiE 'passwordHash|argon2|che'; then
   fail "bản ghi audit có nhắc tới passwordHash: $NOI_DUNG"
 else
@@ -307,7 +309,6 @@ MA=$(ma -X POST "$API/auth/refresh" -H 'Content-Type: application/json' \
   || fail "refresh token cũ -> $MA (mong đợi 401)"
 
 # --- vô hiệu hoá ---
-sql "DELETE FROM \"AuditLog\";" > /dev/null
 MK2=$(echo "$KQ" | python3 -c "import json,sys;print(json.load(sys.stdin).get('temporaryPassword',''))" 2>/dev/null)
 RT2=$(curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
   -d "{\"email\":\"ztest01@hmico.vn\",\"password\":\"$MK2\"}" \

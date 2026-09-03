@@ -27,28 +27,27 @@ buoc() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 sql() { docker exec kpi-postgres psql -U kpi_dev -d kpi_db -t -A -c "$1" 2>/dev/null; }
 
+# Mốc dữ liệu: script chỉ được xoá thứ CHÍNH NÓ tạo ra.
+. "$(dirname "$0")/_moc-du-lieu.sh"
+
 don_du_lieu_thu() {
-  # Chỉ đụng dữ liệu ZTEST và phiếu do script này tạo. KHÔNG xoá bốn kỳ
-  # thật của seed, và KHÔNG xoá sạch AuditLog của script khác.
+  # CHỈ xoá thứ script tạo ra: Scorecard và AuditLog theo mốc id chụp lúc
+  # bắt đầu, Period theo tiền tố ZTEST, khoá kỳ khôi phục về trạng thái cũ
+  # (KHÔNG mở khoá tất cả — kỳ người dùng cố ý khoá phải giữ nguyên).
+  xoa_phieu_cua_script
+  xoa_auditlog_cua_script
+  khoi_phuc_khoa_ky
   docker exec kpi-postgres psql -U kpi_dev -d kpi_db -c "
-    DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN
-      (SELECT id FROM \"Scorecard\" WHERE \"periodId\" IN (SELECT id FROM \"Period\" WHERE code LIKE 'ZTEST%'));
-    DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN
-      (SELECT id FROM \"Scorecard\" WHERE \"periodId\" IN (SELECT id FROM \"Period\" WHERE code LIKE 'ZTEST%'));
-    DELETE FROM \"Scorecard\" WHERE \"periodId\" IN (SELECT id FROM \"Period\" WHERE code LIKE 'ZTEST%');
-    DELETE FROM \"AuditLog\" WHERE \"entityType\"='Period'
-      AND (\"entityId\" IN (SELECT id FROM \"Period\" WHERE code LIKE 'ZTEST%')
-           OR action IN ('LOCK','UNLOCK'));
     DELETE FROM \"Period\" WHERE code LIKE 'ZTEST%';
-    UPDATE \"Period\" SET \"isLocked\"=false, \"lockedAt\"=NULL, \"lockedById\"=NULL WHERE \"isLocked\";
   " >/dev/null 2>&1
 }
 
 don_dep() {
   [ -n "${PID_API:-}" ] && kill "$PID_API" 2>/dev/null
   wait 2>/dev/null
-  rm -rf "$TMP"
   don_du_lieu_thu
+  bo_moc_du_lieu
+  rm -rf "$TMP"
 }
 trap don_dep EXIT
 
@@ -68,7 +67,25 @@ if ! curl -sf -o /dev/null "$API/"; then
   echo "Không khởi động được API:"; tail -20 "$TMP/api.log"; exit 1
 fi
 
+# Chụp mốc TRƯỚC khi dọn: dữ liệu đang có là của người dùng, không đụng tới.
+chup_moc_du_lieu
 don_du_lieu_thu
+
+# Tiền điều kiện: các kỳ script cần phải đang MỞ.
+#
+# Script KHÔNG tự mở khoá: kỳ bị khoá là quyết định của người dùng, không
+# phải rác của lần chạy trước. Trước đây phần dọn mở khoá tất tay, nên lỗi
+# này không bao giờ lộ ra — nó im lặng huỷ quyết định của người dùng.
+KY_DANG_KHOA=$(sql "SELECT string_agg(code, ', ') FROM \"Period\" WHERE code IN ('2026-08') AND \"isLocked\";")
+if [ -n "$KY_DANG_KHOA" ]; then
+  echo
+  echo "DỪNG: các kỳ sau đang bị khoá nên script không thao tác được: $KY_DANG_KHOA"
+  echo "Script cố ý KHÔNG tự mở — khoá kỳ là quyết định của bạn."
+  echo "Mở bằng: POST /periods/<id>/unlock, hoặc"
+  echo "  docker exec kpi-postgres psql -U kpi_dev -d kpi_db -c \\"
+  echo "    \"UPDATE \\\"Period\\\" SET \\\"isLocked\\\"=false WHERE code IN ('2026-08');\""
+  exit 1
+fi
 
 if [ -z "$(token_cua admin@hmico.vn)" ]; then
   echo; echo "Không đăng nhập được bằng tài khoản seed (admin@hmico.vn)."
@@ -142,6 +159,7 @@ U_NV=$(sql "SELECT id FROM \"User\" WHERE email='sd.nhanvien1@hmico.vn';")
 curl -s -o /dev/null -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"userId\":\"$U_NV\",\"periodId\":\"$KY_08\"}" "$API/scorecards"
 DEM_DB=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"periodId\"='$KY_08';")
+DEM_SCRIPT=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"periodId\"='$KY_08' AND $PHIEU_CUA_SCRIPT;")
 DEM_API=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/periods" \
   | python3 -c "
 import json,sys
@@ -158,10 +176,8 @@ print(sum(1 for k in json.load(sys.stdin) if k['scorecardCount']==0))" 2>/dev/nu
 RONG_DB=$(sql "SELECT count(*) FROM \"Period\" p WHERE NOT EXISTS (SELECT 1 FROM \"Scorecard\" s WHERE s.\"periodId\"=p.id);")
 [ "$RONG" = "$RONG_DB" ] && pass "$RONG kỳ chưa có phiếu nào, khớp database" || fail "API $RONG, database $RONG_DB"
 
-sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"periodId\"='$KY_08');" >/dev/null
-sql "DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"periodId\"='$KY_08');" >/dev/null
-sql "DELETE FROM \"Scorecard\" WHERE \"periodId\"='$KY_08';" >/dev/null
-sql "DELETE FROM \"AuditLog\" WHERE \"entityType\"='Scorecard';" >/dev/null
+xoa_phieu_cua_script "\"periodId\"='$KY_08'"
+xoa_auditlog_cua_script "\"entityType\"='Scorecard'"
 
 # ================================================ 3. TẠO KỲ
 buoc "POST /periods — TẠO KỲ THỦ CÔNG"
@@ -295,10 +311,13 @@ buoc "TỰ DỌN DỮ LIỆU THỬ"
 don_du_lieu_thu
 CON=$(sql "SELECT count(*) FROM \"Period\" WHERE code LIKE 'ZTEST%';")
 [ "$CON" = "0" ] && pass "không còn kỳ ZTEST nào" || fail "còn $CON kỳ ZTEST"
-CON=$(sql "SELECT count(*) FROM \"Period\" WHERE \"isLocked\";")
-[ "$CON" = "0" ] && pass "không còn kỳ nào bị khoá" || fail "còn $CON kỳ bị khoá"
-CON=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Period' AND action IN ('LOCK','UNLOCK','CREATE');")
-[ "$CON" = "0" ] && pass "dọn sạch AuditLog do script tạo" || fail "còn $CON dòng"
+# So với MỐC, không so với 0: kỳ người dùng cố ý khoá phải giữ nguyên khoá.
+CON=$(sql "SELECT count(*) FROM \"Period\" p JOIN ztest_moc_period m ON m.id=p.id WHERE p.\"isLocked\" IS DISTINCT FROM m.\"isLocked\";")
+[ "$CON" = "0" ] && pass "trạng thái khoá mọi kỳ đã về đúng như trước khi chạy" || fail "$CON kỳ còn lệch so với mốc"
+CON=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE id NOT IN (SELECT id FROM ztest_moc_auditlog);")
+[ "$CON" = "0" ] && pass "dọn sạch AuditLog do script tạo, giữ nguyên phần có trước" || fail "còn $CON dòng"
+CON=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE $PHIEU_CUA_SCRIPT;")
+[ "$CON" = "0" ] && pass "không còn phiếu nào do script tạo" || fail "còn $CON phiếu"
 
 echo
 printf '%.0s=' {1..60}; echo

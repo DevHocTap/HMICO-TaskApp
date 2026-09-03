@@ -222,7 +222,11 @@ SO_GOC2=$(sql "SELECT count(*) FROM \"KpiTemplateItem\" WHERE \"templateId\"='$I
 
 # ------------------------------------------- DỮ LIỆU THẬT + VERSION + AUDIT
 buoc "DỮ LIỆU THẬT TỪ EXCEL"
-sql "DELETE FROM \"AuditLog\";" >/dev/null
+# KHÔNG xoá AuditLog để đếm từ 0 — xoá sạch nhật ký cả hệ thống chỉ để một
+# phép đếm ra số đẹp là cái giá quá đắt. Thay bằng đếm ĐỘ CHÊNH trước/sau,
+# cách này còn đúng hơn: nó chứng minh thao tác vừa rồi sinh ra đúng 1 dòng,
+# chứ không phải "tổng cộng có 1 dòng".
+LOG_TRUOC=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE action='PUBLISH' AND \"entityId\"='$ID_SD';")
 V_TRUOC=$(sql "SELECT version FROM \"KpiTemplate\" WHERE code='TPL-KT-SD';")
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_SD/publish")
 [ "$MA" = "200" ] && pass "xuất bản mẫu Shop Drawing thật -> 200 (file gốc đúng 70/100)" \
@@ -232,8 +236,9 @@ V_SAU=$(sql "SELECT version FROM \"KpiTemplate\" WHERE code='TPL-KT-SD';")
 TT=$(sql "SELECT status FROM \"KpiTemplate\" WHERE code='TPL-KT-SD';")
 [ "$TT" = "PUBLISHED" ] && pass "trạng thái PUBLISHED" || fail "status=$TT"
 sleep 0.3
-SO=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE action='PUBLISH' AND \"entityId\"='$ID_SD';")
-[ "$SO" = "1" ] && pass "có bản ghi AuditLog PUBLISH" || fail "có $SO bản ghi audit (mong đợi 1)"
+LOG_SAU=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE action='PUBLISH' AND \"entityId\"='$ID_SD';")
+[ "$((LOG_SAU - LOG_TRUOC))" = "1" ] && pass "lần xuất bản này sinh ĐÚNG 1 bản ghi AuditLog PUBLISH" \
+  || fail "sinh $((LOG_SAU - LOG_TRUOC)) bản ghi (mong đợi 1)"
 
 for MAU in TPL-KT-KSTK TPL-KT-KSCH TPL-KT-BH; do
   ID=$(sql "SELECT id FROM \"KpiTemplate\" WHERE code='$MAU';")
