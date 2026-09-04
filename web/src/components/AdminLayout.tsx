@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, Layout, Menu, Space, Tag, Typography } from 'antd';
 import {
+  CalendarOutlined,
   ScheduleOutlined,
   SolutionOutlined,
   ApartmentOutlined,
@@ -12,6 +13,7 @@ import {
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import {
+  coTheChotSo,
   coTheGiaoKpi,
   coTheXemNhanVien,
   coTheXemToChuc,
@@ -69,6 +71,15 @@ export function AdminLayout() {
                 key: '/kpi/assign',
                 icon: <ScheduleOutlined />,
                 label: <Link to="/kpi/assign">Giao KPI</Link>,
+              },
+            ]
+          : []),
+        ...(coTheChotSo(user?.role)
+          ? [
+              {
+                key: '/kpi/periods',
+                icon: <CalendarOutlined />,
+                label: <Link to="/kpi/periods">Kỳ đánh giá</Link>,
               },
             ]
           : []),

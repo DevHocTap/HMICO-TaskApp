@@ -4,7 +4,7 @@
 > Đây là trí nhớ của Claude Code giữa các phiên — để lạc hậu là nó sẽ
 > làm lại thứ đã có hoặc bỏ sót thứ đang dở.
 
-Cập nhật lần cuối: 30/08/2026
+Cập nhật lần cuối: 04/09/2026
 
 **Mốc bàn giao: một phòng Kỹ thuật chạy thật tháng 11/2026.**
 Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
@@ -81,7 +81,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
 
 ## Đang làm
 
-**Lát cắt 4 — `scorecard`, backend XONG, giao diện chưa bắt đầu.**
+**Lát cắt 4 — `scorecard`: XONG CẢ HAI ĐẦU (04/09).**
 
 Sau buổi chốt 03/09 với HCNS và ban giám đốc, đã áp:
 - Lịch trong tháng đổi sang **bốn mốc 25 / 25 / 29 / 30** (mục 5.5 viết
@@ -120,7 +120,11 @@ Giao diện đã có (04/09):
   hoặc "Còn N ngày". Hạn lấy từ `Period.assignDeadline` thật (ngày 25 tháng
   trước), đóng nợ ghi ở Câu 0c.
 
-**Việc tiếp: `/kpi/periods` để HCNS và BGĐ chốt sổ.**
+- **`/kpi/periods`** — danh sách kỳ kèm cả bốn mốc, số phiếu, nguồn (tự
+  sinh hay tạo tay); chốt sổ và mở lại (HCNS, BGĐ, quản trị); tạo kỳ thủ
+  công (quản trị, HCNS). Nút chốt sổ chỉ hiện ở kỳ THÁNG.
+
+**LÁT CẮT 4 XONG CẢ HAI ĐẦU.** Việc tiếp: lát cắt 5 — chấm điểm.
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 

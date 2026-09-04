@@ -9,12 +9,18 @@ import { HomePage } from './pages/HomePage';
 import { MyScorecardsPage } from './pages/kpi/MyScorecardsPage';
 import { AssignKpiPage } from './pages/kpi/AssignKpiPage';
 import { ScorecardDetailPage } from './pages/kpi/ScorecardDetailPage';
+import { PeriodsPage } from './pages/kpi/PeriodsPage';
 import { DepartmentsPage } from './pages/admin/DepartmentsPage';
 import { JobTitlesPage } from './pages/admin/JobTitlesPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { KpiTemplatesPage } from './pages/admin/KpiTemplatesPage';
 import { KpiTemplateEditorPage } from './pages/admin/KpiTemplateEditorPage';
-import { coTheXemNhanVien, coTheXemToChuc, coTheGiaoKpi } from './auth/permissions';
+import {
+  coTheChotSo,
+  coTheGiaoKpi,
+  coTheXemNhanVien,
+  coTheXemToChuc,
+} from './auth/permissions';
 
 export function App() {
   return (
@@ -38,6 +44,11 @@ export function App() {
           <Route element={<RoleRoute duocPhep={coTheGiaoKpi} />}>
             <Route path="/kpi/assign" element={<AssignKpiPage />} />
             <Route path="/kpi/scorecards/:id" element={<ScorecardDetailPage />} />
+          </Route>
+
+          {/* Kỳ đánh giá và chốt sổ — HCNS, ban giám đốc, quản trị. */}
+          <Route element={<RoleRoute duocPhep={coTheChotSo} />}>
+            <Route path="/kpi/periods" element={<PeriodsPage />} />
           </Route>
 
           <Route element={<RoleRoute duocPhep={coTheXemToChuc} />}>

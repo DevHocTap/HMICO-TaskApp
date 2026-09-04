@@ -152,3 +152,34 @@ export async function layViecCuaToi(): Promise<ViecCanXuLy[]> {
   const { data } = await apiClient.get<ViecCanXuLy[]>('/scorecards/pending-my-action');
   return data;
 }
+
+// ------------------------------------------------------- kỳ đánh giá
+
+export interface KyMoiInput {
+  code: string;
+  name: string;
+  type: 'MONTH' | 'QUARTER' | 'YEAR';
+  startDate: string;
+  endDate: string;
+  /** Bốn mốc dưới đây CHỈ kỳ MONTH được có. Dạng YYYY-MM-DD, không kèm giờ. */
+  assignDeadline?: string;
+  selfScoreDeadline?: string;
+  managerScoreDeadline?: string;
+  submitDeadline?: string;
+}
+
+export async function taoKyDanhGia(input: KyMoiInput): Promise<KyDanhGia> {
+  const { data } = await apiClient.post<KyDanhGia>('/periods', input);
+  return data;
+}
+
+/** Chốt sổ kỳ — HCNS và ban giám đốc. CHỈ kỳ MONTH khoá được. */
+export async function khoaKy(id: string): Promise<KyDanhGia> {
+  const { data } = await apiClient.post<KyDanhGia>(`/periods/${id}/lock`);
+  return data;
+}
+
+export async function moKy(id: string): Promise<KyDanhGia> {
+  const { data } = await apiClient.post<KyDanhGia>(`/periods/${id}/unlock`);
+  return data;
+}

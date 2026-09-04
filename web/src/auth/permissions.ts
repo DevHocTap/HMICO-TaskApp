@@ -52,3 +52,25 @@ export function coTheXemNhanVien(role: Role | undefined): boolean {
 export function coTheGiaoKpi(role: Role | undefined): boolean {
   return role === 'ADMIN' || role === 'HR' || role === 'MANAGER' || role === 'EXECUTIVE';
 }
+
+/**
+ * Chốt sổ kỳ đánh giá — khoá và mở lại.
+ *
+ * HCNS chốt 03/09/2026 (câu A5): chốt sổ là quyết định NGHIỆP VỤ, không
+ * phải thao tác kỹ thuật, nên HCNS và ban giám đốc làm được. ADMIN giữ
+ * quyền theo câu A4 (tài khoản quản trị có toàn quyền).
+ */
+export function coTheChotSo(role: Role | undefined): boolean {
+  return role === 'ADMIN' || role === 'HR' || role === 'EXECUTIVE';
+}
+
+/**
+ * Tạo kỳ đánh giá thủ công.
+ *
+ * Kỳ tháng do tác vụ định kỳ tự sinh; đường tạo tay chỉ dùng khi cần một
+ * kỳ quá khứ mà tác vụ cố ý không bù. Ban giám đốc KHÔNG tạo kỳ — dựng kỳ
+ * là việc vận hành, khác với chốt sổ.
+ */
+export function coTheTaoKy(role: Role | undefined): boolean {
+  return role === 'ADMIN' || role === 'HR';
+}
