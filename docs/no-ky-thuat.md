@@ -129,11 +129,25 @@ Toàn bộ lịch trong tháng — bốn mốc 25 / 25 / 27–29 / 30 — xem
 `docs/quy-tac-nghiep-vu.md` mục 5.5. Lịch cũ ("hết ngày 02 tháng kế tiếp")
 đã bỏ hẳn: nó sai một tháng.
 
-Còn một việc chưa làm: `pending-my-action` hiện vẫn trả
-`daysUntilDeadline: null` cho mọi việc đầu kỳ (hằng `KHONG_CO_HAN` trong
-`src/modules/scorecard/scorecard-query.service.ts`). Nay đã có
-`Period.assignDeadline` thật thì phải nối vào — **làm ở lát cắt màn hình**,
-cùng lúc dựng trang "Việc của tôi".
+**Đã nối xong 04/09:** `pending-my-action` lấy hạn từ
+`Period.assignDeadline` của kỳ chứa hôm nay. Trang chủ "Việc của tôi" hiện
+thẻ "Quá hạn" hoặc "Còn N ngày" theo đó.
+
+**MỘT CHỖ CÒN SUY DIỄN — cần hỏi lại HCNS.** Việc `CHO_KY_NHAN` (nhân viên
+ký nhận phiếu) cũng đang lấy `assignDeadline`. HCNS chỉ nói **ngày 25 là hạn
+TRƯỞNG PHÒNG lên KPI**, không nói hạn nhân viên phải ký xong. Coi chữ ký là
+phần cuối của việc "lên KPI" là cách đọc hợp lý nhất — phiếu chưa ai ký thì
+chưa chốt được — nhưng vẫn là suy diễn.
+
+**Câu hỏi: nhân viên phải ký nhận phiếu trước ngày mấy?**
+
+Chỗ sửa nếu HCNS trả lời khác: hằng `hanGiaoKpi` trong `pendingMyAction()`
+(`src/modules/scorecard/scorecard-query.service.ts`) — tách riêng hạn cho
+`CHO_KY_NHAN` thay vì dùng chung một biến.
+
+Một việc nữa chưa làm: trang chủ chỉ nhắc kỳ CHỨA HÔM NAY. Ngày 25/09 thì
+việc thật là **lên KPI tháng 10**, nhưng màn hình vẫn nhắc tháng 9. Sửa khi
+làm phần theo dõi tiến độ nộp.
 
 ### Câu 0b — ĐÃ TRẢ LỜI (03/09/2026)
 
@@ -331,8 +345,8 @@ tự động rồi mới vỡ.
       tách chunk theo route.
 - [ ] Chưa có màn hình nào dẫn tới `/change-password` cho người muốn tự
       đổi mật khẩu. Route đã cho vào, chỉ thiếu đường dẫn trên giao diện.
-- [ ] Trang chủ vẫn là chỗ giữ chỗ ("Đang xây dựng"). Menu điều hướng đã
-      có, nhưng chưa có nội dung dashboard.
+- [x] ~~Trang chủ là chỗ giữ chỗ~~ — đã dựng "Việc của tôi" (04/09), đọc từ
+      `GET /scorecards/pending-my-action`. Chưa có dashboard tổng hợp cho BGĐ.
 - [ ] Màn nhân viên chưa cho sửa `managerId` (người quản lý trực tiếp).
       Backend có sẵn, chỉ thiếu ô chọn trên form.
 - [ ] Chưa có import nhân sự từ Excel — chờ file mẫu của HR.

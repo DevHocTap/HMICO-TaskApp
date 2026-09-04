@@ -6,6 +6,7 @@ import type {
   PhieuKpi,
   PhieuKpiChiTiet,
   SanSangCongTy,
+  ViecCanXuLy,
 } from '../types/scorecard';
 
 /**
@@ -143,5 +144,11 @@ export async function guiPhieuDiKy(id: string, note?: string): Promise<PhieuKpi>
   const { data } = await apiClient.post<PhieuKpi>(`/scorecards/${id}/propose`, {
     ...(note ? { note } : {}),
   });
+  return data;
+}
+
+/** Việc đang chờ chính người đăng nhập xử lý — mọi vai trò đều gọi được. */
+export async function layViecCuaToi(): Promise<ViecCanXuLy[]> {
+  const { data } = await apiClient.get<ViecCanXuLy[]>('/scorecards/pending-my-action');
   return data;
 }

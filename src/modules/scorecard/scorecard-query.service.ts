@@ -8,7 +8,10 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DepartmentScopeService } from '../org/department-scope.service.js';
-import { homNayDangNgay } from '../period/period-calendar.js';
+import {
+  homNayDangNgay,
+  tinhTinhTrangHanNop,
+} from '../period/period-calendar.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import type {
   AssignmentBoardQuery,
@@ -46,19 +49,26 @@ const NGUOI_CO_KPI = {
 } as const;
 
 /**
- * Việc ĐẦU KỲ — giao KPI, gửi ký, ký nhận, xử lý ý kiến — KHÔNG có hạn chót.
+ * Hạn của việc ĐẦU KỲ là `Period.assignDeadline` — ngày 25 THÁNG TRƯỚC.
  *
- * Hạn ngày 02 ở `quy-tac-nghiep-vu.md` mục 5.5 là hạn **nộp KẾT QUẢ của kỳ
- * đã kết thúc**, không phải hạn giao KPI đầu kỳ. Gắn nó vào việc đầu kỳ là
- * bịa ra một hạn HCNS chưa từng đặt, và ngày 03 hàng tháng màn hình sẽ báo
- * đỏ "quá hạn" cho việc còn cả tháng để làm.
+ * HCNS chốt 03/09/2026 (câu A2, khẳng định lại 04/09): ngày 25 hàng tháng
+ * trưởng phòng lên KPI cho tháng sau. Toàn bộ nhóm việc đầu kỳ — giao KPI,
+ * gửi ký, ký nhận, xử lý ý kiến — phục vụ đúng một cái mốc đó: sang ngày
+ * đầu tháng thì KPI của tháng phải chốt xong.
  *
- * LÁT CẮT 5 (chấm điểm): việc CUỐI KỲ mới dùng hạn thật — gọi
- * `tinhTinhTrangHanNop(ky.submitDeadline)` ở `period-calendar.ts`, đừng gắn
- * lại hạn cho các loại việc bên dưới.
+ * Bản trước gắn hạn NỘP KẾT QUẢ (ngày 02 tháng kế tiếp, lịch cũ đã bỏ) cho
+ * nhóm này, rồi phải tháo ra vì nó bịa một hạn HCNS chưa đặt. Nay đã có hạn
+ * thật thì dùng hạn thật.
  *
- * Câu hỏi đang chờ HCNS: việc giao KPI đầu kỳ có hạn chót không —
- * xem `docs/no-ky-thuat.md`.
+ * LÁT CẮT 5 (chấm điểm) dùng mốc KHÁC — `selfScoreDeadline` (25),
+ * `managerScoreDeadline` (29), `submitDeadline` (30). Đừng dùng
+ * `assignDeadline` cho việc cuối kỳ.
+ *
+ * MỘT CHỖ TÔI SUY, chưa hỏi lại HCNS: `CHO_KY_NHAN` (nhân viên ký nhận)
+ * cũng lấy `assignDeadline`. HCNS chỉ nói ngày 25 là hạn TRƯỞNG PHÒNG lên
+ * KPI, không nói hạn nhân viên ký. Coi chữ ký là phần cuối của việc "lên
+ * KPI" là cách đọc hợp lý nhất, nhưng vẫn là suy diễn — xem
+ * `docs/no-ky-thuat.md`.
  */
 const KHONG_CO_HAN = { daysUntilDeadline: null, isOverdue: false } as const;
 
@@ -201,6 +211,11 @@ export class ScorecardQueryService {
   async pendingMyAction(user: AuthenticatedUser): Promise<ViecCanXuLy[]> {
     const viec: ViecCanXuLy[] = [];
     const ky = await this.kyHienTai();
+    // Hạn chung cho mọi việc đầu kỳ. Không có kỳ nào chứa hôm nay thì không
+    // có hạn — thà không hiện còn hơn hiện một con số bịa.
+    const hanGiaoKpi = ky
+      ? tinhTinhTrangHanNop(ky.assignDeadline)
+      : KHONG_CO_HAN;
 
     // --- Ai cũng có thể có phiếu chờ ký ---
     //
@@ -221,7 +236,7 @@ export class ScorecardQueryService {
         message: `Bạn có ${phieuChoKy.length} phiếu KPI chờ ký nhận (${nhan})`,
         count: phieuChoKy.length,
         link: '/kpi/my',
-        ...KHONG_CO_HAN,
+        ...hanGiaoKpi,
       });
     }
 
@@ -235,7 +250,7 @@ export class ScorecardQueryService {
         message: `${chuaGui} phiếu KPI chưa gửi cho nhân viên ký nhận`,
         count: chuaGui,
         link: '/kpi/assign',
-        ...KHONG_CO_HAN,
+        ...hanGiaoKpi,
       });
     }
 
@@ -248,7 +263,7 @@ export class ScorecardQueryService {
         message: `${coYKien} phiếu KPI bị nhân viên nêu ý kiến, chờ bạn xử lý`,
         count: coYKien,
         link: '/kpi/assign',
-        ...KHONG_CO_HAN,
+        ...hanGiaoKpi,
       });
     }
 
@@ -275,7 +290,7 @@ export class ScorecardQueryService {
             message: `${chuaGuiKy} phiếu KPI của trưởng bộ phận chưa gửi ký nhận`,
             count: chuaGuiKy,
             link: '/kpi/assign',
-            ...KHONG_CO_HAN,
+            ...hanGiaoKpi,
           });
         }
 
@@ -292,7 +307,7 @@ export class ScorecardQueryService {
             message: `${chuaCoPhieu} trưởng bộ phận chưa có phiếu KPI ${ky.name}`,
             count: chuaCoPhieu,
             link: '/kpi/assign',
-            ...KHONG_CO_HAN,
+            ...hanGiaoKpi,
           });
         }
       }
@@ -307,7 +322,7 @@ export class ScorecardQueryService {
           message: `${chuaGiao} nhân viên chưa được giao KPI ${ky.name}`,
           count: chuaGiao,
           link: '/kpi/assign',
-          ...KHONG_CO_HAN,
+          ...hanGiaoKpi,
         });
       }
     }
@@ -735,7 +750,7 @@ export class ScorecardQueryService {
         startDate: { lte: homNay },
         endDate: { gte: homNay },
       },
-      select: { id: true, name: true, submitDeadline: true },
+      select: { id: true, name: true, assignDeadline: true },
     });
   }
 

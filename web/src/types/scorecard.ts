@@ -182,3 +182,22 @@ export interface KyDanhGia {
   createdByName: string | null;
   scorecardCount: number;
 }
+
+// ------------------------------------------------------- việc của tôi
+
+/**
+ * Một việc đang chờ chính người này xử lý.
+ *
+ * Backend trả câu chữ hiển thị được ngay kèm đường dẫn tới chỗ xử lý — giao
+ * diện KHÔNG tự suy diễn từ dữ liệu thô. Đây là thứ thay cho hệ thống thông
+ * báo: không bảng thông báo, không chuông đếm, không đánh dấu đã đọc.
+ */
+export interface ViecCanXuLy {
+  type: string;
+  message: string;
+  count: number;
+  link: string;
+  /** Số ngày CÒN LÀM ĐƯỢC, tính cả hôm nay. Không bao giờ âm. */
+  daysUntilDeadline: number | null;
+  isOverdue: boolean;
+}

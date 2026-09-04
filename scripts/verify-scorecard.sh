@@ -546,10 +546,18 @@ echo "$KQ" | grep -q "CHO_KY_NHAN" && pass "nhân viên thấy việc chờ ký 
 echo "$KQ" | grep -q '"type"' && pass "trả mảng việc có kiểu {type,message,count,link,daysUntilDeadline,isOverdue}" || fail "$KQ"
 echo "$KQ" | grep -q '"daysUntilDeadline"' && pass "có trường daysUntilDeadline" || fail "thiếu daysUntilDeadline"
 echo "$KQ" | grep -q '"isOverdue"' && pass "có trường isOverdue tách riêng" || fail "thiếu isOverdue"
-# Việc ĐẦU KỲ không có hạn — hạn ngày 02 là hạn nộp KẾT QUẢ cuối kỳ.
-# Xem hằng KHONG_CO_HAN trong scorecard-query.service.ts và Câu 0c ở no-ky-thuat.md.
-echo "$KQ" | grep -q '"daysUntilDeadline": *null' && pass "việc đầu kỳ KHÔNG bịa hạn (null)" || fail "gắn hạn cho việc đầu kỳ: $KQ"
-echo "$KQ" | grep -q '"isOverdue": *false' && pass "việc đầu kỳ không bị báo quá hạn" || fail "$KQ"
+# Việc ĐẦU KỲ lấy hạn từ Period.assignDeadline — ngày 25 THÁNG TRƯỚC
+# (HCNS chốt câu A2). Đối chiếu với chính hạn trong database, không viết số:
+# hôm nay đổi thì kỳ vọng đổi theo.
+HAN_GIAO=$(sql "SELECT \"assignDeadline\" FROM \"Period\" WHERE type='MONTH' AND \"startDate\"<=CURRENT_DATE AND \"endDate\">=CURRENT_DATE;")
+QUA_HAN_DB=$(sql "SELECT CASE WHEN '$HAN_GIAO'::date < CURRENT_DATE THEN 'true' ELSE 'false' END;")
+CON_LAI_DB=$(sql "SELECT CASE WHEN '$HAN_GIAO'::date < CURRENT_DATE THEN 0 ELSE ('$HAN_GIAO'::date - CURRENT_DATE) + 1 END;")
+echo "$KQ" | grep -q "\"isOverdue\": *$QUA_HAN_DB" \
+  && pass "isOverdue = $QUA_HAN_DB, khớp hạn lên KPI $HAN_GIAO trong database" || fail "$KQ"
+echo "$KQ" | grep -q "\"daysUntilDeadline\": *$CON_LAI_DB" \
+  && pass "còn $CON_LAI_DB ngày, tính đúng theo NGÀY LỊCH (hết ngày hạn vẫn làm được)" || fail "$KQ"
+echo "$KQ" | grep -q '"daysUntilDeadline": *-' && fail "daysUntilDeadline ra số ÂM" \
+  || pass "daysUntilDeadline không bao giờ âm"
 # Nhãn kỳ phải là kỳ CỦA CHÍNH PHIẾU, không phải kỳ hiện tại. Phiếu $SC1
 # thuộc kỳ 2026-08, còn hôm nay đang ở một kỳ khác — bản cũ lấy theo kỳ hiện
 # tại nên báo sai tháng, và người dùng ký nhận nhầm phiếu của kỳ khác.

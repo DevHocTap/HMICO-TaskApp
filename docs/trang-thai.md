@@ -116,7 +116,11 @@ Giao diện đã có (04/09):
   KPI ngay trên phiếu, thanh tổng trọng số cập nhật khi gõ, gửi đi ký, gửi
   lại kèm ghi chú bắt buộc khi phiếu bị nêu ý kiến, và lịch sử phiếu.
 
-**Việc tiếp: trang chủ "Việc của tôi" và `/kpi/periods`.**
+- **Trang chủ "Việc của tôi"** — đọc `pending-my-action`, hiện thẻ "Quá hạn"
+  hoặc "Còn N ngày". Hạn lấy từ `Period.assignDeadline` thật (ngày 25 tháng
+  trước), đóng nợ ghi ở Câu 0c.
+
+**Việc tiếp: `/kpi/periods` để HCNS và BGĐ chốt sổ.**
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 
