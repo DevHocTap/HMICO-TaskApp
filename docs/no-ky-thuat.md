@@ -351,6 +351,19 @@ tự động rồi mới vỡ.
       Backend có sẵn, chỉ thiếu ô chọn trên form.
 - [ ] Chưa có import nhân sự từ Excel — chờ file mẫu của HR.
 
+- [ ] **Hai endpoint chưa màn hình nào gọi**, giữ lại có chủ ý:
+      - `GET /scorecards` — danh sách phiếu. Màn giao KPI dùng
+        `assignment-board` (một dòng mỗi NGƯỜI) nên không cần. Sẽ dùng ở
+        lát cắt 5 cho bảng theo dõi tiến độ chấm.
+      - `GET /scorecards/readiness` — sẵn sàng MỘT phòng. Màn Phòng ban
+        dùng bản `/company`. Màn giao KPI hiện báo lý do SAU khi bấm sinh
+        hàng loạt; nối endpoint này vào để cảnh báo TRƯỚC thì tốt hơn.
+
+      **Bài học:** endpoint không ai gọi thì không có gì chứng minh nó còn
+      chạy đúng. Cách bắt: đối chiếu danh sách route với danh sách hàm API
+      của frontend — chính phép đối chiếu đó vừa lộ ra `POST /scorecards`
+      bị bỏ quên, và kéo theo hai quy tắc nghiệp vụ không dùng được.
+
 - [ ] Chưa cấu hình Swagger để sinh tài liệu API
 - [ ] Độ phủ test: 35 unit + 3 e2e. Chưa có test cho Guard và controller `auth`
 - [ ] Chưa có xử lý lỗi tập trung (exception filter)

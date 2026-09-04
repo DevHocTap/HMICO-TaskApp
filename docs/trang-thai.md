@@ -123,6 +123,11 @@ Giao diện đã có (04/09):
 - **`/kpi/periods`** — danh sách kỳ kèm cả bốn mốc, số phiếu, nguồn (tự
   sinh hay tạo tay); chốt sổ và mở lại (HCNS, BGĐ, quản trị); tạo kỳ thủ
   công (quản trị, HCNS). Nút chốt sổ chỉ hiện ở kỳ THÁNG.
+- **Nút "Tạo phiếu" trên từng dòng** ở màn giao KPI. Đây là đường DUY NHẤT
+  cho hai ca mà nút hàng loạt bó tay: ban giám đốc giao KPI cho trưởng bộ
+  phận (`batch` không mở cho EXECUTIVE), và chức danh chưa có mẫu KPI
+  (trưởng phòng, phó phòng). Thử sinh từ mẫu trước, backend từ chối vì
+  chưa có mẫu thì hỏi người dùng có tạo phiếu trống không.
 
 **LÁT CẮT 4 XONG CẢ HAI ĐẦU.** Việc tiếp: lát cắt 5 — chấm điểm.
 
