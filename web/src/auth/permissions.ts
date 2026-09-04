@@ -38,3 +38,17 @@ export function coTheXemToChuc(role: Role | undefined): boolean {
 export function coTheXemNhanVien(role: Role | undefined): boolean {
   return coTheXemToChuc(role) || role === 'MANAGER';
 }
+
+/**
+ * Giao KPI cho người khác.
+ *
+ * STAFF không vào — không ai tự giao KPI cho mình. Ban giám đốc vào được
+ * vì họ giao KPI cho trưởng bộ phận (quy tắc nghiệp vụ mục 5.0).
+ *
+ * CHỈ LÀ GIAO DIỆN. Backend chặn độc lập bằng RolesGuard và
+ * getAccessibleDepartmentIds — trưởng phòng R&D vẫn nhận 403 khi cố xem
+ * phòng Kỹ thuật, dù có gõ thẳng URL.
+ */
+export function coTheGiaoKpi(role: Role | undefined): boolean {
+  return role === 'ADMIN' || role === 'HR' || role === 'MANAGER' || role === 'EXECUTIVE';
+}

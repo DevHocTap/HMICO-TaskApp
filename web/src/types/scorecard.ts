@@ -73,6 +73,17 @@ export interface KyDanhGiaGon {
   submitDeadline: string | null;
 }
 
+/**
+ * Kỳ kèm trạng thái khoá — CHỈ `GET /scorecards/:id` trả thêm `isLocked`.
+ *
+ * `GET /scorecards/my` không trả trường này. Gộp hai hình dạng làm một kiểu
+ * là mời giao diện đọc `isLocked` ở chỗ nó luôn `undefined`, rồi lặng lẽ
+ * coi kỳ đã khoá là chưa khoá.
+ */
+export interface KyDanhGiaTrenPhieu extends KyDanhGiaGon {
+  isLocked: boolean;
+}
+
 export interface PhieuKpi {
   id: string;
   periodId: string;
@@ -103,14 +114,71 @@ export interface DongPhieuKpi {
 export interface SuKienPhieu {
   id: string;
   action: string;
-  note: string | null;
+  /**
+   * Ghi chú kèm thao tác. Cột ở database tên `comment`, KHÔNG phải `note` —
+   * `note` là tên trường trong body của `POST /:id/propose`. Đọc nhầm tên
+   * thì ghi chú bắt buộc lúc gửi lại phiếu bị nêu ý kiến sẽ không bao giờ
+   * hiện ra, mà đó chính là thứ cả quy tắc đó sinh ra để giữ lại.
+   */
+  comment: string | null;
   createdAt: string;
   actor: { fullName: string } | null;
 }
 
 export interface PhieuKpiChiTiet extends PhieuKpi {
+  period: KyDanhGiaTrenPhieu;
   ownerUser: { fullName: string; employeeCode: string } | null;
   evaluator: { fullName: string } | null;
   items: DongPhieuKpi[];
   events: SuKienPhieu[];
+}
+
+// ------------------------------------------------------- bảng giao KPI
+
+export interface DongBangGiaoKpi {
+  userId: string;
+  employeeCode: string;
+  ownerName: string;
+  jobTitleName: string | null;
+  departmentName: string;
+  /** Trưởng bộ phận — ban giám đốc giao KPI cho nhóm này. */
+  isDepartmentManager: boolean;
+
+  /** Bốn trường dưới đây `null` khi người này CHƯA có phiếu trong kỳ. */
+  scorecardId: string | null;
+  assignStatus: AssignStatus | null;
+  totalWeight: string | null;
+  acceptedAt: string | null;
+  evaluatorName: string | null;
+}
+
+export interface NguoiBiBoQua {
+  userId: string;
+  employeeCode: string;
+  fullName: string;
+  reason: string;
+}
+
+export interface KetQuaHangLoat {
+  created: number;
+  skipped: number;
+  skippedDetails: NguoiBiBoQua[];
+  warnings: NguoiBiBoQua[];
+}
+
+export interface KyDanhGia {
+  id: string;
+  code: string;
+  name: string;
+  type: 'MONTH' | 'QUARTER' | 'YEAR';
+  startDate: string;
+  endDate: string;
+  assignDeadline: string | null;
+  selfScoreDeadline: string | null;
+  managerScoreDeadline: string | null;
+  submitDeadline: string | null;
+  isLocked: boolean;
+  createdById: string | null;
+  createdByName: string | null;
+  scorecardCount: number;
 }

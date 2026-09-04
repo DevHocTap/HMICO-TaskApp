@@ -469,15 +469,22 @@ SO_GIU=$(sql "SELECT count(*) FROM \"ScorecardItem\" WHERE \"scorecardId\"='$SC1
 
 # ============================================ 5. SAO CHÉP
 buoc "SAO CHÉP TỪ KỲ TRƯỚC"
+# Tính kỳ vọng TRƯỚC khi gọi: sau khi chép xong thì ai cũng có phiếu ở kỳ
+# đích, truy vấn "còn ai chưa có" sẽ ra 0 và kỳ vọng thành vô nghĩa.
+SO_NGUON=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"periodId\"='$KY_08' AND \"departmentId\"='$P_KTSD';")
+CHEP_DUOC=$(sql "SELECT count(*) FROM \"Scorecard\" s JOIN \"User\" u ON u.id=s.\"ownerUserId\" WHERE s.\"periodId\"='$KY_08' AND s.\"departmentId\"='$P_KTSD' AND u.\"isActive\" AND NOT EXISTS (SELECT 1 FROM \"Scorecard\" x WHERE x.\"ownerUserId\"=s.\"ownerUserId\" AND x.\"periodId\"='$KY_09');")
 KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"departmentId\":\"$P_KTSD\",\"sourcePeriodId\":\"$KY_08\",\"targetPeriodId\":\"$KY_09\"}" \
   "$API/scorecards/copy-from-period")
 CHEP=$(echo "$KQ" | jq_ "d['created']")
-# Kỳ 08 của tổ Shop Drawing có 2 phiếu (người thứ ba mang chức danh
-# "Tổ trưởng" chưa có mẫu xuất bản nên chưa từng được lập phiếu).
-SO_NGUON=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"periodId\"='$KY_08' AND \"departmentId\"='$P_KTSD';")
-[ "$CHEP" = "$SO_NGUON" ] && pass "chép đủ $CHEP phiếu, đúng bằng số phiếu ở kỳ nguồn" \
-  || fail "chép $CHEP phiếu nhưng kỳ nguồn có $SO_NGUON"
+BO_QUA=$(echo "$KQ" | jq_ "d['skipped']")
+# Đếm từ truy vấn, KHÔNG giả định mọi phiếu nguồn đều chép được: người đã có
+# phiếu ở kỳ đích bị bỏ qua đúng theo thiết kế. Trước đây chỗ này viết
+# "created == số phiếu nguồn", đúng ngẫu nhiên vì lúc đó kỳ đích còn trống.
+[ "$CHEP" = "$CHEP_DUOC" ] && pass "chép $CHEP phiếu, đúng bằng số người đủ điều kiện ở kỳ nguồn" \
+  || fail "chép $CHEP phiếu, tính ra phải chép $CHEP_DUOC (nguồn có $SO_NGUON)"
+[ "$((CHEP + BO_QUA))" = "$SO_NGUON" ] && pass "chép $CHEP + bỏ qua $BO_QUA = đủ $SO_NGUON phiếu nguồn, không sót ai" \
+  || fail "chép $CHEP + bỏ qua $BO_QUA khác $SO_NGUON phiếu nguồn"
 TT=$(sql "SELECT DISTINCT \"assignStatus\" FROM \"Scorecard\" WHERE \"periodId\"='$KY_09';")
 [ "$TT" = "DRAFT" ] && pass "phiếu mới đều ở DRAFT" || fail "status=$TT"
 SO=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"periodId\"='$KY_09' AND (\"acceptedAt\" IS NOT NULL OR \"proposedAt\" IS NOT NULL OR \"disputeReason\" IS NOT NULL);")

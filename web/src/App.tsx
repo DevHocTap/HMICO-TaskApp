@@ -7,12 +7,14 @@ import { LoginPage } from './pages/LoginPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { HomePage } from './pages/HomePage';
 import { MyScorecardsPage } from './pages/kpi/MyScorecardsPage';
+import { AssignKpiPage } from './pages/kpi/AssignKpiPage';
+import { ScorecardDetailPage } from './pages/kpi/ScorecardDetailPage';
 import { DepartmentsPage } from './pages/admin/DepartmentsPage';
 import { JobTitlesPage } from './pages/admin/JobTitlesPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { KpiTemplatesPage } from './pages/admin/KpiTemplatesPage';
 import { KpiTemplateEditorPage } from './pages/admin/KpiTemplateEditorPage';
-import { coTheXemNhanVien, coTheXemToChuc } from './auth/permissions';
+import { coTheXemNhanVien, coTheXemToChuc, coTheGiaoKpi } from './auth/permissions';
 
 export function App() {
   return (
@@ -31,6 +33,12 @@ export function App() {
 
           {/* Phiếu KPI của chính mình — MỌI vai trò đều có, kể cả STAFF. */}
           <Route path="/kpi/my" element={<MyScorecardsPage />} />
+
+          {/* Giao KPI cho người khác — STAFF không vào. */}
+          <Route element={<RoleRoute duocPhep={coTheGiaoKpi} />}>
+            <Route path="/kpi/assign" element={<AssignKpiPage />} />
+            <Route path="/kpi/scorecards/:id" element={<ScorecardDetailPage />} />
+          </Route>
 
           <Route element={<RoleRoute duocPhep={coTheXemToChuc} />}>
             <Route path="/admin/departments" element={<DepartmentsPage />} />

@@ -100,7 +100,23 @@ Sau buổi chốt 03/09 với HCNS và ban giám đốc, đã áp:
   dùng được cho màn giao KPI. Ban giám đốc không lọc phòng thì mặc định
   thấy trưởng bộ phận toàn công ty.
 
-**Backend lát cắt 4 xong hẳn. Việc tiếp: ba màn hình.**
+**Backend lát cắt 4 xong hẳn.**
+
+Giao diện đã có (04/09):
+- Nhãn thanh trên: tài khoản quản trị ghi "Tài khoản kỹ thuật — không
+  thuộc phòng ban" thay vì "Chưa gán phòng ban".
+- Menu tách hai nhóm **KPI** và **Quản trị**. STAFF trước đây không có mục
+  nào, nay có "Phiếu KPI của tôi".
+- **`/kpi/my`** — phiếu của chính mình, cây tiêu chí hai cấp, ký nhận và
+  nêu ý kiến kèm lý do.
+- **`/kpi/assign`** — bảng giao KPI: chọn kỳ và phòng, người chưa có phiếu
+  lên đầu; sinh hàng loạt, chép từ kỳ trước, gửi ký hàng loạt. BGĐ không
+  lọc phòng thì mặc định thấy trưởng bộ phận toàn công ty.
+- **`/kpi/scorecards/:id`** — chi tiết phiếu: trưởng phòng tự thêm/sửa cây
+  KPI ngay trên phiếu, thanh tổng trọng số cập nhật khi gõ, gửi đi ký, gửi
+  lại kèm ghi chú bắt buộc khi phiếu bị nêu ý kiến, và lịch sử phiếu.
+
+**Việc tiếp: trang chủ "Việc của tôi" và `/kpi/periods`.**
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 
