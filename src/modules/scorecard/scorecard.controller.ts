@@ -311,8 +311,14 @@ export class ScorecardController {
     return this.scoring.reject(id, dto.reason, user, req.ip);
   }
 
-  /** HCNS tiếp nhận phiếu đã chốt điểm. */
-  @Roles(Role.HR)
+  /**
+   * HCNS tiếp nhận phiếu đã chốt điểm.
+   *
+   * ADMIN cũng vào được: HCNS nghỉ phép hay nghỉ việc thì vẫn phải có người
+   * chốt sổ. Khác với chấm điểm — tiếp nhận không tạo ra con số nào, nó chỉ
+   * xác nhận đã nhận, và `ScorecardEvent` vẫn ghi rõ ai bấm.
+   */
+  @Roles(Role.HR, Role.ADMIN)
   @Post(':id/receive')
   @HttpCode(HttpStatus.OK)
   receive(

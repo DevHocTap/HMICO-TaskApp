@@ -301,26 +301,32 @@ tự động rồi mới vỡ.
 
 ### Nợ đã nhận, không phải quên
 
-- [ ] **`ADMIN` KHÔNG tiếp nhận được phiếu** (`POST /scorecards/:id/receive`
-      chỉ mở cho `HR`). Làm đúng theo bảng phân quyền lát cắt 5, nhưng HCNS
-      nghỉ hoặc nghỉ việc thì không ai chốt sổ được. **Hỏi lại: có mở cho
-      `ADMIN` không?** Chỗ sửa: `@Roles(Role.HR)` trên `receive()` trong
-      `scorecard.controller.ts` và `canReceive` trong
-      `scorecard-scoring.service.ts`.
+- [ ] **`evaluatorId` chốt từ đầu kỳ — người chấm chuyển phòng giữa kỳ thì
+      phiếu KẸT, không ai chấm được.**
 
-- [ ] **`.claude/rules/prisma.md` ghi "số tiền và điểm dùng `Decimal(18,4)`"**,
-      nhưng cột điểm thật là `Decimal(6,2)` (`selfScore`, `managerScore`,
-      `selfTotalScore`, `managerTotalScore`). Quyết định giữ `(6,2)` là cố ý —
-      điểm chỉ có 2 chữ số thập phân, và `(18,4)` sẽ cho lưu những giá trị mà
-      giao diện không hiện đủ. **Cần sửa file rule cho khớp**, giống cách đã
-      sửa quy tắc đặt tên. Chưa sửa vì chưa được yêu cầu.
+      `assertLaNguoiCham()` kiểm hai lớp: đúng `evaluatorId` VÀ phòng ban của
+      phiếu nằm trong `getAccessibleDepartmentIds` của người đó. Trưởng phòng
+      Kỹ thuật được điều sang phòng khác giữa tháng thì vẫn còn là
+      `evaluatorId` trên mọi phiếu cũ, nhưng phạm vi mới không còn chứa phòng
+      Kỹ thuật — lớp thứ hai chặn lại, và phiếu không ai chấm được nữa.
 
-- [ ] **Kỳ khoá trả 409 ở luồng chấm nhưng 400 ở luồng giao KPI.**
-      `ScorecardScoringService.assertGhiDiemDuoc()` ném `ConflictException`
-      (409) theo yêu cầu lát cắt 5; `ScorecardAssignService.assertKyChuaKhoa()`
-      từ lát cắt 4 vẫn ném `BadRequestException` (400) cho cùng một tình
-      huống. Không sai chức năng nhưng client phải xử lý hai mã cho một
-      nguyên nhân. Thống nhất về 409 khi có dịp đụng vào luồng giao.
+      **Hướng xử lý dự kiến:** cho `ADMIN` đổi `evaluatorId` của phiếu, ghi
+      `AuditLog` và `ScorecardEvent`. KHÔNG nới lỏng lớp phạm vi để "chữa"
+      việc này — nới ra là mở đường cho người ngoài phòng chấm điểm.
+
+      **Chưa làm ở lát cắt 5.** Chưa gặp ca thật; điều động giữa tháng ở công
+      ty 200 người là hiếm, và khi xảy ra thì `ADMIN` sửa thẳng database vẫn
+      là đường thoát tạm chấp nhận được.
+
+- [x] ~~`ADMIN` không tiếp nhận được phiếu~~ — **đã mở** (09/09):
+      `@Roles(Role.HR, Role.ADMIN)` trên `receive()`. Tiếp nhận không tạo ra
+      con số nào, và `ScorecardEvent` vẫn ghi rõ ai bấm.
+- [x] ~~`.claude/rules/prisma.md` ghi `Decimal(18,4)` cho điểm~~ — **đã sửa**
+      (09/09): điểm `(6,2)`, trọng số `(5,2)`, `(18,4)` dành cho số liệu thô
+      hướng B và số tiền.
+- [x] ~~Kỳ khoá trả 409 ở luồng chấm nhưng 400 ở luồng giao KPI~~ —
+      **đã thống nhất về 409** (09/09) ở cả `ScorecardService` lẫn
+      `ScorecardAssignService`.
 
 - [ ] **Script kiểm chứng tạm đặt `isActive=false`** cho
       `sd.nhanvien2@hmico.vn` để thử ca người đã nghỉ việc, rồi khôi phục

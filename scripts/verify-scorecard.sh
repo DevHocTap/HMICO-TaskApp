@@ -526,9 +526,9 @@ buoc "KHOÁ KỲ"
 sql "UPDATE \"Period\" SET \"isLocked\"=true WHERE id='$KY_08';" >/dev/null
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
   -d "{\"userId\":\"$U_KTNV\",\"periodId\":\"$KY_08\"}" "$API/scorecards")
-[ "$MA" = "400" ] && pass "sinh phiếu khi kỳ đã khoá -> 400" || fail "-> $MA (mong đợi 400)"
+[ "$MA" = "409" ] && pass "sinh phiếu khi kỳ đã khoá -> 409" || fail "-> $MA (mong đợi 409)"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_TT" -H 'Content-Type: application/json' -d '{}' "$API/scorecards/$SC1/propose")
-[ "$MA" = "400" ] && pass "gửi ký khi kỳ đã khoá -> 400" || fail "-> $MA (mong đợi 400)"
+[ "$MA" = "409" ] && pass "gửi ký khi kỳ đã khoá -> 409" || fail "-> $MA (mong đợi 409)"
 sql "UPDATE \"Period\" SET \"isLocked\"=false WHERE id='$KY_08';" >/dev/null
 
 buoc "AUDITLOG CHO MỌI THAO TÁC"

@@ -144,9 +144,9 @@ export class ScorecardScoringService {
           phieu.resultStatus !== ResultStatus.RECEIVED &&
           phieu.resultStatus !== ResultStatus.MANAGER_SCORED,
         canReject: laNguoiCham && !daKhoa && phieu.resultStatus === ResultStatus.SELF_SCORED,
-        // Chỉ HCNS tiếp nhận. ADMIN cố ý KHÔNG có quyền này — xem
-        // docs/no-ky-thuat.md mục Lát cắt 5.
-        canReceive: user.role === Role.HR && phieu.resultStatus === ResultStatus.MANAGER_SCORED,
+        canReceive:
+          (user.role === Role.HR || user.role === Role.ADMIN) &&
+          phieu.resultStatus === ResultStatus.MANAGER_SCORED,
       },
     };
   }
@@ -157,8 +157,7 @@ export class ScorecardScoringService {
   async saveSelfScores(id: string, scores: ScoreInput[], user: AuthenticatedUser) {
     const phieu = await this.mustFind(id);
     this.workflow.assertLaChuSoHuu(phieu, user);
-    this.assertGhiDiemDuoc(phieu);
-    this.assertTrangThaiChoTuCham(phieu);
+    this.assertGhiDiemDuoc(phieu, 'self');
 
     await this.luuDiem(phieu, scores, 'self');
     return this.getScoring(id, user);
@@ -168,8 +167,7 @@ export class ScorecardScoringService {
   async selfSubmit(id: string, user: AuthenticatedUser, ipAddress?: string) {
     const phieu = await this.mustFind(id);
     this.workflow.assertLaChuSoHuu(phieu, user);
-    this.assertGhiDiemDuoc(phieu);
-    this.assertTrangThaiChoTuCham(phieu);
+    this.assertGhiDiemDuoc(phieu, 'self');
 
     const { tongDiem } = this.chot(phieu.items, 'self');
 
@@ -195,8 +193,7 @@ export class ScorecardScoringService {
   async saveManagerScores(id: string, scores: ScoreInput[], user: AuthenticatedUser) {
     const phieu = await this.mustFind(id);
     await this.assertLaNguoiCham(phieu, user);
-    this.assertGhiDiemDuoc(phieu);
-    this.assertChuaChotDiem(phieu);
+    this.assertGhiDiemDuoc(phieu, 'manager');
 
     await this.luuDiem(phieu, scores, 'manager');
     return this.getScoring(id, user);
@@ -215,7 +212,7 @@ export class ScorecardScoringService {
   ) {
     const phieu = await this.mustFind(id);
     await this.assertLaNguoiCham(phieu, user);
-    this.assertGhiDiemDuoc(phieu);
+    this.assertGhiDiemDuoc(phieu, 'manager');
 
     const lyDoNghiViec = this.kiemDuongNghiViec(phieu, noSelfScoreReason);
 
@@ -248,13 +245,7 @@ export class ScorecardScoringService {
   async reject(id: string, reason: string, user: AuthenticatedUser, ipAddress?: string) {
     const phieu = await this.mustFind(id);
     await this.assertLaNguoiCham(phieu, user);
-    this.assertGhiDiemDuoc(phieu);
-
-    if (phieu.resultStatus !== ResultStatus.SELF_SCORED) {
-      throw new ConflictException(
-        'Chỉ trả lại được phiếu nhân viên đã tự chấm xong và nộp lên.',
-      );
-    }
+    this.assertGhiDiemDuoc(phieu, 'reject');
 
     await this.prisma.$transaction((tx) =>
       this.workflow.ghiNhan(
@@ -316,11 +307,24 @@ export class ScorecardScoringService {
       phieu.items.map((it) => it.parentId).filter((x): x is string => x !== null),
     );
 
+    // Item lạ: gom HẾT rồi mới báo, không ném ở dòng đầu tiên gặp phải.
+    // Người dùng cần thấy đủ danh sách để biết payload sai chỗ nào.
+    //
+    // `theoId` chỉ chứa item của ĐÚNG phiếu này (truy vấn lọc theo
+    // `scorecardId`), nên phép tra ở đây chính là chốt chặn "itemId phải
+    // thuộc phiếu :id". Thiếu nó thì một người có quyền trên phiếu của mình
+    // sẽ ghi được điểm lên phiếu bất kỳ ai khác chỉ bằng cách đổi itemId.
+    const itemLa = scores.filter((s) => !theoId.has(s.itemId)).map((s) => s.itemId);
+    if (itemLa.length > 0) {
+      throw new BadRequestException({
+        message: `${itemLa.length} tiêu chí trong yêu cầu không thuộc phiếu KPI này.`,
+        code: 'ITEM_KHONG_THUOC_PHIEU',
+        itemIds: itemLa,
+      });
+    }
+
     const capNhat = scores.map((s) => {
-      const item = theoId.get(s.itemId);
-      if (!item) {
-        throw new BadRequestException(`Tiêu chí ${s.itemId} không thuộc phiếu này.`);
-      }
+      const item = theoId.get(s.itemId)!;
       if (coCon.has(item.id)) {
         throw new BadRequestException(
           `Tiêu chí "${item.name}" có KPI con nên không nhập điểm trực tiếp; ` +
@@ -328,8 +332,23 @@ export class ScorecardScoringService {
         );
       }
 
-      const diem = s.score === null || s.score === undefined ? null : new Prisma.Decimal(s.score);
-      if (diem !== null) {
+      // Cập nhật MỘT PHẦN xuống tận từng trường:
+      //   thiếu `score`      -> giữ nguyên điểm cũ
+      //   `score: null`      -> xoá điểm
+      // Gộp hai ca này lại thì payload chỉ sửa ghi chú sẽ lặng lẽ xoá mất điểm.
+      //
+      // Phân biệt bằng `undefined` chứ KHÔNG bằng `hasOwnProperty`: dự án
+      // biên dịch ở `target: ES2023` nên `useDefineForClassFields` bật, và
+      // class-transformer dựng DTO với ĐỦ mọi field đã khai — field không có
+      // trong JSON vẫn tồn tại trên object với giá trị `undefined`.
+      // `hasOwnProperty` vì vậy luôn trả true và không phân biệt được gì.
+      const coGuiDiem = s.score !== undefined;
+      const coGuiGhiChu = s.comment !== undefined;
+
+      const diemCu = cot === 'self' ? item.selfScore : item.managerScore;
+      const diem = coGuiDiem ? (s.score === null ? null : new Prisma.Decimal(s.score)) : diemCu;
+
+      if (coGuiDiem && diem !== null) {
         // Dùng lại trần của engine, không viết lại phép so ở service.
         const tran = tranDiemCuaDong(item.section, item.maxScale);
         if (diem.greaterThan(tran)) {
@@ -340,39 +359,63 @@ export class ScorecardScoringService {
         }
       }
 
-      // Ghi chú HIỆU LỰC sau khi áp payload: `undefined` là giữ nguyên ghi
-      // chú đã lưu, nên chấm vượt thang từ lần trước không bị bắt nhập lại.
       const ghiChuCu = cot === 'self' ? item.selfComment : item.managerComment;
-      const ghiChu = s.comment === undefined ? ghiChuCu : (s.comment?.trim() || null);
+      const ghiChu = coGuiGhiChu ? (s.comment?.trim() || null) : ghiChuCu;
 
+      // So trên giá trị HIỆU LỰC sau khi áp payload, không so trên payload.
+      // Xoá ghi chú trong khi điểm vẫn vượt thang cũng phải bị chặn — nếu
+      // không, chấm 12 kèm lý do rồi xoá lý do đi là lách được ràng buộc.
       if (diem !== null && diem.greaterThan(item.maxScale) && !ghiChu) {
         throw new BadRequestException(
-          `Điểm của "${item.name}" vượt thang ${item.maxScale} nên bắt buộc ghi chú lý do.`,
+          `Điểm của "${item.name}" là ${diem.toString()}, vượt thang ${item.maxScale} ` +
+            'nên bắt buộc có ghi chú lý do.',
         );
       }
 
-      return cot === 'self'
-        ? { id: item.id, data: { selfScore: diem, selfComment: ghiChu } }
-        : { id: item.id, data: { managerScore: diem, managerComment: ghiChu } };
+      const data: Prisma.ScorecardItemUncheckedUpdateInput = {};
+      if (coGuiDiem) {
+        if (cot === 'self') data.selfScore = diem;
+        else data.managerScore = diem;
+      }
+      if (coGuiGhiChu) {
+        if (cot === 'self') data.selfComment = ghiChu;
+        else data.managerComment = ghiChu;
+      }
+      return { id: item.id, data };
     });
 
     // Một transaction cho cả lô: lưu nửa chừng thì màn hình và database lệch
     // nhau mà người dùng không biết dòng nào đã vào.
     await this.prisma.$transaction(
-      capNhat.map((c) => this.prisma.scorecardItem.update({ where: { id: c.id }, data: c.data })),
+      capNhat
+        .filter((c) => Object.keys(c.data).length > 0)
+        .map((c) => this.prisma.scorecardItem.update({ where: { id: c.id }, data: c.data })),
     );
   }
 
   // ------------------------------------------------------------- quy tắc
 
   /**
-   * Ba điều kiện chung của MỌI thao tác ghi điểm, kể cả lưu nháp.
+   * Điều kiện của MỌI thao tác ghi điểm, kể cả lưu nháp.
    *
    * Trả 409 chứ không 400: yêu cầu không sai, chỉ là phiếu đang ở trạng thái
    * không nhận được — client thử lại sau khi mở kỳ thì vẫn dùng nguyên
    * payload cũ.
+   *
+   * `cong` là cửa đang gõ, vì mỗi cửa mở ở một trạng thái khác nhau:
+   *
+   * | cửa       | mở khi                                                    |
+   * |-----------|-----------------------------------------------------------|
+   * | `self`    | PENDING, REJECTED                                         |
+   * | `manager` | SELF_SCORED — hoặc PENDING/REJECTED nếu chủ phiếu đã nghỉ |
+   * | `reject`  | SELF_SCORED                                               |
+   *
+   * SAU `RECEIVED` KHÔNG CÒN CỬA NÀO. Muốn chấm lại phiếu đã chốt thì phải
+   * đi qua `reject` để quay về SELF_SCORED — có dòng ScorecardEvent, có
+   * người chịu trách nhiệm. Ghi đè im lặng lên điểm đã chốt là sửa căn cứ
+   * tính lương mà không để lại dấu vết.
    */
-  private assertGhiDiemDuoc(phieu: PhieuDayDu): void {
+  private assertGhiDiemDuoc(phieu: PhieuDayDu, cong: 'self' | 'manager' | 'reject'): void {
     if (phieu.assignStatus !== AssignStatus.ACCEPTED) {
       throw new ConflictException(
         'Phiếu chưa được ký nhận nên chưa chấm điểm được. ' +
@@ -384,59 +427,64 @@ export class ScorecardScoringService {
     if (phieu.period.isLocked) {
       throw new ConflictException(`Kỳ ${phieu.period.name} đã khoá sổ, không chấm điểm được nữa.`);
     }
-  }
-
-  /** Cột tự chấm chỉ mở ở PENDING và REJECTED. */
-  private assertTrangThaiChoTuCham(phieu: PhieuDayDu): void {
-    const mo =
-      phieu.resultStatus === ResultStatus.PENDING ||
-      phieu.resultStatus === ResultStatus.REJECTED;
-    if (!mo) {
+    if (phieu.resultStatus === ResultStatus.RECEIVED) {
       throw new ConflictException(
-        phieu.resultStatus === ResultStatus.SELF_SCORED
-          ? 'Bạn đã nộp phiếu tự chấm rồi, đang chờ trưởng bộ phận chấm.'
-          : 'Phiếu đã chốt điểm, không sửa cột tự chấm được nữa.',
+        'Phiếu đã được HCNS tiếp nhận, không sửa điểm được nữa.',
       );
     }
-  }
 
-  /** Điểm đã chốt thì khoá lại — sửa sau khi chốt là sửa căn cứ tính lương. */
-  private assertChuaChotDiem(phieu: PhieuDayDu): void {
-    if (
-      phieu.resultStatus === ResultStatus.MANAGER_SCORED ||
-      phieu.resultStatus === ResultStatus.RECEIVED
-    ) {
-      throw new ConflictException('Phiếu đã chốt điểm, không sửa được nữa.');
+    if (cong === 'self') {
+      const mo =
+        phieu.resultStatus === ResultStatus.PENDING ||
+        phieu.resultStatus === ResultStatus.REJECTED;
+      if (!mo) {
+        throw new ConflictException(
+          phieu.resultStatus === ResultStatus.SELF_SCORED
+            ? 'Bạn đã nộp phiếu tự chấm rồi, đang chờ trưởng bộ phận chấm. ' +
+              'Muốn sửa thì đề nghị trưởng bộ phận trả phiếu lại.'
+            : 'Phiếu đã chốt điểm, không sửa cột tự chấm được nữa.',
+        );
+      }
+      return;
     }
+
+    if (phieu.resultStatus === ResultStatus.SELF_SCORED) return;
+
+    // Ngoại lệ DUY NHẤT: người đã nghỉ việc không tự chấm được nữa, nên cột
+    // trưởng bộ phận phải mở ngay từ PENDING. Lý do bắt buộc ghi ở
+    // `kiemDuongNghiViec()` lúc chốt.
+    const laCuaNguoiDaNghi =
+      cong === 'manager' &&
+      phieu.ownerUser !== null &&
+      !phieu.ownerUser.isActive &&
+      (phieu.resultStatus === ResultStatus.PENDING ||
+        phieu.resultStatus === ResultStatus.REJECTED);
+    if (laCuaNguoiDaNghi) return;
+
+    throw new ConflictException(
+      phieu.resultStatus === ResultStatus.MANAGER_SCORED
+        ? 'Phiếu đã chốt điểm. Muốn chấm lại thì phải trả phiếu về cho nhân viên trước.'
+        : 'Nhân viên chưa nộp phiếu tự chấm. Chỉ chấm được sau khi nhân viên tự chấm xong.',
+    );
   }
 
   /**
-   * Điều kiện trạng thái của `manager-submit`, kèm ngoại lệ người nghỉ việc.
+   * Lý do cần ghi vào `noSelfScoreReason` khi chốt, hoặc `undefined` nếu
+   * đây là ca bình thường.
    *
-   * Trả về giá trị cần ghi vào `noSelfScoreReason` (hoặc `undefined` nếu
-   * không phải ca nghỉ việc).
+   * Tới được đây nghĩa là `assertGhiDiemDuoc` đã cho qua, nên trạng thái chỉ
+   * còn hai khả năng: SELF_SCORED (bình thường), hoặc chủ phiếu đã nghỉ việc.
    */
   private kiemDuongNghiViec(phieu: PhieuDayDu, lyDo?: string): string | undefined {
     if (phieu.resultStatus === ResultStatus.SELF_SCORED) return undefined;
 
-    this.assertChuaChotDiem(phieu);
-
-    // Người đã nghỉ việc không tự chấm được nữa. Đây là đường DUY NHẤT chốt
-    // phiếu mà cột tự chấm còn trống — và bắt buộc ghi lý do, để về sau còn
-    // biết vì sao phiếu này chỉ có một cột.
-    if (phieu.ownerUser && !phieu.ownerUser.isActive) {
-      if (!lyDo?.trim()) {
-        throw new BadRequestException(
-          `${phieu.ownerUser.fullName} đã nghỉ việc và chưa tự chấm. ` +
-            'Muốn chốt phiếu thì bắt buộc ghi lý do không có điểm tự chấm.',
-        );
-      }
-      return lyDo.trim();
+    if (!lyDo?.trim()) {
+      throw new BadRequestException(
+        `${phieu.ownerUser?.fullName ?? 'Nhân viên'} đã nghỉ việc và chưa tự chấm. ` +
+          'Muốn chốt phiếu thì bắt buộc ghi lý do không có điểm tự chấm.',
+      );
     }
-
-    throw new ConflictException(
-      'Nhân viên chưa nộp phiếu tự chấm. Chỉ chốt được sau khi nhân viên tự chấm xong.',
-    );
+    return lyDo.trim();
   }
 
   /** Chốt điểm qua engine, đổi lỗi nghiệp vụ sang lỗi HTTP. */

@@ -700,7 +700,8 @@ export class ScorecardService {
    */
   private assertKyChuaKhoa(ky: Period): void {
     if (ky.isLocked) {
-      throw new BadRequestException(
+      // 409 chứ không 400 — thống nhất với luồng chấm điểm.
+      throw new ConflictException(
         `Kỳ ${ky.name} đã khoá sổ, không thao tác được nữa.`,
       );
     }

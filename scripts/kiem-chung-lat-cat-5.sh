@@ -45,8 +45,14 @@ sql() { docker exec kpi-postgres psql -U kpi_dev -d kpi_db -t -A -c "$1" 2>/dev/
 EMAIL_NGHI_VIEC='sd.nhanvien2@hmico.vn'
 ISACTIVE_GOC=''
 
+# psql -t -A in ra 't' / 'f' — KHÔNG phải literal boolean của SQL. Ghi thẳng
+# `isActive=t` thì PostgreSQL hiểu `t` là tên cột, câu lệnh hỏng và tài khoản
+# kẹt ở trạng thái vô hiệu hoá sang tận lần chạy sau.
 khoi_phuc_tai_khoan() {
-  [ -n "$ISACTIVE_GOC" ] && sql "UPDATE \"User\" SET \"isActive\"=$ISACTIVE_GOC WHERE email='$EMAIL_NGHI_VIEC';" >/dev/null
+  case "$ISACTIVE_GOC" in
+    t) sql "UPDATE \"User\" SET \"isActive\"=true WHERE email='$EMAIL_NGHI_VIEC';" >/dev/null ;;
+    f) sql "UPDATE \"User\" SET \"isActive\"=false WHERE email='$EMAIL_NGHI_VIEC';" >/dev/null ;;
+  esac
 }
 
 don_du_lieu_thu() {
@@ -215,6 +221,27 @@ R=$(goi PUT "$AT_NV2" "/scorecards/$SC/self-scores" \
   "{\"scores\":[{\"itemId\":\"$ITEM_LA\",\"score\":8}]}")
 mong "$(ma_cua "$R")" 403 "2. STAFF chấm phiếu người khác"
 
+# C1 — itemId phải thuộc ĐÚNG phiếu :id
+ITEM_LA_PHIEU_KHAC=$(sql "SELECT i.id FROM \"ScorecardItem\" i
+                           WHERE i.\"scorecardId\"='$SC_DRAFT'
+                             AND NOT EXISTS (SELECT 1 FROM \"ScorecardItem\" c WHERE c.\"parentId\"=i.id)
+                           LIMIT 1;")
+DIEM_TRUOC=$(sql "SELECT COALESCE(\"selfScore\"::text,'NULL') FROM \"ScorecardItem\" WHERE id='$ITEM_LA_PHIEU_KHAC';")
+
+R=$(goi PUT "$AT_NV1" "/scorecards/$SC/self-scores" \
+  "{\"scores\":[{\"itemId\":\"$ITEM_LA_PHIEU_KHAC\",\"score\":9}]}")
+MA_LA=$(ma_cua "$R")
+SO_LA=$(than_cua "$R" | python3 -c "import json,sys;print(len(json.load(sys.stdin).get('itemIds',[])))" 2>/dev/null)
+if [ "$MA_LA" = "400" ] && [ "${SO_LA:-0}" = "1" ]; then
+  pass "2b. STAFF gửi itemId của phiếu người khác -> 400, liệt kê itemId lạ"
+else
+  fail "2b. itemId phiếu khác -> HTTP $MA_LA, itemIds=${SO_LA:-?}"
+fi
+DIEM_SAU=$(sql "SELECT COALESCE(\"selfScore\"::text,'NULL') FROM \"ScorecardItem\" WHERE id='$ITEM_LA_PHIEU_KHAC';")
+[ "$DIEM_SAU" = "$DIEM_TRUOC" ] \
+  && pass "    điểm của phiếu kia KHÔNG đổi ($DIEM_TRUOC)" \
+  || fail "    điểm phiếu kia đổi từ $DIEM_TRUOC thành $DIEM_SAU"
+
 R=$(goi POST "$AT_NV1" "/scorecards/$SC/self-submit")
 MA3=$(ma_cua "$R"); THAN3=$(than_cua "$R")
 SO_THIEU=$(echo "$THAN3" | python3 -c "import json,sys;print(len(json.load(sys.stdin).get('itemIds',[])))" 2>/dev/null)
@@ -238,12 +265,36 @@ GRADE_TU_CHAM=$(sql "SELECT COALESCE(grade::text,'NULL') FROM \"Scorecard\" WHER
   && pass "   cột tự chấm KHÔNG sinh xếp loại" \
   || fail "   grade sau self-submit = $GRADE_TU_CHAM (phải NULL)"
 
+# C2 — cửa tự chấm đóng lại sau khi đã nộp
+TONG_TRUOC=$(sql "SELECT \"selfTotalScore\"::text FROM \"Scorecard\" WHERE id='$SC';")
+R=$(goi PUT "$AT_NV1" "/scorecards/$SC/self-scores" \
+  "{\"scores\":[{\"itemId\":\"$ITEM_LA\",\"score\":3}]}")
+mong "$(ma_cua "$R")" 409 "4b. sửa self-scores sau khi đã SELF_SCORED"
+DIEM_DONG=$(sql "SELECT \"selfScore\"::text FROM \"ScorecardItem\" WHERE id='$ITEM_LA';")
+TONG_SAU=$(sql "SELECT \"selfTotalScore\"::text FROM \"Scorecard\" WHERE id='$SC';")
+[ "$TONG_SAU" = "$TONG_TRUOC" ] && [ "$DIEM_DONG" != "3.00" ] \
+  && pass "    điểm dòng ($DIEM_DONG) và tổng đã chốt ($TONG_SAU) vẫn khớp nhau" \
+  || fail "    điểm dòng=$DIEM_DONG, tổng $TONG_TRUOC -> $TONG_SAU"
+
+R=$(goi POST "$AT_NV1" "/scorecards/$SC/self-submit")
+mong "$(ma_cua "$R")" 409 "4c. self-submit lần hai khi đã SELF_SCORED"
+
 # ================================================= 5–10 CỘT TRƯỞNG BỘ PHẬN
 buoc "5–10  CỘT TRƯỞNG BỘ PHẬN — phân quyền và ràng buộc điểm"
 
 R=$(goi PUT "$AT_RND" "/scorecards/$SC/manager-scores" \
   "{\"scores\":[{\"itemId\":\"$ITEM_LA\",\"score\":9}]}")
 mong "$(ma_cua "$R")" 403 "5. MANAGER khác phòng gọi manager-scores"
+
+# Đặt ở ĐÂY chứ không cạnh ca 2: lúc đó phiếu còn PENDING nên lớp trạng thái
+# chặn trước, và ca này sẽ không kiểm được đúng thứ nó định kiểm.
+R=$(goi PUT "$AT_KT" "/scorecards/$SC/manager-scores" \
+  "{\"scores\":[{\"itemId\":\"$ITEM_LA_PHIEU_KHAC\",\"score\":9}]}")
+mong "$(ma_cua "$R")" 400 "5b. MANAGER gửi itemId của phiếu người khác"
+DIEM_SAU=$(sql "SELECT COALESCE(\"managerScore\"::text,'NULL') FROM \"ScorecardItem\" WHERE id='$ITEM_LA_PHIEU_KHAC';")
+[ "$DIEM_SAU" = "NULL" ] \
+  && pass "    cột trưởng bộ phận của phiếu kia vẫn trống" \
+  || fail "    điểm phiếu kia thành $DIEM_SAU"
 
 R=$(goi PUT "$AT_KT" "/scorecards/$SC/manager-scores" \
   "{\"scores\":[{\"itemId\":\"$ITEM_LA\",\"score\":12}]}")
@@ -252,6 +303,19 @@ mong "$(ma_cua "$R")" 400 "6. chấm 12/10 mà không có ghi chú"
 R=$(goi PUT "$AT_KT" "/scorecards/$SC/manager-scores" \
   "{\"scores\":[{\"itemId\":\"$ITEM_LA\",\"score\":12,\"comment\":\"Vượt chỉ tiêu, có xác nhận của chủ đầu tư\"}]}")
 mong "$(ma_cua "$R")" 200 "7. chấm 12/10 kèm ghi chú" "$(than_cua "$R")"
+
+# C3 — xoá ghi chú trong khi điểm vẫn vượt thang
+R=$(goi PUT "$AT_KT" "/scorecards/$SC/manager-scores" \
+  "{\"scores\":[{\"itemId\":\"$ITEM_LA\",\"comment\":\"\"}]}")
+mong "$(ma_cua "$R")" 400 "7b. xoá ghi chú (chuỗi rỗng) trong khi điểm vẫn 12/10"
+
+R=$(goi PUT "$AT_KT" "/scorecards/$SC/manager-scores" \
+  "{\"scores\":[{\"itemId\":\"$ITEM_LA\",\"comment\":null}]}")
+mong "$(ma_cua "$R")" 400 "7c. xoá ghi chú (null) trong khi điểm vẫn 12/10"
+GHI_CHU=$(sql "SELECT COALESCE(\"managerComment\",'NULL') FROM \"ScorecardItem\" WHERE id='$ITEM_LA';")
+[ "$GHI_CHU" != "NULL" ] \
+  && pass "    ghi chú cũ vẫn còn nguyên trong database" \
+  || fail "    ghi chú đã bị xoá"
 
 R=$(goi PUT "$AT_KT" "/scorecards/$SC/manager-scores" \
   "{\"scores\":[{\"itemId\":\"$ITEM_CPL\",\"score\":3.5,\"comment\":\"thử vượt thang nội quy\"}]}")
@@ -303,6 +367,17 @@ TT=$(sql "SELECT \"resultStatus\" || '|' || COALESCE(\"managerTotalScore\"::text
   && pass "    managerTotalScore=100.00, grade=COMPLETED được chốt" \
   || fail "    sau manager-submit: $TT"
 
+# C2 — cửa chấm đóng lại sau khi đã chốt điểm
+TONG_TRUOC=$(sql "SELECT \"managerTotalScore\"::text FROM \"Scorecard\" WHERE id='$SC';")
+R=$(goi PUT "$AT_KT" "/scorecards/$SC/manager-scores" \
+  "{\"scores\":[{\"itemId\":\"$ITEM_CPL\",\"score\":1}]}")
+mong "$(ma_cua "$R")" 409 "15b. sửa manager-scores sau khi đã MANAGER_SCORED"
+DIEM_DONG=$(sql "SELECT \"managerScore\"::text FROM \"ScorecardItem\" WHERE id='$ITEM_CPL';")
+TONG_SAU=$(sql "SELECT \"managerTotalScore\"::text FROM \"Scorecard\" WHERE id='$SC';")
+[ "$TONG_SAU" = "$TONG_TRUOC" ] && [ "$DIEM_DONG" != "1.00" ] \
+  && pass "     điểm dòng ($DIEM_DONG) và tổng đã chốt ($TONG_SAU) vẫn khớp nhau" \
+  || fail "     điểm dòng=$DIEM_DONG, tổng $TONG_TRUOC -> $TONG_SAU"
+
 R=$(goi POST "$AT_HR" "/scorecards/$SC/reject" '{"reason":"HCNS thử trả lại phiếu này"}')
 mong "$(ma_cua "$R")" 403 "17. HR gọi reject — HCNS không có quyền trả lại"
 
@@ -314,6 +389,25 @@ R=$(goi POST "$AT_HR" "/scorecards/$SC/receive")
 mong "$(ma_cua "$R")" 200 "16. HR tiếp nhận phiếu" "$(than_cua "$R")"
 TT=$(sql "SELECT \"resultStatus\" FROM \"Scorecard\" WHERE id='$SC';")
 [ "$TT" = "RECEIVED" ] && pass "    resultStatus=RECEIVED" || fail "    trạng thái=$TT"
+
+# C2 — sau RECEIVED thì không còn cửa nào
+TONG_TRUOC=$(sql "SELECT \"managerTotalScore\"::text FROM \"Scorecard\" WHERE id='$SC';")
+R=$(goi PUT "$AT_NV1" "/scorecards/$SC/self-scores" \
+  "{\"scores\":[{\"itemId\":\"$ITEM_LA\",\"score\":2}]}")
+mong "$(ma_cua "$R")" 409 "16b. self-scores sau RECEIVED"
+R=$(goi PUT "$AT_KT" "/scorecards/$SC/manager-scores" \
+  "{\"scores\":[{\"itemId\":\"$ITEM_LA\",\"score\":2}]}")
+mong "$(ma_cua "$R")" 409 "16c. manager-scores sau RECEIVED"
+R=$(goi POST "$AT_KT" "/scorecards/$SC/reject" \
+  '{"reason":"Thử trả lại phiếu HCNS đã tiếp nhận"}')
+mong "$(ma_cua "$R")" 409 "16d. reject sau RECEIVED"
+R=$(goi POST "$AT_KT" "/scorecards/$SC/manager-submit" '{}')
+mong "$(ma_cua "$R")" 409 "16e. manager-submit sau RECEIVED"
+TONG_SAU=$(sql "SELECT \"managerTotalScore\"::text FROM \"Scorecard\" WHERE id='$SC';")
+DIEM_DONG=$(sql "SELECT \"managerScore\"::text FROM \"ScorecardItem\" WHERE id='$ITEM_LA';")
+[ "$TONG_SAU" = "$TONG_TRUOC" ] && [ "$DIEM_DONG" != "2.00" ] \
+  && pass "     điểm dòng ($DIEM_DONG) và tổng đã chốt ($TONG_SAU) không ai đụng được" \
+  || fail "     điểm dòng=$DIEM_DONG, tổng $TONG_TRUOC -> $TONG_SAU"
 
 # ================================================= 19–21 TRẠNG THÁI VÀ KHOÁ KỲ
 buoc "19–21  PHIẾU CHƯA KÝ NHẬN VÀ KHOÁ KỲ"
@@ -354,8 +448,12 @@ buoc "22–23  NGƯỜI ĐÃ NGHỈ VIỆC — chốt phiếu thiếu cột tự
 
 goi POST "$AT_KT" "/scorecards/$SC_DRAFT/propose" >/dev/null
 goi POST "$AT_NV2" "/scorecards/$SC_DRAFT/accept" >/dev/null
-goi PUT "$AT_KT" "/scorecards/$SC_DRAFT/manager-scores" "$(payload_cham_du "$SC_DRAFT")" >/dev/null
+
+# Vô hiệu hoá TRƯỚC khi chấm: cửa cột trưởng bộ phận chỉ mở ở SELF_SCORED,
+# ngoại lệ duy nhất là chủ phiếu đã nghỉ việc.
 sql "UPDATE \"User\" SET \"isActive\"=false WHERE email='$EMAIL_NGHI_VIEC';" >/dev/null
+R=$(goi PUT "$AT_KT" "/scorecards/$SC_DRAFT/manager-scores" "$(payload_cham_du "$SC_DRAFT")")
+mong "$(ma_cua "$R")" 200 "    chấm được cột trưởng bộ phận dù chưa ai tự chấm" "$(than_cua "$R")"
 
 R=$(goi POST "$AT_KT" "/scorecards/$SC_DRAFT/manager-submit" '{}')
 mong "$(ma_cua "$R")" 400 "22. chốt phiếu người đã nghỉ, không có lý do"
@@ -385,11 +483,29 @@ goi PUT "$AT_BGD" "/scorecards/$SC_TP/items" '{"items":[
 goi POST "$AT_BGD" "/scorecards/$SC_TP/propose" >/dev/null
 goi POST "$AT_KT" "/scorecards/$SC_TP/accept" >/dev/null
 
+# Trưởng phòng tự chấm trước — cột trưởng bộ phận chỉ mở sau SELF_SCORED.
+R=$(goi PUT "$AT_BGD" "/scorecards/$SC_TP/manager-scores" "$(payload_cham_du "$SC_TP")")
+mong "$(ma_cua "$R")" 409 "24a. BGĐ chấm khi trưởng phòng chưa tự chấm"
+goi PUT "$AT_KT" "/scorecards/$SC_TP/self-scores" "$(payload_cham_du "$SC_TP")" >/dev/null
+goi POST "$AT_KT" "/scorecards/$SC_TP/self-submit" >/dev/null
+
 R=$(goi PUT "$AT_BGD" "/scorecards/$SC_TP/manager-scores" "$(payload_cham_du "$SC_TP")")
 mong "$(ma_cua "$R")" 200 "24. EXECUTIVE chấm phiếu trưởng bộ phận" "$(than_cua "$R")"
 
 R=$(goi POST "$AT_BGD" "/scorecards/$SC/accept")
 mong "$(ma_cua "$R")" 403 "25. EXECUTIVE ký nhận thay người khác"
+
+# ================================================= 26 ADMIN TIẾP NHẬN
+buoc "26  ADMIN TIẾP NHẬN THAY HCNS"
+
+R=$(goi POST "$AT_ADMIN" "/scorecards/$SC_DRAFT/receive")
+mong "$(ma_cua "$R")" 200 "26. ADMIN tiếp nhận phiếu đã chốt điểm" "$(than_cua "$R")"
+TT=$(sql "SELECT \"resultStatus\" FROM \"Scorecard\" WHERE id='$SC_DRAFT';")
+NGUOI_NHAN=$(sql "SELECT u.email FROM \"Scorecard\" s JOIN \"User\" u ON u.id=s.\"receivedById\" WHERE s.id='$SC_DRAFT';")
+[ "$TT" = "RECEIVED" ] && pass "    resultStatus=RECEIVED" || fail "    trạng thái=$TT"
+[ "$NGUOI_NHAN" = "admin@hmico.vn" ] \
+  && pass "    ScorecardEvent ghi đúng ai tiếp nhận ($NGUOI_NHAN)" \
+  || fail "    receivedById=$NGUOI_NHAN"
 
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"

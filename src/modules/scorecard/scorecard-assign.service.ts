@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -327,10 +328,15 @@ export class ScorecardAssignService {
     }
   }
 
-  /** Chỉ nhìn đúng kỳ của phiếu, không đi ngược cây parentId (docs mục 5.6). */
+  /**
+   * Chỉ nhìn đúng kỳ của phiếu, không đi ngược cây parentId (docs mục 5.6).
+   *
+   * 409 chứ không 400 — thống nhất với luồng chấm điểm: yêu cầu không sai,
+   * chỉ là kỳ đang đóng. Client mở kỳ rồi gửi lại nguyên payload cũ là được.
+   */
   private assertKyChuaKhoa(ky: Period): void {
     if (ky.isLocked) {
-      throw new BadRequestException(`Kỳ ${ky.name} đã khoá sổ, không thao tác được nữa.`);
+      throw new ConflictException(`Kỳ ${ky.name} đã khoá sổ, không thao tác được nữa.`);
     }
   }
 
