@@ -301,6 +301,35 @@ tự động rồi mới vỡ.
 
 ### Nợ đã nhận, không phải quên
 
+- [ ] **`ADMIN` KHÔNG tiếp nhận được phiếu** (`POST /scorecards/:id/receive`
+      chỉ mở cho `HR`). Làm đúng theo bảng phân quyền lát cắt 5, nhưng HCNS
+      nghỉ hoặc nghỉ việc thì không ai chốt sổ được. **Hỏi lại: có mở cho
+      `ADMIN` không?** Chỗ sửa: `@Roles(Role.HR)` trên `receive()` trong
+      `scorecard.controller.ts` và `canReceive` trong
+      `scorecard-scoring.service.ts`.
+
+- [ ] **`.claude/rules/prisma.md` ghi "số tiền và điểm dùng `Decimal(18,4)`"**,
+      nhưng cột điểm thật là `Decimal(6,2)` (`selfScore`, `managerScore`,
+      `selfTotalScore`, `managerTotalScore`). Quyết định giữ `(6,2)` là cố ý —
+      điểm chỉ có 2 chữ số thập phân, và `(18,4)` sẽ cho lưu những giá trị mà
+      giao diện không hiện đủ. **Cần sửa file rule cho khớp**, giống cách đã
+      sửa quy tắc đặt tên. Chưa sửa vì chưa được yêu cầu.
+
+- [ ] **Kỳ khoá trả 409 ở luồng chấm nhưng 400 ở luồng giao KPI.**
+      `ScorecardScoringService.assertGhiDiemDuoc()` ném `ConflictException`
+      (409) theo yêu cầu lát cắt 5; `ScorecardAssignService.assertKyChuaKhoa()`
+      từ lát cắt 4 vẫn ném `BadRequestException` (400) cho cùng một tình
+      huống. Không sai chức năng nhưng client phải xử lý hai mã cho một
+      nguyên nhân. Thống nhất về 409 khi có dịp đụng vào luồng giao.
+
+- [ ] **Script kiểm chứng tạm đặt `isActive=false`** cho
+      `sd.nhanvien2@hmico.vn` để thử ca người đã nghỉ việc, rồi khôi phục
+      trong `trap EXIT`. Đây là tài khoản seed, không phải dữ liệu script tự
+      tạo nên không gắn được tiền tố `ZTEST-`. Script chết bằng `kill -9`
+      thì tài khoản sẽ kẹt ở trạng thái vô hiệu hoá — mở lại bằng
+      `UPDATE "User" SET "isActive"=true WHERE email='sd.nhanvien2@hmico.vn';`
+
+
 - [ ] **Tên hàm trong `scoring/` viết bằng tiếng Việt** (`tinhDiem`,
       `chotDiem`, `xepLoaiTuTongDiem`), trong khi
       `.claude/rules/nestjs-module.md` yêu cầu đặt tên bằng tiếng Anh.

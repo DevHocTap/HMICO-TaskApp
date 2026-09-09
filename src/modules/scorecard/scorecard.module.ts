@@ -3,6 +3,7 @@ import { ScorecardService } from './scorecard.service.js';
 import { ScorecardQueryService } from './scorecard-query.service.js';
 import { ScorecardAssignService } from './scorecard-assign.service.js';
 import { ScorecardWorkflowService } from './scorecard-workflow.service.js';
+import { ScorecardScoringService } from './scorecard-scoring.service.js';
 import { ScorecardController } from './scorecard.controller.js';
 import { OrgModule } from '../org/org.module.js';
 
@@ -14,6 +15,7 @@ import { OrgModule } from '../org/org.module.js';
     ScorecardQueryService,
     ScorecardAssignService,
     ScorecardWorkflowService,
+    ScorecardScoringService,
   ],
   controllers: [ScorecardController],
   exports: [ScorecardService],

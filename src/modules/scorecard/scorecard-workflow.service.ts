@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import {
   AssignStatus,
+  type Grade,
   Prisma,
   ResultStatus,
   Role,
@@ -18,6 +19,20 @@ export interface GhiNhanChuyenTrangThai {
   comment?: string | null;
   /** Trạng thái giao KPI mới. Bỏ trống nếu hành động không đổi trạng thái. */
   assignStatus?: AssignStatus;
+  /** Trạng thái chấm điểm mới. Bỏ trống nếu hành động không đổi trạng thái. */
+  resultStatus?: ResultStatus;
+  /**
+   * Điểm CHỐT, chỉ đi kèm hai hành động submit.
+   *
+   * Đi qua đây chứ không update riêng một lệnh: điểm chốt và sự kiện chốt
+   * điểm phải cùng sống hoặc cùng chết. Ghi rời nhau thì sẽ có phiếu mang
+   * điểm mà không có dòng lịch sử nào giải thích ai chốt, lúc nào.
+   */
+  selfTotalScore?: Prisma.Decimal;
+  managerTotalScore?: Prisma.Decimal;
+  grade?: Grade | null;
+  /** Chỉ dùng khi chốt phiếu của người đã nghỉ việc. */
+  noSelfScoreReason?: string | null;
   ipAddress?: string;
 }
 
@@ -57,6 +72,15 @@ export class ScorecardWorkflowService {
 
     const capNhat = this.cacCotCache(input.action, input.actor.id, input.comment, bayGio);
     if (input.assignStatus) capNhat.assignStatus = input.assignStatus;
+    if (input.resultStatus) capNhat.resultStatus = input.resultStatus;
+    if (input.selfTotalScore !== undefined) capNhat.selfTotalScore = input.selfTotalScore;
+    if (input.managerTotalScore !== undefined) {
+      capNhat.managerTotalScore = input.managerTotalScore;
+    }
+    if (input.grade !== undefined) capNhat.grade = input.grade;
+    if (input.noSelfScoreReason !== undefined) {
+      capNhat.noSelfScoreReason = input.noSelfScoreReason;
+    }
 
     const phieu = await tx.scorecard.update({
       where: { id: input.scorecardId },
@@ -71,6 +95,7 @@ export class ScorecardWorkflowService {
         action: input.action,
         after: {
           assignStatus: phieu.assignStatus,
+          resultStatus: phieu.resultStatus,
           comment: input.comment ?? null,
         },
         ipAddress: input.ipAddress,
@@ -102,6 +127,16 @@ export class ScorecardWorkflowService {
         return { acceptedAt: bayGio };
       case ScorecardAction.DISPUTE:
         return { disputedAt: bayGio, disputeReason: comment ?? null };
+      case ScorecardAction.SELF_SCORE:
+        return { selfScoredAt: bayGio };
+      case ScorecardAction.MANAGER_SCORE:
+        return { managerScoredAt: bayGio };
+      case ScorecardAction.REJECT:
+        // Phiếu bị trả lại nhiều lần là chuyện bình thường. Hai cột này chỉ
+        // giữ lần GẦN NHẤT; muốn xem đủ các lần thì đọc ScorecardEvent.
+        return { rejectedAt: bayGio, rejectReason: comment ?? null };
+      case ScorecardAction.RECEIVE:
+        return { receivedAt: bayGio, receivedById: actorId };
       default:
         return {};
     }

@@ -15,6 +15,7 @@ import { Role } from '@prisma/client';
 import { ScorecardService } from './scorecard.service.js';
 import { ScorecardQueryService } from './scorecard-query.service.js';
 import { ScorecardAssignService } from './scorecard-assign.service.js';
+import { ScorecardScoringService } from './scorecard-scoring.service.js';
 import {
   AssignmentBoardQuery,
   BatchCreateScorecardDto,
@@ -27,6 +28,11 @@ import {
   ReadinessQuery,
   SaveScorecardItemsDto,
 } from './dto/scorecard.dto.js';
+import {
+  ManagerSubmitDto,
+  RejectScorecardDto,
+  SaveScoresDto,
+} from './dto/scoring.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
@@ -48,12 +54,23 @@ const VAI_TRO_GIAO_KPI = [Role.ADMIN, Role.HR, Role.MANAGER] as const;
  */
 const VAI_TRO_GIAO_KPI_VA_BGD = [...VAI_TRO_GIAO_KPI, Role.EXECUTIVE] as const;
 
+/**
+ * Ai được chấm cột trưởng bộ phận: trưởng bộ phận và ban giám đốc.
+ *
+ * ADMIN và HR cố ý KHÔNG có trong danh sách — chấm thay là làm hỏng dấu vết
+ * ai chấm, mà điểm là căn cứ tính lương. Guard chỉ lọc thô theo vai trò;
+ * việc phải đúng `evaluatorId` của CHÍNH phiếu đó do
+ * ScorecardScoringService.assertLaNguoiCham() kiểm.
+ */
+const VAI_TRO_CHAM_DIEM = [Role.MANAGER, Role.EXECUTIVE] as const;
+
 @Controller('scorecards')
 export class ScorecardController {
   constructor(
     private readonly scorecards: ScorecardService,
     private readonly queries: ScorecardQueryService,
     private readonly assign: ScorecardAssignService,
+    private readonly scoring: ScorecardScoringService,
   ) {}
 
   // ------------------------------------------------------------------ đọc
@@ -224,5 +241,85 @@ export class ScorecardController {
     @Req() req: RequestInfo,
   ) {
     return this.assign.saveItems(id, dto.items, user, req.ip);
+  }
+
+  // ------------------------------------------------------------ chấm điểm
+
+  /**
+   * Cây tiêu chí kèm hai cột điểm và điểm tính thử.
+   *
+   * Không gắn `@Roles`: STAFF phải xem được phiếu của chính mình. Phạm vi
+   * do `assertCoTheXem()` kiểm bằng `getAccessibleDepartmentIds`.
+   */
+  @Get(':id/scoring')
+  getScoring(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.scoring.getScoring(id, user);
+  }
+
+  /** Lưu nháp cột tự chấm. Chỉ chủ phiếu — không gắn `@Roles` vì STAFF phải vào được. */
+  @Put(':id/self-scores')
+  saveSelfScores(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SaveScoresDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.scoring.saveSelfScores(id, dto.scores, user);
+  }
+
+  @Post(':id/self-submit')
+  @HttpCode(HttpStatus.OK)
+  selfSubmit(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestInfo,
+  ) {
+    return this.scoring.selfSubmit(id, user, req.ip);
+  }
+
+  @Roles(...VAI_TRO_CHAM_DIEM)
+  @Put(':id/manager-scores')
+  saveManagerScores(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SaveScoresDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.scoring.saveManagerScores(id, dto.scores, user);
+  }
+
+  @Roles(...VAI_TRO_CHAM_DIEM)
+  @Post(':id/manager-submit')
+  @HttpCode(HttpStatus.OK)
+  managerSubmit(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ManagerSubmitDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestInfo,
+  ) {
+    return this.scoring.managerSubmit(id, user, dto.noSelfScoreReason, req.ip);
+  }
+
+  /** Trả phiếu về cho nhân viên tự chấm lại. HR KHÔNG có quyền này. */
+  @Roles(...VAI_TRO_CHAM_DIEM)
+  @Post(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  reject(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RejectScorecardDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestInfo,
+  ) {
+    return this.scoring.reject(id, dto.reason, user, req.ip);
+  }
+
+  /** HCNS tiếp nhận phiếu đã chốt điểm. */
+  @Roles(Role.HR)
+  @Post(':id/receive')
+  @HttpCode(HttpStatus.OK)
+  receive(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestInfo,
+  ) {
+    return this.scoring.receive(id, user, req.ip);
   }
 }
