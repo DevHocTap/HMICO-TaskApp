@@ -352,6 +352,14 @@ export function ScorecardDetailPage() {
               {NHAN_TRANG_THAI_GIAO[phieu.assignStatus]}
             </Tag>
           )}
+          {/* Chấm điểm là màn khác: màn này lo NỘI DUNG KPI đầu kỳ, màn kia
+              lo ĐIỂM cuối kỳ. Chỉ mở khi phiếu đã ký nhận — chưa ký thì
+              backend trả 409. */}
+          {phieu?.assignStatus === 'ACCEPTED' && (
+            <Button onClick={() => navigate(`/kpi/scorecards/${phieu.id}/scoring`)}>
+              Chấm điểm
+            </Button>
+          )}
         </Space>
         {suaDuoc && (
           <Space>

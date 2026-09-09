@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Alert,
   App,
@@ -23,7 +24,9 @@ import {
 } from '../../api/scorecard';
 import { layThongBaoLoi } from '../../api/client';
 import {
+  MAU_TRANG_THAI_CHAM,
   MAU_TRANG_THAI_GIAO,
+  NHAN_TRANG_THAI_CHAM,
   NHAN_TRANG_THAI_GIAO,
   type DongPhieuKpi,
   type PhieuKpi,
@@ -109,6 +112,27 @@ export function MyScorecardsPage() {
       title: 'Ngày ký nhận',
       dataIndex: 'acceptedAt',
       render: (v: string | null) => ngayVN(v),
+    },
+    {
+      title: 'Chấm điểm',
+      key: 'cham',
+      width: 220,
+      render: (_: unknown, dong) => (
+        <Space size="small">
+          <Tag color={MAU_TRANG_THAI_CHAM[dong.resultStatus]}>
+            {NHAN_TRANG_THAI_CHAM[dong.resultStatus]}
+          </Tag>
+          {/* Chỉ mở khi đã ký nhận: chưa ký thì backend trả 409, bày nút ra
+              chỉ để người dùng bấm vào rồi nhận lỗi. */}
+          {dong.assignStatus === 'ACCEPTED' && (
+            <Link to={`/kpi/scorecards/${dong.id}/scoring`}>
+              <Button type="link" size="small" style={{ padding: 0 }}>
+                Mở
+              </Button>
+            </Link>
+          )}
+        </Space>
+      ),
     },
   ];
 

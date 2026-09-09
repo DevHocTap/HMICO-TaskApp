@@ -4,7 +4,7 @@
 > Đây là trí nhớ của Claude Code giữa các phiên — để lạc hậu là nó sẽ
 > làm lại thứ đã có hoặc bỏ sót thứ đang dở.
 
-Cập nhật lần cuối: 04/09/2026
+Cập nhật lần cuối: 09/09/2026
 
 **Mốc bàn giao: một phòng Kỹ thuật chạy thật tháng 11/2026.**
 Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 130 test backend + 12 test frontend + 3 e2e + 35 + 60 + 35 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 240 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 69 kiểm tra curl.**
 
 ## Đang làm
 
@@ -129,7 +129,59 @@ Giao diện đã có (04/09):
   (trưởng phòng, phó phòng). Thử sinh từ mẫu trước, backend từ chối vì
   chưa có mẫu thì hỏi người dùng có tạo phiếu trống không.
 
-**LÁT CẮT 4 XONG CẢ HAI ĐẦU.** Việc tiếp: lát cắt 5 — chấm điểm.
+**LÁT CẮT 4 XONG CẢ HAI ĐẦU.**
+
+---
+
+**Lát cắt 5 — `scoring`: XONG CẢ HAI ĐẦU (09/09), trừ mốc hạn nộp.**
+
+Giai đoạn 1 — engine tính điểm:
+- `src/modules/scorecard/scoring/scoring-engine.ts` — file THUẦN, không
+  import NestJS, không chạm database. Chạy hai lần độc lập cho hai cột.
+- Ba quyết định ghi vào `quy-tac-nghiep-vu.md` mục 4: giữ `Decimal` suốt
+  quá trình và làm tròn ROUND_HALF_UP 2 chữ số ĐÚNG MỘT LẦN ở bước cuối;
+  ngưỡng xếp loại so sánh liên tục (bịt khoảng hở 89,01–89,99 của tài liệu);
+  xếp loại CHỈ tính trên cột trưởng bộ phận — chặn ngay tại engine.
+- Ô điểm để trống KHÔNG ngầm thành 0; engine cũng KHÔNG tự chuẩn hoá trọng
+  số (phiếu mới soạn 60/100 phải ra 60 điểm).
+- `scoring/huong-b.ts` — công thức tính điểm từ số liệu thô, viết sẵn kèm
+  test, CHƯA nối vào luồng nào.
+- 48 test.
+
+Giai đoạn 2 — bảy endpoint:
+- `GET :id/scoring`, `PUT :id/self-scores`, `POST :id/self-submit`,
+  `PUT :id/manager-scores`, `POST :id/manager-submit`, `POST :id/reject`,
+  `POST :id/receive` — `ScorecardScoringService`.
+- Lưu nháp là CẬP NHẬT MỘT PHẦN; ô không gửi lên giữ nguyên điểm cũ.
+- Cửa ghi điểm đóng theo `resultStatus`: tự chấm mở ở PENDING/REJECTED, cột
+  trưởng bộ phận ở SELF_SCORED, sau RECEIVED không còn cửa nào. Muốn chấm
+  lại phiếu đã chốt thì phải qua `reject`. Ngoại lệ duy nhất: người đã nghỉ
+  việc, cột trưởng bộ phận mở từ PENDING kèm `noSelfScoreReason` bắt buộc.
+- Kỳ khoá và phiếu chưa ký nhận trả 409 — đã thống nhất mã này cho cả luồng
+  giao KPI của lát cắt 4.
+- `scripts/kiem-chung-lat-cat-5.sh`: **69 kiểm tra bằng curl**.
+
+Giai đoạn 3 — giao diện:
+- **`/kpi/scorecards/:id/scoring`** — MỘT màn hình cho cả hai vai, hai cột
+  điểm cạnh nhau đúng bố cục biểu mẫu. Cột nào sửa được do backend quyết
+  (`permissions`), cột kia chỉ đọc. Route nằm NGOÀI `RoleRoute` để STAFF vào
+  được.
+- Cột phải hiện đóng góp từng tiêu chí cấp 1 và tổng điểm, **cập nhật ngay
+  khi gõ**; `web/src/utils/scoring.ts` tính bằng số nguyên, dùng lại đúng bộ
+  ca test của engine backend để hai bên không lệch nhau.
+- Ô nhập vượt thang đổi màu và tự mở ô ghi chú bắt buộc; cột chênh lệch giữa
+  hai cột; nút Lưu nháp / Nộp / Chốt điểm / Trả lại / Tiếp nhận theo vai trò
+  và trạng thái.
+- Trang chủ "Việc của tôi" thêm ba việc: `CHO_TU_CHAM`, `CHO_TOI_CHAM`,
+  `CHO_TIEP_NHAN`.
+
+**CHƯA LÀM — chờ chốt mốc hạn nộp cho việc chấm điểm.** Ba việc mới ở trang
+chủ cố ý KHÔNG có hạn (`KHONG_CO_HAN`), nên chưa có thẻ "Quá hạn" hay
+"Còn N ngày" và chưa có nhắc theo ngày 28/30. `period-calendar.ts` không bị
+đụng tới. Xem `no-ky-thuat.md` mục "Lát cắt 5".
+
+Việc tiếp: giai đoạn 4 — đối chiếu một phiếu KPI thật đã chấm tháng 08 với
+file Excel, số phải khớp tuyệt đối.
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 

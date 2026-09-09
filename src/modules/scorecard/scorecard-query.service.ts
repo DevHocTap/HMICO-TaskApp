@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AssignStatus,
+  ResultStatus,
   Prisma,
   Role,
   TemplateStatus,
@@ -310,6 +311,81 @@ export class ScorecardQueryService {
             ...hanGiaoKpi,
           });
         }
+      }
+    }
+
+    // --- Chấm điểm cuối kỳ ---
+    //
+    // BA VIỆC NÀY CỐ Ý KHÔNG CÓ HẠN (`KHONG_CO_HAN`).
+    //
+    // Kỳ đã có sẵn `selfScoreDeadline` (ngày 25) và `managerScoreDeadline`
+    // (ngày 29), nhưng mốc hạn cho việc chấm điểm CHƯA ĐƯỢC CHỐT — xem
+    // docs/no-ky-thuat.md mục "Lát cắt 5". Gắn đại một trong hai cột vào đây
+    // là bịa ra một con số đếm ngược mà không ai cam kết, rồi trang chủ sẽ
+    // báo "quá hạn" cho việc chưa từng có hạn.
+    //
+    // Chốt xong thì chỉ cần đổi `KHONG_CO_HAN` thành `tinhTinhTrangHanNop()`
+    // của đúng cột — phần đếm ngược ở `period-calendar.ts` đã sẵn sàng và
+    // không phải sửa gì.
+    const phieuChoTuCham = await this.prisma.scorecard.findMany({
+      where: {
+        ownerUserId: user.id,
+        assignStatus: AssignStatus.ACCEPTED,
+        resultStatus: { in: [ResultStatus.PENDING, ResultStatus.REJECTED] },
+      },
+      select: { id: true, resultStatus: true, period: { select: { name: true } } },
+    });
+    if (phieuChoTuCham.length > 0) {
+      const biTraLai = phieuChoTuCham.filter(
+        (p) => p.resultStatus === ResultStatus.REJECTED,
+      ).length;
+      const tenKy = [...new Set(phieuChoTuCham.map((p) => p.period.name))];
+      const nhan = tenKy.length === 1 ? tenKy[0] : `${tenKy.length} kỳ`;
+      viec.push({
+        type: 'CHO_TU_CHAM',
+        message:
+          biTraLai > 0
+            ? `Bạn có ${phieuChoTuCham.length} phiếu KPI cần tự chấm (${nhan}), trong đó ${biTraLai} phiếu bị trả lại`
+            : `Bạn có ${phieuChoTuCham.length} phiếu KPI cần tự chấm (${nhan})`,
+        count: phieuChoTuCham.length,
+        // Một phiếu thì vào thẳng, nhiều phiếu thì về danh sách để tự chọn.
+        link:
+          phieuChoTuCham.length === 1
+            ? `/kpi/scorecards/${phieuChoTuCham[0].id}/scoring`
+            : '/kpi/my',
+        ...KHONG_CO_HAN,
+      });
+    }
+
+    const choToiCham = await this.prisma.scorecard.count({
+      where: {
+        evaluatorId: user.id,
+        assignStatus: AssignStatus.ACCEPTED,
+        resultStatus: ResultStatus.SELF_SCORED,
+      },
+    });
+    if (choToiCham > 0) {
+      viec.push({
+        type: 'CHO_TOI_CHAM',
+        message: `${choToiCham} phiếu KPI nhân viên đã tự chấm, chờ bạn cho điểm`,
+        count: choToiCham,
+        link: '/kpi/assign',
+        ...KHONG_CO_HAN,
+      });
+    }
+
+    if (user.role === Role.HR || user.role === Role.ADMIN) {
+      const choTiepNhan = await this.prisma.scorecard.count({
+        where: { resultStatus: ResultStatus.MANAGER_SCORED },
+      });
+      if (choTiepNhan > 0) {
+        viec.push({
+          type: 'CHO_TIEP_NHAN',
+          message: `${choTiepNhan} phiếu KPI đã chốt điểm, chờ HCNS tiếp nhận`,
+          count: choTiepNhan,
+          link: '/kpi/assign',
+          ...KHONG_CO_HAN,
+        });
       }
     }
 

@@ -235,15 +235,29 @@ export function AssignKpiPage() {
     },
     {
       title: '',
-      width: 120,
+      width: 200,
       render: (_, d) =>
         d.scorecardId ? (
-          <Button
-            size="small"
-            onClick={() => navigate(`/kpi/scorecards/${d.scorecardId}`)}
-          >
-            Mở phiếu
-          </Button>
+          <Space size="small">
+            <Button
+              size="small"
+              onClick={() => navigate(`/kpi/scorecards/${d.scorecardId}`)}
+            >
+              Mở phiếu
+            </Button>
+            {/* Chỉ hiện khi đã ký nhận: chấm điểm phiếu chưa ký sẽ bị backend
+                từ chối, bày nút ra chỉ để người dùng bấm vào rồi nhận lỗi. */}
+            {d.assignStatus === 'ACCEPTED' && (
+              <Button
+                size="small"
+                type="link"
+                style={{ padding: 0 }}
+                onClick={() => navigate(`/kpi/scorecards/${d.scorecardId}/scoring`)}
+              >
+                Chấm điểm
+              </Button>
+            )}
+          </Space>
         ) : (
           <Button
             size="small"

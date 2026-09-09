@@ -9,6 +9,7 @@ import { HomePage } from './pages/HomePage';
 import { MyScorecardsPage } from './pages/kpi/MyScorecardsPage';
 import { AssignKpiPage } from './pages/kpi/AssignKpiPage';
 import { ScorecardDetailPage } from './pages/kpi/ScorecardDetailPage';
+import { ScoringPage } from './pages/kpi/ScoringPage';
 import { PeriodsPage } from './pages/kpi/PeriodsPage';
 import { DepartmentsPage } from './pages/admin/DepartmentsPage';
 import { JobTitlesPage } from './pages/admin/JobTitlesPage';
@@ -39,6 +40,11 @@ export function App() {
 
           {/* Phiếu KPI của chính mình — MỌI vai trò đều có, kể cả STAFF. */}
           <Route path="/kpi/my" element={<MyScorecardsPage />} />
+
+          {/* Màn chấm điểm nằm NGOÀI RoleRoute: STAFF phải vào được để tự
+              chấm phiếu của mình. Ai xem được phiếu nào do backend quyết
+              (assertCoTheXem + getAccessibleDepartmentIds), không phải route. */}
+          <Route path="/kpi/scorecards/:id/scoring" element={<ScoringPage />} />
 
           {/* Giao KPI cho người khác — STAFF không vào. */}
           <Route element={<RoleRoute duocPhep={coTheGiaoKpi} />}>

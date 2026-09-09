@@ -3,6 +3,8 @@ import type {
   DongBangGiaoKpi,
   KetQuaHangLoat,
   KyDanhGia,
+  ODiemGuiLen,
+  PhieuChamDiem,
   PhieuKpi,
   PhieuKpiChiTiet,
   SanSangCongTy,
@@ -181,5 +183,70 @@ export async function khoaKy(id: string): Promise<KyDanhGia> {
 
 export async function moKy(id: string): Promise<KyDanhGia> {
   const { data } = await apiClient.post<KyDanhGia>(`/periods/${id}/unlock`);
+  return data;
+}
+
+// -------------------------------------------------------------- chấm điểm
+
+export async function layPhieuChamDiem(id: string): Promise<PhieuChamDiem> {
+  const { data } = await apiClient.get<PhieuChamDiem>(`/scorecards/${id}/scoring`);
+  return data;
+}
+
+/**
+ * Lưu nháp — CẬP NHẬT MỘT PHẦN.
+ *
+ * Chỉ gửi những ô vừa sửa. Ô không gửi lên giữ nguyên điểm cũ ở database,
+ * nên không cần (và không nên) gửi cả phiếu mỗi lần lưu.
+ */
+export async function luuDiemTuCham(
+  id: string,
+  scores: ODiemGuiLen[],
+): Promise<PhieuChamDiem> {
+  const { data } = await apiClient.put<PhieuChamDiem>(
+    `/scorecards/${id}/self-scores`,
+    { scores },
+  );
+  return data;
+}
+
+export async function nopDiemTuCham(id: string): Promise<PhieuChamDiem> {
+  const { data } = await apiClient.post<PhieuChamDiem>(`/scorecards/${id}/self-submit`);
+  return data;
+}
+
+export async function luuDiemQuanLy(
+  id: string,
+  scores: ODiemGuiLen[],
+): Promise<PhieuChamDiem> {
+  const { data } = await apiClient.put<PhieuChamDiem>(
+    `/scorecards/${id}/manager-scores`,
+    { scores },
+  );
+  return data;
+}
+
+/** Chốt điểm. `noSelfScoreReason` CHỈ dùng cho phiếu của người đã nghỉ việc. */
+export async function chotDiemQuanLy(
+  id: string,
+  noSelfScoreReason?: string,
+): Promise<PhieuChamDiem> {
+  const { data } = await apiClient.post<PhieuChamDiem>(
+    `/scorecards/${id}/manager-submit`,
+    noSelfScoreReason ? { noSelfScoreReason } : {},
+  );
+  return data;
+}
+
+/** Trả phiếu về cho nhân viên tự chấm lại. Bắt buộc kèm lý do. */
+export async function traLaiPhieu(id: string, reason: string): Promise<PhieuChamDiem> {
+  const { data } = await apiClient.post<PhieuChamDiem>(`/scorecards/${id}/reject`, {
+    reason,
+  });
+  return data;
+}
+
+export async function tiepNhanPhieu(id: string): Promise<PhieuChamDiem> {
+  const { data } = await apiClient.post<PhieuChamDiem>(`/scorecards/${id}/receive`);
   return data;
 }

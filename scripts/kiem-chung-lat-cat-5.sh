@@ -507,6 +507,61 @@ NGUOI_NHAN=$(sql "SELECT u.email FROM \"Scorecard\" s JOIN \"User\" u ON u.id=s.
   && pass "    ScorecardEvent ghi đúng ai tiếp nhận ($NGUOI_NHAN)" \
   || fail "    receivedById=$NGUOI_NHAN"
 
+# ================================================= 27 DỮ LIỆU CHO MÀN CHẤM ĐIỂM
+buoc "27  GET /scorecards/:id/scoring — hợp đồng dữ liệu của giao diện"
+
+R=$(goi GET "$AT_NV1" "/scorecards/$SC/scoring")
+mong "$(ma_cua "$R")" 200 "27. chủ phiếu đọc được dữ liệu chấm điểm"
+TH=$(than_cua "$R")
+
+SO_ITEM=$(echo "$TH" | jq_ "len(d['items'])")
+[ "${SO_ITEM:-0}" -gt 0 ] && pass "    trả về $SO_ITEM dòng tiêu chí" || fail "    items rỗng"
+
+# Điểm và đóng góp TÍNH ĐỘNG: tiêu chí cha không lưu điểm, backend phải tính
+CO_TINH_DONG=$(echo "$TH" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+cha={i['id'] for i in d['items'] if i['parentId'] is None}
+con_cua={i['parentId'] for i in d['items'] if i['parentId']}
+mot_cha_co_con=next((i for i in d['items'] if i['id'] in con_cua), None)
+print('co' if mot_cha_co_con and mot_cha_co_con['managerComputed']['diem'] is not None else 'khong')" 2>/dev/null)
+[ "$CO_TINH_DONG" = "co" ] \
+  && pass "    tiêu chí CHA có điểm tính động (không lưu ở database)" \
+  || fail "    managerComputed.diem của tiêu chí cha rỗng"
+
+TONG_QL=$(echo "$TH" | jq_ "d['managerPreview']['tongDiem']")
+XEP_LOAI=$(echo "$TH" | jq_ "d['scorecard']['grade']")
+[ "$TONG_QL" = "100" ] && pass "    managerPreview.tongDiem = 100" || fail "    tổng = $TONG_QL"
+[ "$XEP_LOAI" = "COMPLETED" ] && pass "    grade đã chốt = COMPLETED" || fail "    grade = $XEP_LOAI"
+
+TRAN=$(echo "$TH" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+bsc=next(i for i in d['items'] if i['section']=='BSC_WORK')
+cpl=next(i for i in d['items'] if i['section']=='COMPLIANCE')
+print(f\"{bsc['tranDiem']}|{cpl['tranDiem']}\")" 2>/dev/null)
+[ "$TRAN" = "12|3" ] \
+  && pass "    trần điểm trả sẵn theo mục: BSC 12, nội quy 3" \
+  || fail "    trần = $TRAN (mong đợi 12|3)"
+
+QUYEN=$(echo "$TH" | python3 -c "
+import json,sys
+p=json.load(sys.stdin)['permissions']
+print('|'.join(str(p[k]) for k in ['canEditSelfScores','canEditManagerScores','canReject','canReceive']))" 2>/dev/null)
+[ "$QUYEN" = "False|False|False|False" ] \
+  && pass "    phiếu đã RECEIVED -> giao diện không bày nút nào" \
+  || fail "    permissions = $QUYEN"
+
+R=$(goi GET "$AT_NV2" "/scorecards/$SC/scoring")
+mong "$(ma_cua "$R")" 403 "    nhân viên khác đọc phiếu này -> 403"
+
+R=$(goi GET "$AT_NV1" "/scorecards/pending-my-action")
+VIEC=$(than_cua "$R" | python3 -c "
+import json,sys
+print(','.join(v['type'] for v in json.load(sys.stdin)))" 2>/dev/null)
+mong "$(ma_cua "$R")" 200 "28. trang chủ đọc được việc cần xử lý"
+echo "        việc của nhân viên: ${VIEC:-(rỗng)}"
+
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"
 echo "  PASS: $SO_PASS    FAIL: $SO_FAIL"

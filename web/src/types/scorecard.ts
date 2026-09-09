@@ -201,3 +201,120 @@ export interface ViecCanXuLy {
   daysUntilDeadline: number | null;
   isOverdue: boolean;
 }
+
+// ------------------------------------------------------------ chấm điểm
+
+export const NHAN_TRANG_THAI_CHAM: Record<ResultStatus, string> = {
+  PENDING: 'Chưa chấm',
+  SELF_SCORED: 'Đã tự chấm, chờ trưởng bộ phận',
+  MANAGER_SCORED: 'Đã chốt điểm, chờ HCNS tiếp nhận',
+  REJECTED: 'Bị trả lại, cần chấm lại',
+  RECEIVED: 'HCNS đã tiếp nhận',
+};
+
+export const MAU_TRANG_THAI_CHAM: Record<ResultStatus, string> = {
+  PENDING: 'default',
+  SELF_SCORED: 'processing',
+  MANAGER_SCORED: 'success',
+  REJECTED: 'warning',
+  RECEIVED: 'green',
+};
+
+export type XepLoai = 'NOT_ACHIEVED' | 'NEEDS_IMPROVEMENT' | 'COMPLETED' | 'EXCEEDED';
+
+export const NHAN_XEP_LOAI: Record<XepLoai, string> = {
+  NOT_ACHIEVED: 'Chưa đạt',
+  NEEDS_IMPROVEMENT: 'Cần cải thiện',
+  COMPLETED: 'Hoàn thành',
+  EXCEEDED: 'Vượt chỉ tiêu',
+};
+
+export const MAU_XEP_LOAI: Record<XepLoai, string> = {
+  NOT_ACHIEVED: 'error',
+  NEEDS_IMPROVEMENT: 'warning',
+  COMPLETED: 'success',
+  EXCEEDED: 'purple',
+};
+
+/** Điểm và đóng góp TÍNH ĐỘNG từ backend — tiêu chí cha không lưu điểm. */
+export interface DiemTinhDong {
+  diem: string | null;
+  dongGop: string | null;
+}
+
+export interface DongChamDiem {
+  id: string;
+  parentId: string | null;
+  section: 'BSC_WORK' | 'COMPLIANCE';
+  displayOrder: number;
+  name: string;
+  description: string | null;
+  measurementText: string | null;
+  measureMethod: string | null;
+  targetValue: string | null;
+  maxScale: number;
+  weight: string;
+  /** Trần điểm được phép nhập, backend tính sẵn theo mục. */
+  tranDiem: string;
+  selfScore: string | null;
+  selfComment: string | null;
+  managerScore: string | null;
+  managerComment: string | null;
+  selfComputed: DiemTinhDong;
+  managerComputed: DiemTinhDong;
+}
+
+export interface TomTatCham {
+  tongDiem: string;
+  xepLoai: XepLoai | null;
+  daChamDu: boolean;
+  thieuDiem: string[];
+}
+
+export interface QuyenChamDiem {
+  canEditSelfScores: boolean;
+  canEditManagerScores: boolean;
+  canReject: boolean;
+  canReceive: boolean;
+}
+
+export interface PhieuChamDiem {
+  scorecard: {
+    id: string;
+    ownerUserId: string | null;
+    ownerName: string | null;
+    ownerIsActive: boolean;
+    departmentName: string;
+    jobTitleName: string;
+    periodId: string;
+    periodName: string;
+    periodIsLocked: boolean;
+    evaluatorId: string | null;
+    assignStatus: AssignStatus;
+    resultStatus: ResultStatus;
+    selfScoredAt: string | null;
+    managerScoredAt: string | null;
+    rejectedAt: string | null;
+    rejectReason: string | null;
+    receivedAt: string | null;
+    noSelfScoreReason: string | null;
+    /** Điểm ĐÃ CHỐT. Khác điểm tính thử ở `selfPreview` / `managerPreview`. */
+    selfTotalScore: string | null;
+    managerTotalScore: string | null;
+    grade: XepLoai | null;
+  };
+  items: DongChamDiem[];
+  /** Điểm TÍNH THỬ của backend; `null` khi dữ liệu phiếu có chỗ hỏng. */
+  selfPreview: TomTatCham | null;
+  managerPreview: TomTatCham | null;
+  permissions: QuyenChamDiem;
+}
+
+/** Một ô điểm gửi lên khi lưu nháp. */
+export interface ODiemGuiLen {
+  itemId: string;
+  /** Bỏ trống trường này = giữ nguyên điểm cũ; `null` = xoá điểm. */
+  score?: number | null;
+  /** Bỏ trống = giữ nguyên ghi chú cũ; `null` = xoá ghi chú. */
+  comment?: string | null;
+}
