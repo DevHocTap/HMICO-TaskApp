@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 240 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 69 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 267 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 74 kiểm tra curl.**
 
 ## Đang làm
 
@@ -180,8 +180,38 @@ chủ cố ý KHÔNG có hạn (`KHONG_CO_HAN`), nên chưa có thẻ "Quá hạ
 "Còn N ngày" và chưa có nhắc theo ngày 28/30. `period-calendar.ts` không bị
 đụng tới. Xem `no-ky-thuat.md` mục "Lát cắt 5".
 
-Việc tiếp: giai đoạn 4 — đối chiếu một phiếu KPI thật đã chấm tháng 08 với
-file Excel, số phải khớp tuyệt đối.
+Giai đoạn 4 — đối chiếu Excel: **ĐÃ LÀM, KHÔNG CÓ DÒNG NÀO LỆCH.**
+
+Đối chiếu bằng máy với **cả bốn** file trong `docs/mau-kpi/`, không phải một
+file: `excel-mau-kpi.data.ts` sinh thẳng từ .xlsx (không gõ tay), rồi
+`doi-chieu-excel.spec.ts` chạy engine thật so từng ô — 27 test, 27 tiêu chí
+cấp 1, 120 KPI con.
+
+Khớp tuyệt đối ở: điểm tiêu chí cha suy từ con, đóng góp từng tiêu chí cấp 1
+(cột "% đóng góp/tổng"), tổng Mục 1 hai cột. Cộng thêm một lượt đi hết đường
+thật qua API trong `kiem-chung-lat-cat-5.sh` mục 29: sinh phiếu Shop Drawing
+từ mẫu nhập từ Excel, tự chấm, chốt điểm — ra 100,00 / 100,00 / HOÀN THÀNH,
+đóng góp 15/15/10/10/10/10 đúng biểu mẫu.
+
+**HAI CHỖ HỆ THỐNG KHÁC EXCEL, cả hai đều là hệ thống đúng:**
+
+1. **Mục 2 bỏ trống ở cả bốn file.** Excel ngầm coi ô trống là 0 điểm nên ra
+   tổng 70% và in **"CHƯA ĐẠT"** — ai cầm tờ giấy đó cũng tưởng người này bị
+   đánh giá kém, trong khi sự thật là chưa ai chấm phần nội quy. Hệ thống từ
+   chối chốt và chỉ đúng ba dòng còn thiếu. Chấm nốt 3/3 thì ra 100,00 và
+   HOÀN THÀNH.
+2. **Excel tự nó sai số thực:** ô "Cộng Mục 1" ghi `0.70000000000000007`
+   (bảo hành, cấu hình) và `0.70000000000000018` (triển khai), ô "Cộng Mục 2"
+   ghi `0.30000000000000004` ở cả bốn file. Hệ thống dùng `Decimal` nên ra
+   đúng 70 và 30.
+
+**Bốn file KHÔNG PHẢI phiếu đã chấm của một người** — ô Họ và tên, Mã nhân
+viên, Người đánh giá, Ngày đánh giá đều trống. Đúng như HCNS xác nhận
+03/09/2026 (Câu 3): đây là mẫu thử nghiệm. Vì vậy mốc "đối chiếu phiếu thật
+tháng 08" theo nghĩa đen chưa thực hiện được — cần HCNS đưa một phiếu đã
+chấm thật. Mốc thay thế vẫn đang treo, xem mục "Chưa quyết".
+
+**LÁT CẮT 5 XONG CẢ HAI ĐẦU**, trừ mốc hạn nộp cho việc chấm điểm.
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 
@@ -211,6 +241,13 @@ Ngày 03/09/2026 HCNS và ban giám đốc đã chốt 15 câu — xem
   Min/Max — điều kiện bắt buộc trước khi bật tính điểm tự động.
 - **Mốc nghiệm thu thay thế.** Bốn file Excel chỉ là mẫu tham khảo nên mốc
   "khớp tuyệt đối với Excel" không còn nghĩa. HCNS nói để sau.
+
+  **Cập nhật 09/09:** đã đối chiếu bằng máy với cả bốn file, không lệch dòng
+  nào (`doi-chieu-excel.spec.ts`). Nhưng đó là đối chiếu với MẪU, không phải
+  với phiếu đã chấm thật. **Cần xin HCNS một phiếu KPI thật đã chấm xong của
+  tháng bất kỳ** — có tên người, có điểm cả hai cột, có xếp loại. Không có nó
+  thì không chứng minh được hệ thống ra đúng số mà công ty đang dùng để tính
+  lương.
 
 ## Việc cần làm ngoài code
 

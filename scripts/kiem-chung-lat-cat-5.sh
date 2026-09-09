@@ -170,6 +170,7 @@ AT_RND=$(token_cua truongphong.rnd@hmico.vn)
 AT_BGD=$(token_cua giamdoc@hmico.vn)
 AT_NV1=$(token_cua kt.trienkhai1@hmico.vn)
 AT_NV2=$(token_cua "$EMAIL_NGHI_VIEC")
+AT_SD=$(token_cua sd.nhanvien1@hmico.vn)
 
 if [ -z "$AT_ADMIN" ] || [ -z "$AT_NV1" ]; then
   echo; echo "Không đăng nhập được bằng tài khoản seed. Chạy: npx prisma db seed"; exit 1
@@ -181,6 +182,7 @@ KY_Q3=$(sql "SELECT id FROM \"Period\" WHERE code='2026-Q3';")
 U_NV1=$(sql "SELECT id FROM \"User\" WHERE email='kt.trienkhai1@hmico.vn';")
 U_NV2=$(sql "SELECT id FROM \"User\" WHERE email='$EMAIL_NGHI_VIEC';")
 U_KT=$(sql "SELECT id FROM \"User\" WHERE email='truongphong.kythuat@hmico.vn';")
+U_SD=$(sql "SELECT id FROM \"User\" WHERE email='sd.nhanvien1@hmico.vn';")
 ISACTIVE_GOC=$(sql "SELECT \"isActive\" FROM \"User\" WHERE email='$EMAIL_NGHI_VIEC';")
 
 # ========================================================= DỰNG PHIẾU NỀN
@@ -561,6 +563,44 @@ import json,sys
 print(','.join(v['type'] for v in json.load(sys.stdin)))" 2>/dev/null)
 mong "$(ma_cua "$R")" 200 "28. trang chủ đọc được việc cần xử lý"
 echo "        việc của nhân viên: ${VIEC:-(rỗng)}"
+
+# ================================================= 29 ĐỐI CHIẾU EXCEL
+buoc "29  ĐỐI CHIẾU EXCEL — đi hết đường thật, từ sinh phiếu tới chốt điểm"
+#
+# Mẫu Shop Drawing trong hệ thống nhập từ chính `docs/mau-kpi/KPI Shop
+# Drawing.xlsx`. Chấm đủ 10/10 cho Mục 1 và 3/3 cho Mục 2 — đúng bộ điểm
+# Mục 1 của file Excel — thì đóng góp từng dòng phải ra đúng cột
+# "% đóng góp/tổng" của biểu mẫu: 15, 15, 10, 10, 10, 10.
+
+R=$(goi POST "$AT_ADMIN" /scorecards "{\"userId\":\"$U_SD\",\"periodId\":\"$KY_08\"}")
+SC_SD=$(than_cua "$R" | jq_ "d['id']")
+[ -n "$SC_SD" ] && pass "sinh phiếu Shop Drawing tháng 08 từ mẫu nhập từ Excel" || fail "$(than_cua "$R")"
+
+goi POST "$AT_KT" "/scorecards/$SC_SD/propose" >/dev/null
+goi POST "$AT_SD" "/scorecards/$SC_SD/accept" >/dev/null
+goi PUT "$AT_SD" "/scorecards/$SC_SD/self-scores" "$(payload_cham_du "$SC_SD")" >/dev/null
+R=$(goi POST "$AT_SD" "/scorecards/$SC_SD/self-submit")
+mong "$(ma_cua "$R")" 200 "29. nhân viên tự chấm và nộp" "$(than_cua "$R")"
+
+goi PUT "$AT_KT" "/scorecards/$SC_SD/manager-scores" "$(payload_cham_du "$SC_SD")" >/dev/null
+R=$(goi POST "$AT_KT" "/scorecards/$SC_SD/manager-submit" '{}')
+mong "$(ma_cua "$R")" 200 "    trưởng bộ phận chốt điểm" "$(than_cua "$R")"
+
+CHOT=$(sql "SELECT \"selfTotalScore\"::text || '|' || \"managerTotalScore\"::text || '|' || grade::text FROM \"Scorecard\" WHERE id='$SC_SD';")
+[ "$CHOT" = "100.00|100.00|COMPLETED" ] \
+  && pass "    tổng hai cột 100,00 và xếp loại HOÀN THÀNH" \
+  || fail "    chốt được: $CHOT (mong đợi 100.00|100.00|COMPLETED)"
+
+# Đóng góp từng tiêu chí cấp 1, so với cột "% đóng góp/tổng" của file Excel
+DONG_GOP=$(goi GET "$AT_KT" "/scorecards/$SC_SD/scoring" | cut -d'|' -f2- | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+bsc=[i for i in d['items'] if i['parentId'] is None and i['section']=='BSC_WORK']
+bsc.sort(key=lambda i: i['displayOrder'])
+print(','.join(str(float(i['managerComputed']['dongGop'])) for i in bsc))" 2>/dev/null)
+[ "$DONG_GOP" = "15.0,15.0,10.0,10.0,10.0,10.0" ] \
+  && pass "    đóng góp Mục 1 khớp Excel: $DONG_GOP" \
+  || fail "    đóng góp = $DONG_GOP (Excel: 15,15,10,10,10,10)"
 
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"
