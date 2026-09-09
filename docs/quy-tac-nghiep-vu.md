@@ -257,13 +257,51 @@ Tính trên tổng điểm cột trưởng bộ phận:
 
 | Xếp loại | Ngưỡng | Hằng số |
 |---|---|---|
-| Chưa đạt | < 80% | `NOT_MET` |
+| Chưa đạt | < 80% | `NOT_ACHIEVED` |
 | Cần cải thiện | 80 – 89% | `NEEDS_IMPROVEMENT` |
 | Hoàn thành | 90 – 100% | `COMPLETED` |
 | Vượt chỉ tiêu | > 100% (tham chiếu 100–120%) | `EXCEEDED` |
 
 Hệ thống **không tính tiền thưởng**. Chỉ cung cấp điểm và xếp loại, HCNS
 tự tính thưởng bên ngoài.
+
+### Ba quyết định chốt lúc làm lát cắt 5 (09/09/2026)
+
+Bảng ngưỡng ở trên viết theo cách người ta nói miệng, không đủ chính xác để
+viết code. Ba điều dưới đây là cách hiện thực chính thức — hiện thực ở
+`src/modules/scorecard/scoring/scoring-engine.ts`.
+
+**1. Làm tròn — giữ `Decimal` suốt quá trình, chỉ làm tròn ở BƯỚC CUỐI.**
+
+`ROUND_HALF_UP`, 2 chữ số thập phân, làm tròn xong mới lưu và mới xếp loại.
+**Không làm tròn ở từng tiêu chí**: sai số của chín lần làm tròn cộng lại đủ
+để đổi xếp loại ở ranh giới 90.
+
+Mọi bước trung gian dùng `Prisma.Decimal`, không dùng `number`. Đây đã là
+lỗi thật trong dự án: `28.4 + 35.8 + 35.8 = 99.99999999999999`.
+
+**2. Ngưỡng xếp loại so sánh LIÊN TỤC, không có khoảng hở.**
+
+Bảng trên ghi "80 – 89" rồi "90 – 100", để hở khoảng 89,01 – 89,99. Cách
+hiện thực đúng:
+
+```
+total < 80             -> NOT_ACHIEVED
+80 <= total < 90       -> NEEDS_IMPROVEMENT
+90 <= total <= 100     -> COMPLETED
+total > 100            -> EXCEEDED
+```
+
+So trên giá trị **đã làm tròn**: 89,996 làm tròn thành 90,00 nên ra
+`COMPLETED`, không phải `NEEDS_IMPROVEMENT`. Làm tròn trước, xếp loại sau —
+không bao giờ làm ngược lại.
+
+**3. Xếp loại CHỈ tính trên cột trưởng bộ phận.**
+
+Cột tự chấm có tổng điểm riêng (`Scorecard.selfTotalScore`) để đối chiếu,
+nhưng **không có xếp loại**. Nếu có, nhân viên sẽ đọc nó như kết quả chính
+thức. Engine chặn ngay tại chỗ: `tinhDiem(dongs, 'self')` luôn trả
+`xepLoai = null`, không giao cho service tự nhớ.
 
 ---
 

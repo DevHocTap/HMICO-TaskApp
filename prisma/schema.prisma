@@ -387,6 +387,14 @@ model Scorecard {
   resultStatus    ResultStatus @default(PENDING)
   selfScoredAt    DateTime?
   managerScoredAt DateTime?
+
+  // Dấu vết lần TRẢ LẠI gần nhất. Cố ý tách khỏi `disputedAt`/`disputeReason`:
+  // hai cột kia thuộc luồng GIAO KPI (nhân viên nêu ý kiến về nội dung KPI
+  // đầu kỳ), còn đây là người chấm trả phiếu về cuối kỳ. Gộp chung thì lý do
+  // đầu kỳ bị ghi đè. Nguồn sự thật vẫn là ScorecardEvent.
+  rejectedAt   DateTime?
+  rejectReason String?
+
   receivedAt      DateTime?
   receivedById    String?
   receivedBy      User?        @relation("ScorecardReceiver", fields: [receivedById], references: [id])
@@ -456,9 +464,6 @@ model ScorecardItem {
   selfComment    String?
   managerScore   Decimal? @db.Decimal(6, 2)
   managerComment String?
-
-  /// Bắt buộc nhập khi chấm vượt thang (chỉ BSC_WORK được vượt, tối đa 1,2 lần).
-  overScaleNote String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

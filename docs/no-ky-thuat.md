@@ -271,6 +271,59 @@ tự động rồi mới vỡ.
 - Có báo cáo/đề xuất điều chỉnh giải pháp thiết kế
 - Đề xuất sản phẩm mới/ hãng mới cho các giải pháp cụ thể
 
+## Lát cắt 5 — chấm điểm
+
+### Chưa rõ, cần hỏi
+
+- [ ] **Hạn để nhân viên tự chấm và trưởng phòng chấm — TẠM DỪNG, chờ chốt.**
+
+      Prompt lát cắt 5 ghi hạn nộp là "ngày 02 tháng kế tiếp". Lịch đó đã BỎ
+      từ 03/09/2026: mục 5.5 chốt bốn mốc nằm trong chính tháng đó
+      (`selfScoreDeadline` = 25, `managerScoreDeadline` = 29,
+      `submitDeadline` = 30). Prompt còn ghi "nhắc nhân viên từ ngày 28" —
+      ngày 28 thì nhân viên đã quá hạn ba ngày.
+
+      **Chưa động vào `period-calendar.ts` và chưa đụng phần đếm ngược.**
+      Giai đoạn 1 của lát cắt 5 không phụ thuộc mốc thời gian nào.
+
+- [ ] **`LOWER_BETTER`, mục tiêu = 0, thực tế = 0 → cho mấy điểm?**
+
+      Docs mục 3 ghi "điểm tối đa". Hai cách đọc: **đúng thang** (10/10) hay
+      **trần vượt thang** (12/10). Đang hiện thực theo cách đọc thứ nhất:
+      không có cách nào tốt hơn 0 tai nạn, nên đạt 0 là tròn thang chứ không
+      phải vượt chỉ tiêu. Ca "mục tiêu > 0, thực tế = 0" mới là ca chặn trần
+      1,2 — tài liệu liệt kê hai ca này riêng nên chúng phải ra hai kết quả
+      khác nhau.
+
+      Chỗ sửa nếu HCNS đọc khác: `tinhTyLe()` trong
+      `src/modules/scorecard/scoring/huong-b.ts`, nhánh `mucTieu.isZero()`.
+      Chưa bật nên chưa ảnh hưởng số thật.
+
+### Nợ đã nhận, không phải quên
+
+- [ ] **Tên hàm trong `scoring/` viết bằng tiếng Việt** (`tinhDiem`,
+      `chotDiem`, `xepLoaiTuTongDiem`), trong khi
+      `.claude/rules/nestjs-module.md` yêu cầu đặt tên bằng tiếng Anh.
+
+      Làm vậy để đồng bộ với ba file thuần đã có cùng loại:
+      `scorecard-validation.ts`, `template-validation.ts`,
+      `period-calendar.ts` — cả ba đều đặt tên tiếng Việt. Đổi riêng thư mục
+      `scoring/` sẽ làm codebase lệch nhau giữa các file cùng vai trò.
+      **Cần chốt một lần cho toàn dự án**, rồi đổi đồng loạt chứ không đổi
+      lẻ từng file.
+
+- [ ] **`Scorecard.rejectedAt` / `rejectReason` chỉ là BẢN SAO CHO NHANH**
+      của lần trả lại gần nhất. Phiếu bị trả hai lần thì lý do lần đầu chỉ
+      còn trong `ScorecardEvent`. Cố ý, giống cặp `disputedAt`/`disputeReason`
+      của luồng giao KPI. Màn hình xem lịch sử phải đọc `ScorecardEvent`,
+      đừng đọc hai cột này.
+
+- [ ] **Đã XOÁ cột `ScorecardItem.overScaleNote`** (migration
+      `20260909073000_lat_cat_5_cham_diem`). Ghi chú khi chấm vượt thang nay
+      nằm ở `selfComment` / `managerComment` — mỗi cột điểm một ghi chú, vì
+      một cột dùng chung thì không biết ai viết. Kiểm trước khi xoá: 0 dòng
+      có giá trị, không có dòng code nào ghi vào.
+
 ## Chờ HR xác nhận
 
 - [ ] **Quyền NGHIỆP VỤ của `EXECUTIVE` gồm những gì — chốt khi làm module
