@@ -12,6 +12,11 @@ export interface AppEnv {
   PORT: number;
   /** Danh sách địa chỉ frontend được phép gọi API, phân tách bằng dấu phẩy. */
   CORS_ORIGINS: string[];
+  /**
+   * Số lớp proxy phía trước ứng dụng. 0 = chạy trực tiếp (máy dev).
+   * Sau một nginx thì đặt 1 — xem `src/main.ts`.
+   */
+  TRUST_PROXY: number;
 }
 
 const MIN_SECRET_LENGTH = 32;
@@ -48,6 +53,11 @@ export function validateEnv(raw: Record<string, unknown>): AppEnv {
     loi.push('CORS_ORIGINS phải có ít nhất một địa chỉ');
   }
 
+  const trustProxy = Number(raw.TRUST_PROXY ?? 0);
+  if (!Number.isInteger(trustProxy) || trustProxy < 0) {
+    loi.push('TRUST_PROXY phải là số nguyên không âm (0 = không có proxy phía trước)');
+  }
+
   const port = Number(raw.PORT ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     loi.push('PORT phải là số cổng hợp lệ');
@@ -68,5 +78,6 @@ export function validateEnv(raw: Record<string, unknown>): AppEnv {
     JWT_REFRESH_TTL_DAYS: refreshDays,
     PORT: port,
     CORS_ORIGINS: corsOrigins,
+    TRUST_PROXY: trustProxy,
   };
 }

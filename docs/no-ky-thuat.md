@@ -69,24 +69,36 @@
       `docs/kien-truc.md` mục Nhật ký thao tác.
 - [ ] **`RateLimitGuard` và `LoginAttemptService` đều đếm trong BỘ NHỚ
       TIẾN TRÌNH.** Chỉ đúng khi chạy MỘT tiến trình, và mất sạch khi khởi
-      động lại. Chạy nhiều tiến trình (PM2 cluster, nhiều container) phải
-      chuyển sang Redis — nếu không, hạn mức thực tế bị nhân lên theo số
-      tiến trình và khoá tạm gần như vô hiệu.
+      động lại.
+
+      **Chốt 10/09: dự án chạy MỘT tiến trình Node, không PM2 cluster.**
+      Với 200 người thì một tiến trình thừa sức, và rẻ hơn dựng Redis rất
+      nhiều. Ai đổi sang cluster hay nhiều container thì PHẢI chuyển bộ đếm
+      sang Redis trước — nếu không hạn mức thực tế bị nhân lên theo số tiến
+      trình và khoá tạm gần như vô hiệu.
+
       Tự viết thay vì dùng `@nestjs/throttler` vì bản mới nhất (6.5.0) chỉ
       hỗ trợ NestJS tới 11, chưa có bản nào cho NestJS 12.
-- [ ] **Hạn mức đăng nhập theo IP sẽ chặn nhầm cả công ty.** 200 nhân sự
-      sau NAT dùng chung MỘT địa chỉ IP công cộng; mặc định 5 lần/phút
-      nghĩa là sáng thứ Hai người thứ sáu đăng nhập đã bị chặn.
+- [x] ~~Hạn mức đăng nhập theo IP sẽ chặn nhầm cả công ty~~ — **đã xử lý
+      10/09.** Đổi KHOÁ chứ không nâng số, ba lớp:
 
-      Đã cho cấu hình qua `LOGIN_RATE_LIMIT_PER_MINUTE`, nhưng **nâng số
-      lên chỉ là vá tạm** — cách đúng là khoá theo `email + IP` thay vì
-      chỉ IP. Lớp khoá tạm theo email (`LoginAttemptService`) mới là thứ
-      thật sự chặn dò mật khẩu; hạn mức IP chỉ chống một máy hoá điên.
+      | Lớp | Khoá theo | Số | Chặn |
+      |---|---|---|---|
+      | 1 | `ip+email` | 5/phút (`LOGIN_RATE_LIMIT_PER_MINUTE`) | dò mật khẩu một tài khoản từ một máy |
+      | 2 | `ip` | 120/phút (`LOGIN_RATE_LIMIT_IP_PER_MINUTE`) | một máy hoá điên, script quét |
+      | 3 | email | sai >10 lần/15 phút (`LoginAttemptService`) | dò một tài khoản từ nhiều máy |
 
-      **Phải chốt con số trước khi mở cho toàn công ty.**
+      Lớp 2 rộng có chủ ý: nó KHÔNG phải lớp chống dò mật khẩu. 200 người
+      đăng nhập rải 5–10 phút đầu ca là 20–40 lần/phút, đỉnh gấp đôi; 120
+      dư gấp ba mà vẫn chặn được script.
 
-- [ ] Chưa bật `trust proxy`. Khi chạy sau nginx, mọi request sẽ mang cùng
-      một IP — làm vấn đề trên tệ thêm, vì đến cả IP nội bộ cũng gộp làm một.
+- [x] ~~Chưa bật `trust proxy`~~ — **đã thêm biến `TRUST_PROXY`** (10/09),
+      mặc định 0. **Đặt `TRUST_PROXY=1` khi triển khai sau nginx**, nếu
+      quên thì mọi request mang IP của nginx: lớp 2 vô nghĩa, lớp 1 mất
+      phần IP, và `AuditLog.ipAddress` ghi sai cho mọi thao tác.
+
+      Đặt SỐ LỚP chứ không phải `true`: `true` là tin toàn bộ chuỗi
+      `X-Forwarded-For` do client gửi lên, ai cũng giả được IP để né hạn mức.
 - [ ] `GET /departments/tree` trả cây RỖNG cho STAFF. Đúng theo quy ước
       của `getAccessibleDepartmentIds` — **đừng nới lỏng hàm phân quyền**
       chỉ vì giao diện cần hiển thị tên phòng ban.
@@ -471,7 +483,12 @@ tự động rồi mới vỡ.
 
 - [ ] Chưa cấu hình Swagger để sinh tài liệu API
 - [ ] Độ phủ test: 35 unit + 3 e2e. Chưa có test cho Guard và controller `auth`
-- [ ] Chưa có xử lý lỗi tập trung (exception filter)
+- [x] ~~Chưa có xử lý lỗi tập trung~~ — **`AllExceptionsFilter`** (10/09).
+      Dịch `P2002` → 409, `P2025` → 404, `P2003` → 400; lỗi 5xx ghi stack
+      vào log máy chủ và chỉ trả ra ngoài một câu chung. **Không đổi hình
+      dạng body của `HttpException` đã có** — giao diện đang đọc `message`,
+      `code`, `itemIds`, `errors`; bọc lại theo khuôn mới là vỡ ngay màn
+      chấm điểm.
 - [ ] `package.json` còn gói thừa từ schematic: `@nestjs/mau`,
       `@nestjs/observe`, `ts-loader`, `source-map-support`
 

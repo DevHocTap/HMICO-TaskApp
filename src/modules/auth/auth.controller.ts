@@ -29,18 +29,39 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
-   * Đăng nhập. Hai lớp chống dò mật khẩu:
-   *   - 5 lần/phút theo IP  — chặn một máy dò nhiều mật khẩu
-   *   - khoá tạm theo email — chặn nhiều máy cùng dò một tài khoản
-   *     (xem LoginAttemptService)
+   * Đăng nhập. BA lớp chống dò mật khẩu, mỗi lớp chặn một kiểu tấn công:
+   *
+   *   1. 5 lần/phút theo (IP, email) — dò mật khẩu MỘT tài khoản từ một máy
+   *   2. 120 lần/phút theo IP        — một máy hoá điên, hoặc script quét
+   *   3. khoá tạm theo email         — dò một tài khoản từ NHIỀU máy
+   *                                    (xem LoginAttemptService)
+   *
+   * VÌ SAO LỚP 1 KHOÁ THEO CẢ EMAIL: 200 nhân sự sau NAT dùng chung một IP
+   * công cộng. Khoá 5 lần/phút theo IP thuần thì sáng thứ Hai người thứ sáu
+   * đăng nhập đã bị chặn — và kẻ tấn công chỉ cần ngồi gõ sai để khoá cả
+   * công ty.
+   *
+   * VÌ SAO LỚP 2 RỘNG TỚI 120: nó KHÔNG phải lớp chống dò mật khẩu, lớp 1
+   * và 3 mới là. Nó chỉ chặn một máy gọi điên loạn. 200 người đăng nhập rải
+   * trong 5–10 phút đầu ca là 20–40 lần/phút, đỉnh gấp đôi; 120 là dư gấp
+   * ba mà vẫn chặn được script.
    */
   @Public()
   @UseGuards(RateLimitGuard)
-  @RateLimit({
-    limit: 5,
-    windowMs: 60_000,
-    envVar: 'LOGIN_RATE_LIMIT_PER_MINUTE',
-  })
+  @RateLimit(
+    {
+      limit: 5,
+      windowMs: 60_000,
+      theo: 'ip+email',
+      envVar: 'LOGIN_RATE_LIMIT_PER_MINUTE',
+    },
+    {
+      limit: 120,
+      windowMs: 60_000,
+      theo: 'ip',
+      envVar: 'LOGIN_RATE_LIMIT_IP_PER_MINUTE',
+    },
+  )
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto, @Req() req: RequestInfo) {

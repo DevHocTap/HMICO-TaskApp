@@ -485,11 +485,18 @@ BO_QUA=$(echo "$KQ" | jq_ "d['skipped']")
   || fail "chép $CHEP phiếu, tính ra phải chép $CHEP_DUOC (nguồn có $SO_NGUON)"
 [ "$((CHEP + BO_QUA))" = "$SO_NGUON" ] && pass "chép $CHEP + bỏ qua $BO_QUA = đủ $SO_NGUON phiếu nguồn, không sót ai" \
   || fail "chép $CHEP + bỏ qua $BO_QUA khác $SO_NGUON phiếu nguồn"
-TT=$(sql "SELECT DISTINCT \"assignStatus\" FROM \"Scorecard\" WHERE \"periodId\"='$KY_09';")
+# CHỈ xét phiếu do CHÍNH LẦN CHẠY NÀY tạo ra.
+#
+# Trước đây ba câu dưới đây quét MỌI phiếu của kỳ 09, nên một phiếu người
+# dùng tự tạo trên trình duyệt (ở trạng thái PROPOSED chẳng hạn) là script
+# đỏ — báo lỗi ở chức năng sao chép trong khi chức năng đó chạy đúng.
+# Mâu thuẫn với chính cơ chế mốc dữ liệu: mốc sinh ra để KHÔNG đụng vào dữ
+# liệu người dùng, vậy thì cũng không được KIỂM trên dữ liệu đó.
+TT=$(sql "SELECT DISTINCT \"assignStatus\" FROM \"Scorecard\" WHERE \"periodId\"='$KY_09' AND $PHIEU_CUA_SCRIPT;")
 [ "$TT" = "DRAFT" ] && pass "phiếu mới đều ở DRAFT" || fail "status=$TT"
-SO=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"periodId\"='$KY_09' AND (\"acceptedAt\" IS NOT NULL OR \"proposedAt\" IS NOT NULL OR \"disputeReason\" IS NOT NULL);")
+SO=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"periodId\"='$KY_09' AND $PHIEU_CUA_SCRIPT AND (\"acceptedAt\" IS NOT NULL OR \"proposedAt\" IS NOT NULL OR \"disputeReason\" IS NOT NULL);")
 [ "$SO" = "0" ] && pass "không mang theo dấu vết duyệt của kỳ cũ" || fail "$SO phiếu còn dấu vết"
-SO=$(sql "SELECT count(*) FROM \"ScorecardItem\" i JOIN \"Scorecard\" s ON s.id=i.\"scorecardId\" WHERE s.\"periodId\"='$KY_09' AND (i.\"selfScore\" IS NOT NULL OR i.\"managerScore\" IS NOT NULL);")
+SO=$(sql "SELECT count(*) FROM \"ScorecardItem\" i JOIN \"Scorecard\" s ON s.id=i.\"scorecardId\" WHERE s.\"periodId\"='$KY_09' AND s.$PHIEU_CUA_SCRIPT AND (i.\"selfScore\" IS NOT NULL OR i.\"managerScore\" IS NOT NULL);")
 [ "$SO" = "0" ] && pass "không mang theo điểm số của kỳ cũ" || fail "$SO dòng còn điểm"
 SO_NGUON_ITEM=$(sql "SELECT count(*) FROM \"ScorecardItem\" i JOIN \"Scorecard\" s ON s.id=i.\"scorecardId\" WHERE s.\"periodId\"='$KY_08' AND s.\"ownerUserId\"='$U_NV1';")
 SO_ITEM=$(sql "SELECT count(*) FROM \"ScorecardItem\" i JOIN \"Scorecard\" s ON s.id=i.\"scorecardId\" WHERE s.\"periodId\"='$KY_09' AND s.\"ownerUserId\"='$U_NV1';")
