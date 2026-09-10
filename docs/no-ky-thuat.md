@@ -189,31 +189,25 @@ người chấm theo `Department.parentId`.
 Xem `docs/quy-tac-nghiep-vu.md` mục 5.0. **Câu trả lời này chỉ phủ TRƯỞNG
 BỘ PHẬN, chưa phủ tổ trưởng** — xem Câu 0b.
 
-Còn một việc nhập liệu chờ HCNS: **bổ nhiệm trưởng bộ phận cho các phòng
-đang có nhân sự mà còn trống, và gán chức danh cho những người còn thiếu.**
-Dùng `GET /scorecards/readiness/company` để lấy danh sách đầy đủ; endpoint
-đã tách riêng phòng **có nhân sự** (chặn thật) khỏi đơn vị tổ chức **chưa
-có ai** (bình thường, chưa cần trưởng).
+**Ba ca chặn cũ đã đóng hết (10/09):**
 
-**Chặn thật hiện tại — 3 phòng, 3 người không sinh được phiếu:**
+| Phòng | Người | Cách xử lý |
+|---|---|---|
+| Ban giám đốc | HM002 Giám đốc điều hành | **KHÔNG AI chấm giám đốc.** Giám đốc không có phiếu KPI, chỉ xem và chỉnh sửa. Đã hiện thực: `VAI_TRO_KHONG_AP_KPI = [ADMIN, EXECUTIVE]` (`scorecard-query.service.ts`) |
+| Công ty HMICO | HM001 Quản trị hệ thống | tài khoản kỹ thuật, không có phiếu KPI — cùng hằng số trên |
+| Phòng Hành chính nhân sự | HM003 Chuyên viên HCNS | **không phải lỗi.** Trên máy dev thì tự bổ nhiệm trưởng phòng để thử; lúc triển khai thật thì ADMIN tạo tài khoản và bổ nhiệm (chốt 10/09) |
 
-| Phòng | Người bị chặn |
-|---|---|
-| Phòng Hành chính nhân sự | HM003 Chuyên viên HCNS — **ca thật, cần bổ nhiệm trưởng phòng** |
-| Ban giám đốc | HM002 Giám đốc điều hành — ai chấm giám đốc? Chưa có lời giải |
-| Công ty HMICO | HM001 Quản trị hệ thống — tài khoản kỹ thuật, nhiều khả năng không cần phiếu KPI |
+`GET /scorecards/readiness/company` vẫn là chỗ lấy danh sách phòng còn trống
+trưởng bộ phận — dùng lúc vận hành, không phải nợ kỹ thuật nữa.
 
-Tám đơn vị còn lại (DA, HCM, HN, KD, KD-HCM, MH, MKT, TCKT) chưa có nhân sự
-nên chưa cần trưởng bộ phận.
+### Câu 1 — ĐÃ TRẢ LỜI (10/09/2026)
 
-### Câu 1 — Cả bốn file đều ghi sai chức danh
+Ô "Chức danh" ở cả bốn file đều ghi `Kỹ sư triển khai`, kể cả file Shop
+Drawing và file bảo hành — **chỉ là chưa sửa trong file gốc, không phải ý
+đồ.** Chức danh đúng là bộ đã chốt với hệ thống (Kỹ sư triển khai, Kỹ sư
+cấu hình, Nhân viên Shop Drawing, Nhân viên Bảo hành bảo trì).
 
-Ô "Chức danh" ở cả **bốn** file đều ghi `Kỹ sư triển khai`, kể cả file
-Shop Drawing và file bảo hành. Nhiều khả năng ba file sau được tạo bằng
-cách copy file đầu rồi quên sửa ô đó.
-
-Hệ thống đã gán đúng chức danh theo tên file. **Xin xác nhận cách gán này
-đúng**, và nhờ HCNS sửa lại bốn file gốc.
+Hệ thống gán theo tên file, **cách gán này đúng**. Không phải sửa gì.
 
 ### Câu 2 — Tên tiêu chí lệch giữa hai sheet
 

@@ -216,9 +216,12 @@ từ mẫu nhập từ Excel, tự chấm, chốt điểm — ra 100,00 / 100,00
 
 **Bốn file KHÔNG PHẢI phiếu đã chấm của một người** — ô Họ và tên, Mã nhân
 viên, Người đánh giá, Ngày đánh giá đều trống. Đúng như HCNS xác nhận
-03/09/2026 (Câu 3): đây là mẫu thử nghiệm. Vì vậy mốc "đối chiếu phiếu thật
-tháng 08" theo nghĩa đen chưa thực hiện được — cần HCNS đưa một phiếu đã
-chấm thật. Mốc thay thế vẫn đang treo, xem mục "Chưa quyết".
+03/09/2026 (Câu 3): đây là mẫu thử nghiệm.
+
+**Chốt 10/09: không có phiếu KPI thật để đối chiếu, bộ KPI thật sẽ tự xây
+mới trên hệ thống.** `doi-chieu-excel.spec.ts` giữ lại làm test hồi quy cho
+công thức tính điểm; bốn file trong `docs/mau-kpi/` từ nay chỉ là dữ liệu
+test, không phải nguồn sự thật nghiệp vụ.
 
 **LÁT CẮT 5 XONG CẢ HAI ĐẦU.**
 
@@ -231,7 +234,7 @@ chấm thật. Mốc thay thế vẫn đang treo, xem mục "Chưa quyết".
 | 5–6 | `kpi-template`: một màn hình tạo cây hai cấp + nhập 4 mẫu phòng Kỹ thuật |
 | 7–8 | `scorecard`: giao KPI tháng, ký nhận, sao chép từ kỳ trước |
 | 9–10 | `scoring`: hai cột chấm, tính điểm, xếp loại |
-| **11** | **Đối chiếu Excel tháng 08 thật — số phải khớp tuyệt đối** |
+| **11** | ~~Đối chiếu Excel tháng 08 thật~~ — **đã đổi**: không có phiếu thật, đã đối chiếu công thức với cả 4 mẫu (`doi-chieu-excel.spec.ts`) |
 | 12 | "Việc của tôi", theo dõi tiến độ nộp, xuất Excel |
 | 13+ | Chạy thật một phòng, sửa theo phản hồi |
 
@@ -248,20 +251,24 @@ Ngày 03/09/2026 HCNS và ban giám đốc đã chốt 15 câu — xem
   gốc — điểm là căn cứ tính lương, mất bản gốc là mất bằng chứng.
 - **Đơn vị đo cho ô Mục tiêu** (%, số nguyên, triệu đồng) và ngưỡng
   Min/Max — điều kiện bắt buộc trước khi bật tính điểm tự động.
-- **Mốc nghiệm thu thay thế.** Bốn file Excel chỉ là mẫu tham khảo nên mốc
-  "khớp tuyệt đối với Excel" không còn nghĩa. HCNS nói để sau.
+- **Mốc nghiệm thu thay thế — ĐÃ ĐÓNG (10/09).** Không có phiếu KPI thật để
+  đối chiếu; **bộ KPI thật sẽ tự xây mới trên hệ thống**, không dựa vào bốn
+  file Excel cũ.
 
-  **Cập nhật 09/09:** đã đối chiếu bằng máy với cả bốn file, không lệch dòng
-  nào (`doi-chieu-excel.spec.ts`). Nhưng đó là đối chiếu với MẪU, không phải
-  với phiếu đã chấm thật. **Cần xin HCNS một phiếu KPI thật đã chấm xong của
-  tháng bất kỳ** — có tên người, có điểm cả hai cột, có xếp loại. Không có nó
-  thì không chứng minh được hệ thống ra đúng số mà công ty đang dùng để tính
-  lương.
+  Việc còn giữ lại từ mốc cũ: `doi-chieu-excel.spec.ts` (27 test, khớp tuyệt
+  đối cả bốn file) **giữ nguyên làm test hồi quy cho công thức tính điểm** —
+  nó vẫn chứng minh engine ra đúng số của biểu mẫu BM.01, kể cả khi nội dung
+  KPI thay bằng bộ mới. Bốn file trong `docs/mau-kpi/` từ nay chỉ là dữ liệu
+  test, không phải nguồn sự thật nghiệp vụ.
 
 ## Việc cần làm ngoài code
 
 - [x] ~~Xin file Excel nhân sự của HR~~ — không cần, nhập tay (chốt 03/09)
 - [x] ~~Xin bốn file Excel KPI phòng Kỹ thuật~~ — đã có, đã nhập
-- [ ] Trình sếp mốc mới: một phòng chạy thật tháng 11 thay vì toàn công ty
-      ngày 31/12. **Làm sớm nhất** — đổi mốc lúc còn 4 tháng là điều chỉnh
-      kế hoạch, đổi mốc vào tháng 12 là báo cáo thất bại.
+- [x] ~~Trình sếp mốc mới: một phòng chạy thật tháng 11~~ — **đã trình
+      (10/09).**
+- [x] ~~Xin HCNS một phiếu KPI thật đã chấm~~ — **không có (chốt 10/09).**
+      Bộ KPI thật sẽ tự xây mới, không dựa vào bốn file Excel cũ.
+- [x] ~~Bổ nhiệm trưởng bộ phận cho phòng còn trống~~ — **không phải nợ
+      (chốt 10/09).** Máy dev thì tự thêm để thử; triển khai thật thì ADMIN
+      tạo tài khoản và bổ nhiệm.
