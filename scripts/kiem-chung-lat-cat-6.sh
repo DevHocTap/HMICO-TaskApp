@@ -200,6 +200,20 @@ goi POST "$AT_KT" "/scorecards/$SC_CHUA_CHAM/propose" >/dev/null
 goi POST "$AT_NV1" "/scorecards/$SC_CHUA_CHAM/accept" >/dev/null
 pass "sinh phiếu đã ký nhận, chưa chấm"
 
+# Phiếu 3: chấm đủ và CHỐT ĐIỂM -> daNop, và là dòng có điểm trong file Excel.
+# Không có phiếu đã chốt thì ca "ô điểm là kiểu số" không kiểm được gì:
+# mọi ô điểm đều trống và assertion đi qua một tập rỗng.
+R=$(goi POST "$AT_ADMIN" /scorecards "{\"userId\":\"$U_SD\",\"periodId\":\"$KY_08\"}")
+SC_DA_CHOT=$(than_cua "$R" | jq_ "d['id']")
+goi POST "$AT_KT" "/scorecards/$SC_DA_CHOT/propose" >/dev/null
+goi POST "$AT_SD" "/scorecards/$SC_DA_CHOT/accept" >/dev/null
+goi PUT "$AT_SD" "/scorecards/$SC_DA_CHOT/self-scores" "$(payload_cham_du "$SC_DA_CHOT")" >/dev/null
+goi POST "$AT_SD" "/scorecards/$SC_DA_CHOT/self-submit" >/dev/null
+goi PUT "$AT_KT" "/scorecards/$SC_DA_CHOT/manager-scores" "$(payload_cham_du "$SC_DA_CHOT")" >/dev/null
+goi POST "$AT_KT" "/scorecards/$SC_DA_CHOT/manager-submit" '{}' >/dev/null
+R=$(goi POST "$AT_HR" "/scorecards/$SC_DA_CHOT/receive")
+mong "$(ma_cua "$R")" 200 "sinh phiếu đã chấm đủ và HCNS tiếp nhận"
+
 # ======================================================= 1-5 CƠ BẢN
 buoc "1–5  TIẾN ĐỘ NỘP — kiểu kỳ và phân quyền"
 
@@ -310,6 +324,118 @@ print(f\"{d['daysUntilDeadline']}|{d['isOverdue']}\")" 2>/dev/null)
 [ "$HAN" = "None|False" ] \
   && pass "    mốc hạn để trống đúng như đang chờ HCNS chốt" \
   || fail "    hạn = $HAN (mong đợi None|False)"
+
+# ================================================= 12-16 XUẤT EXCEL
+buoc "12–16  XUẤT EXCEL"
+
+TAI_VE="$TMP/xuat.xlsx"
+MA_XUAT=$(curl -s -D "$TMP/header.txt" -o "$TAI_VE" -w '%{http_code}' \
+  -H "Authorization: Bearer $AT_HR" "$API/reports/export?periodId=$KY_08")
+mong "$MA_XUAT" 200 "12. HR xuất kỳ tháng"
+grep -qi "spreadsheetml" "$TMP/header.txt" \
+  && pass "    content-type là spreadsheetml" \
+  || fail "    content-type: $(grep -i content-type "$TMP/header.txt" | head -c 100)"
+KICH_THUOC=$(stat -c%s "$TAI_VE")
+[ "$KICH_THUOC" -gt 0 ] && pass "    file $KICH_THUOC byte" || fail "    file rỗng"
+TEN_FILE=$(grep -oiP 'filename="\K[^"]+' "$TMP/header.txt" | tr -d '\r')
+echo "$TEN_FILE" | grep -qE '^KPI_2026-08_[0-9]{8}-[0-9]{4}\.xlsx$' \
+  && pass "    tên file đúng khuôn: $TEN_FILE" \
+  || fail "    tên file: $TEN_FILE"
+
+MA=$(ma -H "Authorization: Bearer $AT_NV1" "$API/reports/export?periodId=$KY_08")
+mong "$MA" 403 "13. STAFF xuất"
+
+TAI_KT="$TMP/xuat-kt.xlsx"
+MA=$(curl -s -o "$TAI_KT" -w '%{http_code}' \
+  -H "Authorization: Bearer $AT_KT" "$API/reports/export?periodId=$KY_08")
+mong "$MA" 200 "14. MANAGER xuất"
+# Số dòng kỳ vọng: nhân sự đang làm việc trong phạm vi + người ĐÃ NGHỈ mà
+# vẫn có phiếu trong kỳ. Vế sau là cố ý — xem báo cáo giai đoạn 2.
+MONG_DONG=$(sql "
+  SELECT count(*) FROM (
+    SELECT u.id FROM \"User\" u WHERE u.\"isActive\" AND u.\"departmentId\"='$P_KT'
+    UNION
+    SELECT s.\"ownerUserId\" FROM \"Scorecard\" s
+     WHERE s.\"periodId\"='$KY_08' AND s.\"departmentId\"='$P_KT'
+  ) x;")
+SO_DONG=$(python3 -c "
+import sys, zipfile, re
+import xml.etree.ElementTree as ET
+NS='{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
+z=zipfile.ZipFile('$TAI_KT')
+ws=ET.fromstring(z.read('xl/worksheets/sheet1.xml'))
+print(len([r for r in ws.iter(f'{NS}row')]) - 1)")
+[ "$SO_DONG" = "$MONG_DONG" ] \
+  && pass "    $SO_DONG dòng = số người trong phạm vi phòng mình" \
+  || fail "    file có $SO_DONG dòng, phạm vi có $MONG_DONG người"
+
+MA=$(ma -H "Authorization: Bearer $AT_HR" "$API/reports/export?periodId=$KY_Q3")
+mong "$MA" 400 "15. xuất kỳ QUÝ"
+
+TRUOC=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Report' AND action='EXPORT';")
+curl -s -o /dev/null -H "Authorization: Bearer $AT_HR" "$API/reports/export?periodId=$KY_08"
+SAU=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Report' AND action='EXPORT';")
+[ "$SAU" = "$((TRUOC + 1))" ] \
+  && pass "16. mỗi lần xuất ghi đúng 1 dòng AuditLog ($TRUOC -> $SAU)" \
+  || fail "16. AuditLog $TRUOC -> $SAU (mong đợi tăng 1)"
+GHI=$(sql "SELECT after->>'periodCode' || '|' || (after->>'soDong') FROM \"AuditLog\" WHERE \"entityType\"='Report' ORDER BY \"createdAt\" DESC LIMIT 1;")
+echo "$GHI" | grep -q '^2026-08|' \
+  && pass "    nhật ký ghi rõ kỳ nào, bao nhiêu dòng: $GHI" \
+  || fail "    nhật ký ghi: $GHI"
+
+# ĐỌC LẠI FILE VỪA TẢI — không tin vào việc "tải thành công"
+buoc "     Đọc lại file HR vừa tải, kiểm từng ô"
+KET_QUA=$(python3 -c "
+import zipfile, re
+import xml.etree.ElementTree as ET
+NS='{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
+z=zipfile.ZipFile('$TAI_VE')
+shared=[]
+if 'xl/sharedStrings.xml' in z.namelist():
+    r=ET.fromstring(z.read('xl/sharedStrings.xml'))
+    shared=[''.join(t.text or '' for t in si.iter(f'{NS}t')) for si in r.findall(f'{NS}si')]
+ws=ET.fromstring(z.read('xl/worksheets/sheet1.xml'))
+rows={}
+for row in ws.iter(f'{NS}row'):
+    cells={}
+    for c in row.findall(f'{NS}c'):
+        ref=re.match(r'([A-Z]+)', c.get('r')).group(1)
+        v=c.find(f'{NS}v')
+        cells[ref]=(c.get('t'), shared[int(v.text)] if c.get('t')=='s' and v is not None else (v.text if v is not None else None))
+    rows[int(row.get('r'))]=cells
+tieu_de=[rows[1].get(c,(None,None))[1] for c in ['A','F','G','H']]
+# Ô điểm: kiểu 's' (shared string) là SAI, phải là số (không có thuộc tính t)
+kieu_diem=set(); so_o_co_diem=0; so_o_trong=0
+for n,cells in rows.items():
+    if n==1: continue
+    for cot in ['F','G']:
+        t,val=cells.get(cot,(None,None))
+        if val is None: so_o_trong+=1
+        else:
+            so_o_co_diem+=1
+            kieu_diem.add(t or 'so')
+xml=z.read('xl/worksheets/sheet1.xml')
+print('|'.join([str(tieu_de), str(sorted(kieu_diem)), f'co-diem={so_o_co_diem}', f'trong={so_o_trong}',
+  'dongbang' if b'frozen' in xml else 'khong', 'loc' if b'autoFilter' in xml else 'khong']))")
+echo "$KET_QUA" | grep -q "Tổng điểm QL đánh giá" \
+  && pass "    tiêu đề tiếng Việt có dấu đúng" || fail "    tiêu đề: $KET_QUA"
+# Phải có CẢ ô mang số lẫn ô để trống. Chỉ kiểm "không có ô chuỗi" là
+# assertion rỗng khi chưa phiếu nào chấm xong — nó đi qua một tập rỗng và
+# vẫn xanh.
+CO_DIEM=$(echo "$KET_QUA" | grep -oP 'co-diem=\K[0-9]+')
+O_TRONG=$(echo "$KET_QUA" | grep -oP 'trong=\K[0-9]+')
+if echo "$KET_QUA" | grep -q "\['so'\]" && [ "${CO_DIEM:-0}" -gt 0 ]; then
+  pass "    $CO_DIEM ô điểm đều là KIỂU SỐ, không phải chuỗi"
+else
+  fail "    kiểu ô điểm: $KET_QUA"
+fi
+[ "${O_TRONG:-0}" -gt 0 ] \
+  && pass "    $O_TRONG ô điểm của phiếu chưa chốt để TRỐNG, không ghi 0" \
+  || fail "    không có ô trống nào — phiếu chưa chốt đang bị ghi 0?"
+echo "$KET_QUA" | grep -q "dongbang" \
+  && pass "    dòng tiêu đề được đóng băng" || fail "    không đóng băng"
+echo "$KET_QUA" | grep -q "|loc" \
+  && pass "    bật bộ lọc trên dòng tiêu đề" || fail "    không có autoFilter"
 
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"

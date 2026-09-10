@@ -439,6 +439,35 @@ tự động rồi mới vỡ.
       cả hướng làm về sau. Cần chốt câu chữ rồi mới cập nhật, giống cách đã
       làm với `nestjs-module.md` và `prisma.md`.
 
+## Lát cắt 6 — báo cáo
+
+- [ ] **Bản in TỪNG PHIẾU theo biểu mẫu công ty (BM.01-KPI.KYTHUAT) CHƯA LÀM.**
+
+      Lát cắt 6 chỉ làm bản TỔNG HỢP: một kỳ, mỗi người một dòng, để HCNS
+      lọc và cộng. Thứ còn thiếu là bản in một phiếu ra đúng bố cục tờ giấy
+      đang dùng — có ô ký tên bốn bên (người lao động, trưởng bộ phận, HCNS,
+      ban giám đốc), có cây tiêu chí hai cấp, có hai cột điểm.
+
+      **Vì sao cần:** quy trình thật vẫn ký giấy. Không có bản in thì HCNS
+      phải tự gõ lại vào file Excel cũ để in, và hệ thống chỉ thay được một
+      nửa việc.
+
+      Chưa chốt in bằng gì: `exceljs` theo bố cục biểu mẫu, hay xuất PDF.
+      Bàn khi có phản hồi từ đợt chạy thật tháng 11.
+
+- [ ] **Mốc hạn cho bảng theo dõi tiến độ vẫn để `null`** — chờ HCNS chốt,
+      cùng chỗ với mốc hạn chấm điểm ở mục "Lát cắt 5". `submissionProgress()`
+      trong `reports.service.ts` gọi `tinhTinhTrangHanNop(null)`; chốt xong
+      thì đổi thành cột thật, không phải sửa gì thêm.
+
+      Lưu ý khi chốt: ngày 30 (`submitDeadline`) là hạn TRƯỞNG BỘ PHẬN gửi
+      kết quả, còn bảng này theo dõi cả bốn bước — có thể cần mốc riêng.
+
+- [ ] **`AuditLog` của việc xuất Excel chỉ ADMIN xem được.** `entityType`
+      là `Report`, mà ban giám đốc chỉ được xem `Scorecard` (chốt 10/09).
+      Đúng theo phân quyền đã chốt, nhưng nếu sau này BGĐ cần biết ai tải
+      file điểm về thì phải mở thêm loại này cho họ.
+
 ## Chờ HR xác nhận
 
 - [ ] **Quyền NGHIỆP VỤ của `EXECUTIVE` gồm những gì — chốt khi làm module

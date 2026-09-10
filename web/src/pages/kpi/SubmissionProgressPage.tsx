@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Alert, Card, Empty, Select, Space, Table, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Empty, Select, Space, Table, Tag, Typography } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { useQuery } from '@tanstack/react-query';
-import { layTienDoNop } from '../../api/report';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { docLoiBlob, layTienDoNop, taiExcelTongHop } from '../../api/report';
 import { layKyDanhGia } from '../../api/scorecard';
 import { layThongBaoLoi } from '../../api/client';
 import {
@@ -39,6 +40,7 @@ function so(giaTri: number, nhanManh = false) {
  * cộng lại — hai chỗ cùng cộng một con số thì sẽ có lúc lệch.
  */
 export function SubmissionProgressPage() {
+  const { message } = App.useApp();
   const [periodId, setPeriodId] = useState<string | undefined>();
 
   // CHỈ kỳ tháng: phiếu KPI không gắn vào kỳ quý hay kỳ năm, và backend trả
@@ -65,6 +67,18 @@ export function SubmissionProgressPage() {
     () => (data ? moiIdPhong(data.departments) : []),
     [data],
   );
+
+  /**
+   * `useMutation` lo luôn việc chặn bấm hai lần: `isPending` khoá nút, và
+   * TanStack Query không chạy song song hai lần cùng một mutation.
+   * File 200 dòng mất vài giây, đủ để người dùng bấm lại vì tưởng chưa ăn.
+   */
+  const xuatExcel = useMutation({
+    mutationFn: () => taiExcelTongHop(kyDangXem!),
+    onSuccess: (ten) => message.success(`Đã tải ${ten}`),
+    onError: async (e) =>
+      message.error((await docLoiBlob(e)) ?? layThongBaoLoi(e)),
+  });
 
   const canXuLy = (d: DongTienDo) => d.chuaCoPhieu > 0 || d.chuaKyNhan > 0;
 
@@ -139,13 +153,23 @@ export function SubmissionProgressPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           Tiến độ nộp KPI
         </Typography.Title>
-        <Select
-          style={{ minWidth: 200 }}
-          placeholder="Chọn kỳ"
-          value={kyDangXem}
-          onChange={setPeriodId}
-          options={cacKy.map((k) => ({ value: k.id, label: k.name }))}
-        />
+        <Space>
+          <Select
+            style={{ minWidth: 200 }}
+            placeholder="Chọn kỳ"
+            value={kyDangXem}
+            onChange={setPeriodId}
+            options={cacKy.map((k) => ({ value: k.id, label: k.name }))}
+          />
+          <Button
+            icon={<DownloadOutlined />}
+            loading={xuatExcel.isPending}
+            disabled={!kyDangXem}
+            onClick={() => xuatExcel.mutate()}
+          >
+            Xuất Excel
+          </Button>
+        </Space>
       </Space>
 
       {isError && (

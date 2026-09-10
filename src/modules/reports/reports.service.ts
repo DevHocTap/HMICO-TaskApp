@@ -10,6 +10,7 @@ import { DepartmentScopeService } from '../org/department-scope.service.js';
 import { tinhTinhTrangHanNop } from '../period/period-calendar.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { chuanHoaNhanhCon, congDonTheoCay, type DongPhong } from './cong-don-cay.js';
+import type { DongXuat } from './export-excel.service.js';
 
 @Injectable()
 export class ReportsService {
@@ -102,6 +103,104 @@ export class ReportsService {
       ...tinhTinhTrangHanNop(null),
       departments: congDonTheoCay(chuanHoaNhanhCon(thoDai)),
     };
+  }
+
+  /**
+   * Dữ liệu cho bản tổng hợp Excel: MỘT DÒNG MỖI NGƯỜI.
+   *
+   * Tập người = nhân sự đang làm việc trong phạm vi + người ĐÃ NGHỈ mà vẫn
+   * có phiếu trong kỳ.
+   *
+   * Vế thứ hai không phải chi tiết vụn: lát cắt 5 cho phép chốt điểm phiếu
+   * của người nghỉ giữa kỳ (kèm `noSelfScoreReason`). Chỉ lấy người đang
+   * làm việc thì điểm đã chấm của họ biến mất khỏi file — mà file này là
+   * căn cứ tính lương tháng đó.
+   *
+   * Hai truy vấn, không N+1.
+   */
+  async getExportData(
+    periodId: string,
+    user: AuthenticatedUser,
+  ): Promise<{ ky: Period; dongs: DongXuat[] }> {
+    const ky = await this.mustFindKyThang(periodId);
+    const trongPhamVi = await this.departmentScope.getAccessibleDepartmentIds(user);
+    this.assertCoPhamVi(trongPhamVi, user);
+
+    const [nhanSu, phieu] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { isActive: true, departmentId: { in: trongPhamVi } },
+        select: {
+          id: true,
+          employeeCode: true,
+          fullName: true,
+          department: { select: { name: true } },
+          jobTitle: { select: { name: true } },
+        },
+        orderBy: [{ department: { code: 'asc' } }, { employeeCode: 'asc' }],
+      }),
+      this.prisma.scorecard.findMany({
+        where: { periodId: ky.id, departmentId: { in: trongPhamVi } },
+        select: {
+          ownerUserId: true,
+          departmentName: true,
+          jobTitleName: true,
+          resultStatus: true,
+          selfTotalScore: true,
+          managerTotalScore: true,
+          grade: true,
+          managerScoredAt: true,
+          receivedAt: true,
+          noSelfScoreReason: true,
+          evaluator: { select: { fullName: true } },
+          ownerUser: { select: { employeeCode: true, fullName: true, isActive: true } },
+        },
+      }),
+    ]);
+
+    const phieuTheoNguoi = new Map(phieu.map((p) => [p.ownerUserId ?? '', p]));
+    const dongs: DongXuat[] = [];
+
+    for (const n of nhanSu) {
+      const p = phieuTheoNguoi.get(n.id);
+      dongs.push({
+        employeeCode: n.employeeCode,
+        fullName: n.fullName,
+        // Tên phòng và chức danh lấy từ PHIẾU nếu có: phiếu chụp lại lúc lập,
+        // nên người chuyển phòng giữa năm vẫn hiện đúng phòng của kỳ đó.
+        departmentName: p?.departmentName ?? n.department?.name ?? '',
+        jobTitleName: p?.jobTitleName ?? n.jobTitle?.name ?? null,
+        resultStatus: p?.resultStatus ?? null,
+        selfTotalScore: p?.selfTotalScore ?? null,
+        managerTotalScore: p?.managerTotalScore ?? null,
+        grade: p?.grade ?? null,
+        evaluatorName: p?.evaluator?.fullName ?? null,
+        managerScoredAt: p?.managerScoredAt ?? null,
+        receivedAt: p?.receivedAt ?? null,
+        noSelfScoreReason: p?.noSelfScoreReason ?? null,
+      });
+    }
+
+    // Người đã nghỉ mà còn phiếu trong kỳ — thêm vào cuối, đánh dấu rõ.
+    const daCo = new Set(nhanSu.map((n) => n.id));
+    for (const p of phieu) {
+      if (!p.ownerUserId || daCo.has(p.ownerUserId)) continue;
+      dongs.push({
+        employeeCode: p.ownerUser?.employeeCode ?? '',
+        fullName: `${p.ownerUser?.fullName ?? ''} (đã nghỉ việc)`,
+        departmentName: p.departmentName,
+        jobTitleName: p.jobTitleName,
+        resultStatus: p.resultStatus,
+        selfTotalScore: p.selfTotalScore,
+        managerTotalScore: p.managerTotalScore,
+        grade: p.grade,
+        evaluatorName: p.evaluator?.fullName ?? null,
+        managerScoredAt: p.managerScoredAt,
+        receivedAt: p.receivedAt,
+        noSelfScoreReason: p.noSelfScoreReason,
+      });
+    }
+
+    return { ky, dongs };
   }
 
   // ------------------------------------------------------------- nội bộ
