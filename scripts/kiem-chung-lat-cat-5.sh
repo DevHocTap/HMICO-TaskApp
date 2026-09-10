@@ -156,7 +156,7 @@ fi
 chup_moc_du_lieu
 don_du_lieu_thu
 
-KY_DANG_KHOA=$(sql "SELECT string_agg(code, ', ') FROM \"Period\" WHERE code IN ('2026-08','2026-09','2026-Q3') AND \"isLocked\";")
+KY_DANG_KHOA=$(sql "SELECT string_agg(code, ', ') FROM \"Period\" WHERE code IN ('2026-08','2026-09','2026-10','2026-Q3') AND \"isLocked\";")
 if [ -n "$KY_DANG_KHOA" ]; then
   echo; echo "DỪNG: các kỳ sau đang bị khoá nên script không thao tác được: $KY_DANG_KHOA"
   echo "Script cố ý KHÔNG tự mở — khoá kỳ là quyết định của bạn."
@@ -179,6 +179,7 @@ fi
 KY_08=$(sql "SELECT id FROM \"Period\" WHERE code='2026-08';")
 KY_09=$(sql "SELECT id FROM \"Period\" WHERE code='2026-09';")
 KY_Q3=$(sql "SELECT id FROM \"Period\" WHERE code='2026-Q3';")
+KY_10=$(sql "SELECT id FROM \"Period\" WHERE code='2026-10';")
 U_NV1=$(sql "SELECT id FROM \"User\" WHERE email='kt.trienkhai1@hmico.vn';")
 U_NV2=$(sql "SELECT id FROM \"User\" WHERE email='$EMAIL_NGHI_VIEC';")
 U_KT=$(sql "SELECT id FROM \"User\" WHERE email='truongphong.kythuat@hmico.vn';")
@@ -577,6 +578,31 @@ print('0|True' if lech<0 else f'{lech+1}|False')")
 [ "$TU_CHAM" = "$MONG_DOI" ] \
   && pass "    CHO_TU_CHAM đếm ngược theo hạn 25 của kỳ chứa phiếu: $TU_CHAM" \
   || fail "    CHO_TU_CHAM = $TU_CHAM, mong đợi $MONG_DOI (hạn $HAN_25)"
+
+# Hạn của việc ĐẦU KỲ cũng phải đo theo kỳ CỦA PHIẾU.
+#
+# Ca này phân biệt được hai cách làm: phiếu kỳ tháng 10 có hạn giao KPI là
+# 25/09 (còn hạn), trong khi kỳ chứa hôm nay là tháng 09 có hạn 25/08 (đã
+# quá). Đo nhầm theo kỳ hiện tại thì việc còn hạn sẽ bị báo "Quá hạn".
+R=$(goi POST "$AT_ADMIN" /scorecards "{\"userId\":\"$U_NV1\",\"periodId\":\"$KY_10\"}")
+SC_10=$(than_cua "$R" | jq_ "d['id']")
+goi POST "$AT_KT" "/scorecards/$SC_10/propose" >/dev/null
+
+HAN_10=$(sql "SELECT \"assignDeadline\" FROM \"Period\" WHERE id='$KY_10';")
+R=$(goi GET "$AT_NV1" "/scorecards/pending-my-action")
+KY_NHAN=$(than_cua "$R" | python3 -c "
+import json,sys
+v=next((x for x in json.load(sys.stdin) if x['type']=='CHO_KY_NHAN'), None)
+print(f\"{v['daysUntilDeadline']}|{v['isOverdue']}\" if v else 'KHONG_CO')" 2>/dev/null)
+MONG_DOI=$(python3 -c "
+import datetime
+han=datetime.date.fromisoformat('$HAN_10'.strip()[:10])
+hom_nay=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
+lech=(han-hom_nay).days
+print('0|True' if lech<0 else f'{lech+1}|False')")
+[ "$KY_NHAN" = "$MONG_DOI" ] \
+  && pass "    CHO_KY_NHAN đo theo hạn giao KPI của kỳ CỦA PHIẾU: $KY_NHAN" \
+  || fail "    CHO_KY_NHAN = $KY_NHAN, mong đợi $MONG_DOI (hạn $HAN_10 của kỳ tháng 10)"
 
 R=$(goi GET "$AT_HR" "/scorecards/pending-my-action")
 CO_HAN=$(than_cua "$R" | python3 -c "

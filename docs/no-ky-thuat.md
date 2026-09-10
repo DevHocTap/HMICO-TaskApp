@@ -145,9 +145,20 @@ Chỗ sửa nếu HCNS trả lời khác: hằng `hanGiaoKpi` trong `pendingMyAc
 (`src/modules/scorecard/scorecard-query.service.ts`) — tách riêng hạn cho
 `CHO_KY_NHAN` thay vì dùng chung một biến.
 
-Một việc nữa chưa làm: trang chủ chỉ nhắc kỳ CHỨA HÔM NAY. Ngày 25/09 thì
-việc thật là **lên KPI tháng 10**, nhưng màn hình vẫn nhắc tháng 9. Sửa khi
-làm phần theo dõi tiến độ nộp.
+**Cập nhật 10/09 — đã sửa một nửa.** Mọi việc CÓ PHIẾU giờ đo hạn theo kỳ
+CỦA CHÍNH PHIẾU, không theo kỳ chứa hôm nay: `CHO_KY_NHAN`, `CHUA_GUI_KY`,
+`CO_Y_KIEN` (hạn `assignDeadline`), `CHO_TU_CHAM` (25), `CHO_TOI_CHAM` (29),
+`CHO_TIEP_NHAN` (30). Nhiều phiếu ở nhiều kỳ thì lấy hạn sớm nhất
+(`hanSomNhat()`). Phiếu tháng 10 chờ ký vì vậy nhắc theo hạn 25/09, không
+còn bị kỳ tháng 9 đo hộ.
+
+**NỬA CÒN LẠI CHƯA SỬA:** việc `CHUA_GIAO_KPI` ("N nhân viên chưa được giao
+KPI kỳ X") vẫn chỉ nhìn kỳ CHỨA HÔM NAY, vì nó đếm người CHƯA có phiếu nên
+không có phiếu nào để tra ngược kỳ. Ngày 25/09 việc thật là **lên KPI tháng
+10**, màn hình vẫn nhắc tháng 9. Hai việc của ban giám đốc
+(`BGD_CHUA_GUI_KY`, `BGD_CHUA_GIAO_KPI`) cũng vậy. Sửa khi làm phần theo dõi
+tiến độ nộp — lúc đó phải chọn: nhắc kỳ SAU khi đã qua ngày 25, hay nhắc cả
+hai kỳ cùng lúc.
 
 ### Câu 0b — ĐÃ TRẢ LỜI (03/09/2026)
 

@@ -229,22 +229,21 @@ export class ScorecardQueryService {
   async pendingMyAction(user: AuthenticatedUser): Promise<ViecCanXuLy[]> {
     const viec: ViecCanXuLy[] = [];
     const ky = await this.kyHienTai();
-    // Hạn chung cho mọi việc đầu kỳ. Không có kỳ nào chứa hôm nay thì không
-    // có hạn — thà không hiện còn hơn hiện một con số bịa.
-    const hanGiaoKpi = ky
-      ? tinhTinhTrangHanNop(ky.assignDeadline)
-      : KHONG_CO_HAN;
+    // Hạn cho việc "chưa ai được giao KPI trong kỳ này" — việc đó gắn với
+    // CHÍNH kỳ hiện tại chứ không có phiếu nào để tra ngược. Không có kỳ nào
+    // chứa hôm nay thì không có hạn: thà không hiện còn hơn hiện số bịa.
+    const hanGiaoKpiKyNay = ky ? tinhTinhTrangHanNop(ky.assignDeadline) : KHONG_CO_HAN;
 
     // --- Ai cũng có thể có phiếu chờ ký ---
     //
-    // Tên kỳ lấy từ Period của CHÍNH PHIẾU ĐÓ, KHÔNG lấy từ kỳ hiện tại.
-    // Phiếu tháng 8 chưa ký mà sang tháng 9 mới mở trang chủ là chuyện
-    // thường; ghi nhãn theo kỳ hiện tại sẽ báo sai tháng, và người dùng ký
-    // nhận nhầm phiếu của kỳ khác. Cách này cũng không phụ thuộc kyHienTai()
-    // nên không bao giờ ra "(undefined)" hay "()".
+    // Tên kỳ VÀ hạn đều lấy từ Period của CHÍNH PHIẾU ĐÓ, không lấy từ kỳ
+    // hiện tại. Phiếu tháng 8 chưa ký mà sang tháng 9 mới mở trang chủ là
+    // chuyện thường: đo theo kỳ hiện tại thì nhãn báo sai tháng, và việc đã
+    // trễ cả tháng lại hiện "còn N ngày". Cách này cũng không phụ thuộc
+    // `kyHienTai()` nên không bao giờ ra "(undefined)" hay "()".
     const phieuChoKy = await this.prisma.scorecard.findMany({
       where: { ownerUserId: user.id, assignStatus: AssignStatus.PROPOSED },
-      select: { period: { select: { name: true } } },
+      select: { period: { select: { name: true, assignDeadline: true } } },
     });
     if (phieuChoKy.length > 0) {
       const tenKy = [...new Set(phieuChoKy.map((p) => p.period.name))];
@@ -254,34 +253,36 @@ export class ScorecardQueryService {
         message: `Bạn có ${phieuChoKy.length} phiếu KPI chờ ký nhận (${nhan})`,
         count: phieuChoKy.length,
         link: '/kpi/my',
-        ...hanGiaoKpi,
+        ...tinhTinhTrangHanNop(hanSomNhat(phieuChoKy.map((p) => p.period.assignDeadline))),
       });
     }
 
     // --- Người chấm: phiếu chưa gửi đi ký ---
-    const chuaGui = await this.prisma.scorecard.count({
+    const phieuChuaGui = await this.prisma.scorecard.findMany({
       where: { evaluatorId: user.id, assignStatus: AssignStatus.DRAFT },
+      select: { period: { select: { assignDeadline: true } } },
     });
-    if (chuaGui > 0) {
+    if (phieuChuaGui.length > 0) {
       viec.push({
         type: 'CHUA_GUI_KY',
-        message: `${chuaGui} phiếu KPI chưa gửi cho nhân viên ký nhận`,
-        count: chuaGui,
+        message: `${phieuChuaGui.length} phiếu KPI chưa gửi cho nhân viên ký nhận`,
+        count: phieuChuaGui.length,
         link: '/kpi/assign',
-        ...hanGiaoKpi,
+        ...tinhTinhTrangHanNop(hanSomNhat(phieuChuaGui.map((p) => p.period.assignDeadline))),
       });
     }
 
-    const coYKien = await this.prisma.scorecard.count({
+    const phieuCoYKien = await this.prisma.scorecard.findMany({
       where: { evaluatorId: user.id, assignStatus: AssignStatus.DISPUTED },
+      select: { period: { select: { assignDeadline: true } } },
     });
-    if (coYKien > 0) {
+    if (phieuCoYKien.length > 0) {
       viec.push({
         type: 'CO_Y_KIEN',
-        message: `${coYKien} phiếu KPI bị nhân viên nêu ý kiến, chờ bạn xử lý`,
-        count: coYKien,
+        message: `${phieuCoYKien.length} phiếu KPI bị nhân viên nêu ý kiến, chờ bạn xử lý`,
+        count: phieuCoYKien.length,
         link: '/kpi/assign',
-        ...hanGiaoKpi,
+        ...tinhTinhTrangHanNop(hanSomNhat(phieuCoYKien.map((p) => p.period.assignDeadline))),
       });
     }
 
@@ -308,7 +309,7 @@ export class ScorecardQueryService {
             message: `${chuaGuiKy} phiếu KPI của trưởng bộ phận chưa gửi ký nhận`,
             count: chuaGuiKy,
             link: '/kpi/assign',
-            ...hanGiaoKpi,
+            ...hanGiaoKpiKyNay,
           });
         }
 
@@ -325,7 +326,7 @@ export class ScorecardQueryService {
             message: `${chuaCoPhieu} trưởng bộ phận chưa có phiếu KPI ${ky.name}`,
             count: chuaCoPhieu,
             link: '/kpi/assign',
-            ...hanGiaoKpi,
+            ...hanGiaoKpiKyNay,
           });
         }
       }
@@ -432,7 +433,7 @@ export class ScorecardQueryService {
           message: `${chuaGiao} nhân viên chưa được giao KPI ${ky.name}`,
           count: chuaGiao,
           link: '/kpi/assign',
-          ...hanGiaoKpi,
+          ...hanGiaoKpiKyNay,
         });
       }
     }

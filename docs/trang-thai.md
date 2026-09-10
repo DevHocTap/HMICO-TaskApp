@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 267 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 76 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 267 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 77 kiểm tra curl.**
 
 ## Đang làm
 
@@ -159,7 +159,7 @@ Giai đoạn 2 — bảy endpoint:
   việc, cột trưởng bộ phận mở từ PENDING kèm `noSelfScoreReason` bắt buộc.
 - Kỳ khoá và phiếu chưa ký nhận trả 409 — đã thống nhất mã này cho cả luồng
   giao KPI của lát cắt 4.
-- `scripts/kiem-chung-lat-cat-5.sh`: **76 kiểm tra bằng curl**.
+- `scripts/kiem-chung-lat-cat-5.sh`: **77 kiểm tra bằng curl**.
 
 Giai đoạn 3 — giao diện:
 - **`/kpi/scorecards/:id/scoring`** — MỘT màn hình cho cả hai vai, hai cột
@@ -178,9 +178,13 @@ Giai đoạn 3 — giao diện:
 - **Ba việc chấm điểm đã có hạn thật (10/09).** Tự chấm lấy
   `selfScoreDeadline` (25), trưởng bộ phận chấm lấy `managerScoreDeadline`
   (29), HCNS tiếp nhận lấy `submitDeadline` (30) — đúng ba cột mục 5.5 đã
-  chốt từ 03/09. Hạn lấy từ kỳ CỦA PHIẾU chứ không phải kỳ chứa hôm nay;
-  nhiều kỳ thì lấy hạn sớm nhất. Trang chủ hiện "Quá hạn" / "Còn N ngày"
-  như các việc đầu kỳ.
+  chốt từ 03/09.
+- **Mọi việc CÓ PHIẾU giờ đo hạn theo kỳ CỦA PHIẾU** (10/09), kể cả ba việc
+  đầu kỳ `CHO_KY_NHAN` / `CHUA_GUI_KY` / `CO_Y_KIEN` vốn đo theo kỳ chứa hôm
+  nay. Phiếu tháng 8 chưa xử lý mà sang tháng 9 mới mở trang chủ thì báo quá
+  hạn thật, không còn hiện "còn N ngày" cho việc trễ cả tháng. Nhiều phiếu ở
+  nhiều kỳ thì lấy hạn sớm nhất. Việc `CHUA_GIAO_KPI` vẫn theo kỳ hiện tại vì
+  nó đếm người CHƯA có phiếu — xem `no-ky-thuat.md` Câu 0c.
 
   (Prompt lát cắt 5 ghi lịch cũ "ngày 02 tháng kế tiếp" và "nhắc từ 28/30";
   từ chỗ đó tôi đã kết luận nhầm là mốc chưa chốt. Không phải — mốc có sẵn.)
