@@ -1,0 +1,5 @@
+
+/* Dòng phòng ban còn việc phải làm trước hạn — xem SubmissionProgressPage. */
+.dong-can-xu-ly > td {
+  background-color: rgba(250, 173, 20, 0.06);
+}

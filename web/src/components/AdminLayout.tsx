@@ -10,6 +10,7 @@ import {
   LogoutOutlined,
   TeamOutlined,
   HistoryOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
@@ -19,6 +20,7 @@ import {
   coTheXemNhanVien,
   coTheXemToChuc,
   coTheXemNhatKy,
+  coTheXemBaoCao,
 } from '../auth/permissions';
 import { ROLE_LABELS } from '../types/auth';
 import type { Role } from '../types/auth';
@@ -73,6 +75,15 @@ export function AdminLayout() {
                 key: '/kpi/assign',
                 icon: <ScheduleOutlined />,
                 label: <Link to="/kpi/assign">Giao KPI</Link>,
+              },
+            ]
+          : []),
+        ...(coTheXemBaoCao(user?.role)
+          ? [
+              {
+                key: '/kpi/progress',
+                icon: <BarChartOutlined />,
+                label: <Link to="/kpi/progress">Tiến độ nộp</Link>,
               },
             ]
           : []),

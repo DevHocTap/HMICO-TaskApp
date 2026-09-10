@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { OrgModule } from './modules/org/org.module.js';
 import { KpiTemplateModule } from './modules/kpi-template/kpi-template.module.js';
 import { PeriodModule } from './modules/period/period.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
 import { ScorecardModule } from './modules/scorecard/scorecard.module.js';
 
 @Module({
@@ -26,6 +27,7 @@ import { ScorecardModule } from './modules/scorecard/scorecard.module.js';
     KpiTemplateModule,
     PeriodModule,
     ScorecardModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -86,3 +86,15 @@ export function coTheTaoKy(role: Role | undefined): boolean {
 export function coTheXemNhatKy(role: Role | undefined): boolean {
   return role === 'ADMIN' || role === 'EXECUTIVE';
 }
+
+/**
+ * Xem báo cáo tiến độ nộp và dashboard.
+ *
+ * STAFF không vào: bảng này lộ tình trạng nộp của đồng nghiệp. MANAGER vào
+ * được nhưng backend chỉ trả phòng trong `getAccessibleDepartmentIds`.
+ */
+export function coTheXemBaoCao(role: Role | undefined): boolean {
+  return (
+    role === 'ADMIN' || role === 'HR' || role === 'EXECUTIVE' || role === 'MANAGER'
+  );
+}
