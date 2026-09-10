@@ -275,16 +275,28 @@ tự động rồi mới vỡ.
 
 ### Chưa rõ, cần hỏi
 
-- [ ] **Hạn để nhân viên tự chấm và trưởng phòng chấm — TẠM DỪNG, chờ chốt.**
+- [x] ~~Hạn để nhân viên tự chấm và trưởng phòng chấm — chờ chốt~~ —
+      **KHÔNG CÓ GÌ PHẢI CHỜ, đã nối 10/09.**
 
-      Prompt lát cắt 5 ghi hạn nộp là "ngày 02 tháng kế tiếp". Lịch đó đã BỎ
-      từ 03/09/2026: mục 5.5 chốt bốn mốc nằm trong chính tháng đó
-      (`selfScoreDeadline` = 25, `managerScoreDeadline` = 29,
-      `submitDeadline` = 30). Prompt còn ghi "nhắc nhân viên từ ngày 28" —
-      ngày 28 thì nhân viên đã quá hạn ba ngày.
+      Tôi đọc sai tình hình: prompt lát cắt 5 ghi lịch cũ ("ngày 02 tháng kế
+      tiếp", "nhắc từ 28/30"), và từ chỗ prompt sai tôi kết luận nhầm là mốc
+      chưa được chốt. Thật ra mục 5.5 đã chốt đủ bốn mốc từ 03/09/2026, ba
+      cột đã có trong database và `kyThang()` đã sinh sẵn.
 
-      **Chưa động vào `period-calendar.ts` và chưa đụng phần đếm ngược.**
-      Giai đoạn 1 của lát cắt 5 không phụ thuộc mốc thời gian nào.
+      Ánh xạ đang dùng ở `pendingMyAction()`:
+
+      | Việc | Cột | Ngày |
+      |---|---|---|
+      | Nhân viên tự chấm | `selfScoreDeadline` | 25 |
+      | Trưởng bộ phận chấm và chốt | `managerScoreDeadline` | 29 |
+      | HCNS tiếp nhận | `submitDeadline` | 30 |
+
+      **Hạn lấy từ kỳ CỦA PHIẾU, không phải kỳ chứa hôm nay** — phiếu tháng 8
+      chưa chấm mà sang tháng 9 mới mở trang chủ thì phải báo quá hạn, không
+      phải "còn 15 ngày". Nhiều phiếu ở nhiều kỳ thì lấy hạn sớm nhất.
+
+      `period-calendar.ts` không phải sửa gì, `tinhTinhTrangHanNop()` dùng
+      nguyên.
 
 - [ ] **`LOWER_BETTER`, mục tiêu = 0, thực tế = 0 → cho mấy điểm?**
 

@@ -558,11 +558,35 @@ R=$(goi GET "$AT_NV2" "/scorecards/$SC/scoring")
 mong "$(ma_cua "$R")" 403 "    nhân viên khác đọc phiếu này -> 403"
 
 R=$(goi GET "$AT_NV1" "/scorecards/pending-my-action")
-VIEC=$(than_cua "$R" | python3 -c "
-import json,sys
-print(','.join(v['type'] for v in json.load(sys.stdin)))" 2>/dev/null)
 mong "$(ma_cua "$R")" 200 "28. trang chủ đọc được việc cần xử lý"
-echo "        việc của nhân viên: ${VIEC:-(rỗng)}"
+TU_CHAM=$(than_cua "$R" | python3 -c "
+import json,sys
+v=next((x for x in json.load(sys.stdin) if x['type']=='CHO_TU_CHAM'), None)
+print(f\"{v['daysUntilDeadline']}|{v['isOverdue']}\" if v else 'KHONG_CO')" 2>/dev/null)
+
+# Hạn tự chấm = selfScoreDeadline (ngày 25) của KỲ CHỨA PHIẾU, không phải kỳ
+# chứa hôm nay. Đối chiếu thẳng với database thay vì gán cứng một con số —
+# script chạy ngày nào cũng phải đúng.
+HAN_25=$(sql "SELECT \"selfScoreDeadline\" FROM \"Period\" WHERE id='$KY_09';")
+MONG_DOI=$(python3 -c "
+import datetime,sys
+han=datetime.date.fromisoformat('$HAN_25'.strip()[:10])
+hom_nay=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
+lech=(han-hom_nay).days
+print('0|True' if lech<0 else f'{lech+1}|False')")
+[ "$TU_CHAM" = "$MONG_DOI" ] \
+  && pass "    CHO_TU_CHAM đếm ngược theo hạn 25 của kỳ chứa phiếu: $TU_CHAM" \
+  || fail "    CHO_TU_CHAM = $TU_CHAM, mong đợi $MONG_DOI (hạn $HAN_25)"
+
+R=$(goi GET "$AT_HR" "/scorecards/pending-my-action")
+CO_HAN=$(than_cua "$R" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+xau=[v['type'] for v in d if v['type'].startswith('CHO_') and v['daysUntilDeadline'] is None and not v['isOverdue']]
+print(','.join(xau) if xau else 'DEU_CO_HAN')" 2>/dev/null)
+[ "$CO_HAN" = "DEU_CO_HAN" ] \
+  && pass "    mọi việc chấm điểm của HCNS đều có hạn, không còn việc trống hạn" \
+  || fail "    còn việc không có hạn: $CO_HAN"
 
 # ================================================= 29 ĐỐI CHIẾU EXCEL
 buoc "29  ĐỐI CHIẾU EXCEL — đi hết đường thật, từ sinh phiếu tới chốt điểm"

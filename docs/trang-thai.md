@@ -4,7 +4,7 @@
 > Đây là trí nhớ của Claude Code giữa các phiên — để lạc hậu là nó sẽ
 > làm lại thứ đã có hoặc bỏ sót thứ đang dở.
 
-Cập nhật lần cuối: 09/09/2026
+Cập nhật lần cuối: 10/09/2026
 
 **Mốc bàn giao: một phòng Kỹ thuật chạy thật tháng 11/2026.**
 Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 267 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 74 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 267 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 76 kiểm tra curl.**
 
 ## Đang làm
 
@@ -133,7 +133,7 @@ Giao diện đã có (04/09):
 
 ---
 
-**Lát cắt 5 — `scoring`: XONG CẢ HAI ĐẦU (09/09), trừ mốc hạn nộp.**
+**Lát cắt 5 — `scoring`: XONG CẢ HAI ĐẦU (09/09), hạn nộp nối 10/09.**
 
 Giai đoạn 1 — engine tính điểm:
 - `src/modules/scorecard/scoring/scoring-engine.ts` — file THUẦN, không
@@ -159,7 +159,7 @@ Giai đoạn 2 — bảy endpoint:
   việc, cột trưởng bộ phận mở từ PENDING kèm `noSelfScoreReason` bắt buộc.
 - Kỳ khoá và phiếu chưa ký nhận trả 409 — đã thống nhất mã này cho cả luồng
   giao KPI của lát cắt 4.
-- `scripts/kiem-chung-lat-cat-5.sh`: **69 kiểm tra bằng curl**.
+- `scripts/kiem-chung-lat-cat-5.sh`: **76 kiểm tra bằng curl**.
 
 Giai đoạn 3 — giao diện:
 - **`/kpi/scorecards/:id/scoring`** — MỘT màn hình cho cả hai vai, hai cột
@@ -175,10 +175,15 @@ Giai đoạn 3 — giao diện:
 - Trang chủ "Việc của tôi" thêm ba việc: `CHO_TU_CHAM`, `CHO_TOI_CHAM`,
   `CHO_TIEP_NHAN`.
 
-**CHƯA LÀM — chờ chốt mốc hạn nộp cho việc chấm điểm.** Ba việc mới ở trang
-chủ cố ý KHÔNG có hạn (`KHONG_CO_HAN`), nên chưa có thẻ "Quá hạn" hay
-"Còn N ngày" và chưa có nhắc theo ngày 28/30. `period-calendar.ts` không bị
-đụng tới. Xem `no-ky-thuat.md` mục "Lát cắt 5".
+- **Ba việc chấm điểm đã có hạn thật (10/09).** Tự chấm lấy
+  `selfScoreDeadline` (25), trưởng bộ phận chấm lấy `managerScoreDeadline`
+  (29), HCNS tiếp nhận lấy `submitDeadline` (30) — đúng ba cột mục 5.5 đã
+  chốt từ 03/09. Hạn lấy từ kỳ CỦA PHIẾU chứ không phải kỳ chứa hôm nay;
+  nhiều kỳ thì lấy hạn sớm nhất. Trang chủ hiện "Quá hạn" / "Còn N ngày"
+  như các việc đầu kỳ.
+
+  (Prompt lát cắt 5 ghi lịch cũ "ngày 02 tháng kế tiếp" và "nhắc từ 28/30";
+  từ chỗ đó tôi đã kết luận nhầm là mốc chưa chốt. Không phải — mốc có sẵn.)
 
 Giai đoạn 4 — đối chiếu Excel: **ĐÃ LÀM, KHÔNG CÓ DÒNG NÀO LỆCH.**
 
@@ -211,7 +216,7 @@ viên, Người đánh giá, Ngày đánh giá đều trống. Đúng như HCNS 
 tháng 08" theo nghĩa đen chưa thực hiện được — cần HCNS đưa một phiếu đã
 chấm thật. Mốc thay thế vẫn đang treo, xem mục "Chưa quyết".
 
-**LÁT CẮT 5 XONG CẢ HAI ĐẦU**, trừ mốc hạn nộp cho việc chấm điểm.
+**LÁT CẮT 5 XONG CẢ HAI ĐẦU.**
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 

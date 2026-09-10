@@ -73,6 +73,23 @@ const NGUOI_CO_KPI = {
  */
 const KHONG_CO_HAN = { daysUntilDeadline: null, isOverdue: false } as const;
 
+/**
+ * Hạn SỚM NHẤT trong danh sách, bỏ qua kỳ không có hạn.
+ *
+ * Một việc gộp nhiều phiếu ở nhiều kỳ thì chỉ hiện được MỘT con số đếm
+ * ngược. Lấy cái gấp nhất: hiện hạn muộn nhất là ru ngủ người dùng về đúng
+ * cái phiếu đã quá hạn.
+ *
+ * Trả `null` khi không phiếu nào có hạn — kỳ quý và kỳ năm để `NULL` cả bốn
+ * mốc (mục 5.5), và phiếu chỉ gắn vào kỳ tháng nên ca này gần như không xảy
+ * ra; vẫn phải xử lý vì cột là nullable.
+ */
+function hanSomNhat(cac: readonly (Date | null)[]): Date | null {
+  const co = cac.filter((d): d is Date => d !== null);
+  if (co.length === 0) return null;
+  return co.reduce((a, b) => (b < a ? b : a));
+}
+
 @Injectable()
 export class ScorecardQueryService {
   constructor(
@@ -316,24 +333,29 @@ export class ScorecardQueryService {
 
     // --- Chấm điểm cuối kỳ ---
     //
-    // BA VIỆC NÀY CỐ Ý KHÔNG CÓ HẠN (`KHONG_CO_HAN`).
+    // Hạn lấy từ đúng ba cột đã chốt ở mục 5.5, KHÔNG bịa thêm mốc nào:
     //
-    // Kỳ đã có sẵn `selfScoreDeadline` (ngày 25) và `managerScoreDeadline`
-    // (ngày 29), nhưng mốc hạn cho việc chấm điểm CHƯA ĐƯỢC CHỐT — xem
-    // docs/no-ky-thuat.md mục "Lát cắt 5". Gắn đại một trong hai cột vào đây
-    // là bịa ra một con số đếm ngược mà không ai cam kết, rồi trang chủ sẽ
-    // báo "quá hạn" cho việc chưa từng có hạn.
+    //   tự chấm            -> selfScoreDeadline    (ngày 25)
+    //   trưởng bộ phận chấm -> managerScoreDeadline (ngày 29)
+    //   HCNS tiếp nhận      -> submitDeadline       (ngày 30)
     //
-    // Chốt xong thì chỉ cần đổi `KHONG_CO_HAN` thành `tinhTinhTrangHanNop()`
-    // của đúng cột — phần đếm ngược ở `period-calendar.ts` đã sẵn sàng và
-    // không phải sửa gì.
+    // HẠN LẤY TỪ KỲ CỦA CHÍNH PHIẾU, không phải kỳ chứa hôm nay. Phiếu
+    // tháng 8 chưa chấm mà sang tháng 9 mới mở trang chủ là chuyện thường;
+    // đo theo kỳ hiện tại thì việc quá hạn cả tháng lại hiện "còn 15 ngày".
+    //
+    // Nhiều phiếu ở nhiều kỳ thì lấy hạn SỚM NHẤT — cái gấp nhất là cái
+    // người dùng cần thấy.
     const phieuChoTuCham = await this.prisma.scorecard.findMany({
       where: {
         ownerUserId: user.id,
         assignStatus: AssignStatus.ACCEPTED,
         resultStatus: { in: [ResultStatus.PENDING, ResultStatus.REJECTED] },
       },
-      select: { id: true, resultStatus: true, period: { select: { name: true } } },
+      select: {
+        id: true,
+        resultStatus: true,
+        period: { select: { name: true, selfScoreDeadline: true } },
+      },
     });
     if (phieuChoTuCham.length > 0) {
       const biTraLai = phieuChoTuCham.filter(
@@ -353,38 +375,50 @@ export class ScorecardQueryService {
           phieuChoTuCham.length === 1
             ? `/kpi/scorecards/${phieuChoTuCham[0].id}/scoring`
             : '/kpi/my',
-        ...KHONG_CO_HAN,
+        ...tinhTinhTrangHanNop(
+          hanSomNhat(phieuChoTuCham.map((p) => p.period.selfScoreDeadline)),
+        ),
       });
     }
 
-    const choToiCham = await this.prisma.scorecard.count({
+    const phieuChoToiCham = await this.prisma.scorecard.findMany({
       where: {
         evaluatorId: user.id,
         assignStatus: AssignStatus.ACCEPTED,
         resultStatus: ResultStatus.SELF_SCORED,
       },
+      select: { period: { select: { managerScoreDeadline: true } } },
     });
-    if (choToiCham > 0) {
+    if (phieuChoToiCham.length > 0) {
       viec.push({
         type: 'CHO_TOI_CHAM',
-        message: `${choToiCham} phiếu KPI nhân viên đã tự chấm, chờ bạn cho điểm`,
-        count: choToiCham,
+        message: `${phieuChoToiCham.length} phiếu KPI nhân viên đã tự chấm, chờ bạn cho điểm`,
+        count: phieuChoToiCham.length,
         link: '/kpi/assign',
-        ...KHONG_CO_HAN,
+        ...tinhTinhTrangHanNop(
+          hanSomNhat(phieuChoToiCham.map((p) => p.period.managerScoreDeadline)),
+        ),
       });
     }
 
     if (user.role === Role.HR || user.role === Role.ADMIN) {
-      const choTiepNhan = await this.prisma.scorecard.count({
+      // Ngày 30 là hạn TRƯỞNG BỘ PHẬN gửi kết quả về HCNS (mục 5.5). Trong
+      // hệ thống không có thao tác "gửi" riêng — chốt điểm xong là phiếu nằm
+      // chờ HCNS bấm tiếp nhận. Nên đây là hạn để MỌI phiếu đã về tới HCNS,
+      // và HCNS chính là người cần nhìn thấy nó sắp hết.
+      const phieuChoTiepNhan = await this.prisma.scorecard.findMany({
         where: { resultStatus: ResultStatus.MANAGER_SCORED },
+        select: { period: { select: { submitDeadline: true } } },
       });
-      if (choTiepNhan > 0) {
+      if (phieuChoTiepNhan.length > 0) {
         viec.push({
           type: 'CHO_TIEP_NHAN',
-          message: `${choTiepNhan} phiếu KPI đã chốt điểm, chờ HCNS tiếp nhận`,
-          count: choTiepNhan,
+          message: `${phieuChoTiepNhan.length} phiếu KPI đã chốt điểm, chờ HCNS tiếp nhận`,
+          count: phieuChoTiepNhan.length,
           link: '/kpi/assign',
-          ...KHONG_CO_HAN,
+          ...tinhTinhTrangHanNop(
+            hanSomNhat(phieuChoTiepNhan.map((p) => p.period.submitDeadline)),
+          ),
         });
       }
     }
