@@ -126,7 +126,33 @@
 - [ ] Khoá tạm theo email không kiểm được bằng curl từ một máy: hạn mức
       5 lần/phút theo IP chặn trước khi đủ 11 lần. Phủ bằng test unit
       (`login-attempt.service.spec.ts`).
-- [ ] Chưa cấu hình backup database (`pg_dump` hằng đêm + đẩy ra ngoài)
+- [ ] **Sao lưu chỉ nằm TRÊN CHÍNH MÁY CHỦ ĐÓ — nợ CÓ CHỦ Ý (chốt 10/09).**
+
+      Kế hoạch: `pg_dump` hằng đêm bằng systemd timer, nén, giữ 14 bản ở
+      `/var/backups/kpi` trên chính máy chủ tại công ty. **Chưa đẩy ra
+      ngoài** — sẽ làm sau.
+
+      **Rủi ro phải nói thẳng:** bản sao nằm cùng ổ, cùng máy, cùng phòng
+      với database. Cháy, mất trộm, hỏng ổ, hay ransomware là mất CẢ dữ liệu
+      lẫn bản sao. Sao lưu cùng máy chỉ cứu được ba tình huống: xoá nhầm,
+      migration hỏng, và lỗi ứng dụng làm sai dữ liệu.
+
+      **Điều kiện xử lý: trước khi mở cho toàn công ty.** Chạy thử một phòng
+      tháng 11 thì chấp nhận được; 200 người với dữ liệu tính lương thì
+      không. Đích đẩy ra ngoài (NAS, ổ ngoài, cloud storage) chưa chọn.
+
+- [ ] **Chưa cấu hình gì cho việc triển khai.** Repo mới chỉ có
+      `docker-compose.yml` cho PostgreSQL ở máy dev: chưa có nginx, chưa có
+      systemd/PM2, chưa có CI, chưa có `.env.production.example`.
+
+      Hướng đã trình bày 10/09, **chưa duyệt nên chưa viết**: Docker Compose
+      chạy `postgres` + `api`; nginx trên host làm reverse proxy kèm TLS
+      Let's Encrypt; frontend build tĩnh cho nginx phục vụ thẳng; backup
+      bằng systemd timer.
+
+- [ ] **Mở cổng 80/443 từ internet vào máy chủ công ty — CHƯA XÁC NHẬN.**
+      Đây là việc của bộ phận IT/mạng, không phải của code, và là điều kiện
+      bắt buộc để tên miền dùng được. Hỏi trước khi tới ngày triển khai.
 - [ ] `prisma/seed.ts` để mật khẩu dev mặc định `Hmico@2026` (đổi qua biến
       `SEED_PASSWORD`). Mọi tài khoản có `mustChangePassword = true`, nhưng
       **không được chạy seed trên môi trường thật**.
@@ -401,6 +427,17 @@ tự động rồi mới vỡ.
       nằm ở `selfComment` / `managerComment` — mỗi cột điểm một ghi chú, vì
       một cột dùng chung thì không biết ai viết. Kiểm trước khi xoá: 0 dòng
       có giá trị, không có dòng code nào ghi vào.
+
+- [ ] **`.claude/rules/security.md` đã lạc hậu — chờ chốt.**
+
+      File ghi "Bốn vai trò" nhưng dự án có **năm** (thiếu `HR`), và ghi
+      `EXECUTIVE` là "xem toàn công ty, **không sửa**" trong khi thực tế ban
+      giám đốc **chấm điểm** trưởng bộ phận, **khoá/mở kỳ**, và từ 10/09
+      **đọc nhật ký** phiếu KPI.
+
+      Chưa tự sửa vì đây là file quy tắc bảo mật — sai một chữ ở đây là sai
+      cả hướng làm về sau. Cần chốt câu chữ rồi mới cập nhật, giống cách đã
+      làm với `nestjs-module.md` và `prisma.md`.
 
 ## Chờ HR xác nhận
 

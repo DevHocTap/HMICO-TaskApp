@@ -18,7 +18,10 @@ dễ đọc, dễ bảo trì hơn code ngắn gọn hay "thông minh".
 **Frontend (`web/`):** Vite + React + TypeScript · **Ant Design** ·
 TanStack Query · React Router · axios
 
-Dev: WSL2 Ubuntu 24.04. Triển khai sau: Viettel Cloud, Ubuntu 24.04.
+Dev: WSL2 Ubuntu 24.04.
+Triển khai: **máy chủ đặt tại công ty**, Ubuntu 24.04, mở ra ngoài qua tên
+miền đã có (IP tĩnh). Chốt 10/09/2026 — thay cho phương án thuê Viettel
+Cloud trước đây. Xem `docs/quyet-dinh-cong-nghe.md`.
 
 - **Không nâng Prisma lên 7 hoặc 8** — CLI đã đổi cú pháp.
 - **Frontend dùng Ant Design. Không dùng Tailwind hay shadcn/ui.**

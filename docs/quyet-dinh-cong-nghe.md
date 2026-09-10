@@ -46,18 +46,40 @@ hướng dẫn và gói cài đặt đều chạy được.
 
 ## Dev trong WSL2, không phải Windows trực tiếp
 
-VPS chạy Ubuntu. Dev trên Windows rồi triển khai lên Linux sẽ gặp lỗi
+Máy chủ chạy Ubuntu. Dev trên Windows rồi triển khai lên Linux sẽ gặp lỗi
 vặt về đường dẫn, phân biệt hoa thường trong tên file, quyền file, ký tự
 xuống dòng — luôn xuất hiện đúng lúc triển khai.
 
-## App và database cùng trên VPS (phương án A)
+## Máy chủ ĐẶT TẠI CÔNG TY, mở ra ngoài qua tên miền (chốt 10/09/2026)
 
-Đã cân nhắc để database ở server công ty nhưng loại bỏ: mỗi truy vấn
-phải đi qua internet (10–30ms thay vì dưới 1ms), phụ thuộc mạng và điện
-văn phòng, và phải mở cổng database ra ngoài.
+**Quyết định này ĐẢO NGƯỢC phương án A cũ** (thuê VPS Viettel Cloud, app và
+database cùng trên đó). Ghi lại cả hai để sau này không ai đọc tài liệu cũ
+rồi làm ngược.
 
-Bù lại: mỗi đêm VPS chạy `pg_dump`, mã hoá, đẩy bản sao về server công
-ty. Công ty vẫn giữ dữ liệu mà hệ thống không phụ thuộc mạng công ty.
+**Chốt hiện tại:** app và database cùng chạy trên MỘT máy chủ đặt tại công
+ty, mở ra internet qua tên miền đã có. IP công ty là IP tĩnh nên không cần
+DDNS.
+
+**Đánh đổi phải chấp nhận — chính là mặt trái của lý do từng chọn VPS:**
+
+| Điểm | Hệ quả khi đặt máy tại công ty |
+|---|---|
+| Truy vấn database | dưới 1ms, không qua internet — **tốt hơn VPS** |
+| Mạng và điện văn phòng | mất điện hay đứt mạng là cả hệ thống ngừng, kể cả với người làm ở nhà |
+| Cổng ra internet | phải mở 80/443 từ ngoài vào máy chủ — **việc của IT, không phải của code** |
+| Sao lưu | bản sao nằm CÙNG máy với database, xem `no-ky-thuat.md` |
+
+Vì máy chủ nằm sau đường truyền văn phòng, **TLS là bắt buộc, không phải
+tuỳ chọn**: dữ liệu đi qua internet công cộng.
+
+### Một tiến trình Node, KHÔNG PM2 cluster
+
+`RateLimitGuard` và `LoginAttemptService` đếm trong bộ nhớ tiến trình. Chạy
+cluster nghĩa là mỗi tiến trình một bộ đếm riêng, hạn mức thực tế bị nhân
+lên theo số tiến trình và khoá tạm gần như vô hiệu.
+
+Một tiến trình Node thừa sức cho 200 người. Muốn cluster thì phải chuyển bộ
+đếm sang Redis TRƯỚC, không phải sau.
 
 ## Đã cân nhắc và loại: Google Apps Script + Sheet
 

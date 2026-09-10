@@ -243,6 +243,25 @@ test, không phải nguồn sự thật nghiệp vụ.
 
 `scripts/kiem-chung-lat-cat-5.sh` nay **90 kiểm tra**.
 
+**Quyết định hạ tầng đã chốt 10/09:**
+
+| Việc | Chốt |
+|---|---|
+| Nơi chạy | **máy chủ đặt tại công ty**, không thuê Viettel Cloud nữa. Tên miền đã có, IP tĩnh — xem `quyet-dinh-cong-nghe.md` |
+| Số tiến trình | **MỘT** tiến trình Node, không PM2 cluster (bộ đếm hạn mức nằm trong bộ nhớ tiến trình) |
+| Sao lưu | `pg_dump` hằng đêm, giữ **tại chính máy đó**; đẩy ra ngoài làm sau — nợ có chủ ý |
+| Ai xem nhật ký | ADMIN mọi loại; **ban giám đốc chỉ `Scorecard`** (ai sửa điểm, nộp, duyệt); HR và MANAGER không xem |
+| Hạn mức đăng nhập | 3 lớp: 5/phút theo `(IP, email)`, 120/phút theo IP, khoá tạm theo email |
+
+**CHƯA LÀM — phần triển khai.** Chưa có nginx, systemd, CI, hay
+`.env.production.example`. Hướng đã trình bày nhưng chưa duyệt. Còn một việc
+ngoài code chưa xác nhận: **mở cổng 80/443 từ internet vào máy chủ công ty**
+— việc của IT, và là điều kiện bắt buộc để tên miền dùng được.
+
+**Việc tiếp: lát cắt 6** (bảng theo dõi tiến độ nộp cho HCNS, xuất Excel,
+dashboard cho ban giám đốc). Hai endpoint đã có sẵn mà chưa màn hình nào
+gọi — `GET /scorecards` và `GET /scorecards/readiness` — dùng ở lát cắt này.
+
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 
 | Tuần | Lát cắt |
@@ -253,7 +272,7 @@ test, không phải nguồn sự thật nghiệp vụ.
 | 7–8 | `scorecard`: giao KPI tháng, ký nhận, sao chép từ kỳ trước |
 | 9–10 | `scoring`: hai cột chấm, tính điểm, xếp loại |
 | **11** | ~~Đối chiếu Excel tháng 08 thật~~ — **đã đổi**: không có phiếu thật, đã đối chiếu công thức với cả 4 mẫu (`doi-chieu-excel.spec.ts`) |
-| 12 | "Việc của tôi", theo dõi tiến độ nộp, xuất Excel |
+| 12 | **← ĐANG TỚI** — theo dõi tiến độ nộp, xuất Excel, dashboard BGĐ ("Việc của tôi" đã xong ở lát cắt 5) |
 | 13+ | Chạy thật một phòng, sửa theo phản hồi |
 
 ## Chưa quyết
