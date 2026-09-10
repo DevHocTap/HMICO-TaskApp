@@ -60,10 +60,24 @@
       nghi bị chiếm tài khoản thì kẻ tấn công vẫn thao tác được trong
       khoảng đó. Cách xử lý: `JwtAuthGuard` đối chiếu `iat` của token với
       `User.passwordChangedAt` — đổi lấy một truy vấn database mỗi request.
-- [ ] `AuditService` đã nối vào module `org` (tạo/sửa/vô hiệu hoá phòng
-      ban, chức danh, nhân viên, đổi vai trò, đặt lại mật khẩu). **Chưa
-      nối vào `auth`** — đăng nhập, đăng xuất, đổi mật khẩu chưa ghi log.
-- [ ] Chưa có giao diện xem `AuditLog`. Hiện chỉ tra được bằng SQL.
+- [x] ~~`AuditService` chưa nối vào `auth`~~ — **đã nối 10/09.** Ghi
+      `LOGIN`, `LOGIN_FAILED` (kèm lý do: email không tồn tại / sai mật khẩu
+      / tài khoản đã vô hiệu hoá), `LOGOUT_ALL`, `CHANGE_PASSWORD` với
+      `entityType = 'Auth'`. Tách khỏi `'User'` có chủ ý: đây là sự kiện
+      phiên đăng nhập, trộn chung thì nhật ký của một nhân viên ngập bản ghi
+      đăng nhập và không còn nhìn ra lần đổi vai trò nào.
+- [x] ~~Chưa có giao diện xem `AuditLog`~~ — **`/admin/audit-logs`** (10/09).
+      Lọc theo đối tượng, mã thao tác, khoảng ngày; `before`/`after` mở ra
+      khi bấm vào dòng. ADMIN xem mọi loại; **ban giám đốc chỉ xem
+      `Scorecard`** (ai sửa điểm, nộp, duyệt) — chốt 10/09. HR và MANAGER
+      KHÔNG vào được: nhật ký ghi lại chính thao tác của họ.
+
+- [ ] **`AuditLog` chưa có chính sách dọn.** Mỗi lần đăng nhập là một dòng;
+      200 người × ~250 ngày làm việc ≈ 50.000 dòng/năm chỉ riêng `LOGIN`,
+      chưa kể thao tác nghiệp vụ. Chưa gây vấn đề gì ở quy mô hiện tại và
+      **không được xoá bừa** — nhật ký chấm điểm là bằng chứng khi tranh cãi
+      lương. Hướng xử lý khi cần: giữ `Auth` 12 tháng, giữ `Scorecard` vĩnh
+      viễn, tách bảng lưu trữ thay vì xoá.
 - [ ] Module `org` gọi `audit.log()` KHÔNG kèm transaction. Chấp nhận được
       với thao tác nhân sự, nhưng `Scorecard` thì bắt buộc phải kèm — xem
       `docs/kien-truc.md` mục Nhật ký thao tác.

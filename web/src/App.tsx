@@ -16,10 +16,12 @@ import { JobTitlesPage } from './pages/admin/JobTitlesPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { KpiTemplatesPage } from './pages/admin/KpiTemplatesPage';
 import { KpiTemplateEditorPage } from './pages/admin/KpiTemplateEditorPage';
+import { AuditLogsPage } from './pages/admin/AuditLogsPage';
 import {
   coTheChotSo,
   coTheGiaoKpi,
   coTheXemNhanVien,
+  coTheXemNhatKy,
   coTheXemToChuc,
 } from './auth/permissions';
 
@@ -55,6 +57,11 @@ export function App() {
           {/* Kỳ đánh giá và chốt sổ — HCNS, ban giám đốc, quản trị. */}
           <Route element={<RoleRoute duocPhep={coTheChotSo} />}>
             <Route path="/kpi/periods" element={<PeriodsPage />} />
+          </Route>
+
+          {/* Nhật ký thao tác — chỉ quản trị và ban giám đốc. */}
+          <Route element={<RoleRoute duocPhep={coTheXemNhatKy} />}>
+            <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
           </Route>
 
           <Route element={<RoleRoute duocPhep={coTheXemToChuc} />}>

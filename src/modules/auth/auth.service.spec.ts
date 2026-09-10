@@ -5,6 +5,7 @@ import * as argon2 from 'argon2';
 import { Role, type User } from '@prisma/client';
 import { AuthService } from './auth.service.js';
 import { TokenService } from './token.service.js';
+import { AuditService } from '../audit/audit.service.js';
 import { LoginAttemptService } from './login-attempt.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -35,6 +36,8 @@ describe('AuthService', () => {
   const revokeAllForUser = vi.fn();
   const getLockRemainingMinutes = vi.fn();
   const recordFailure = vi.fn();
+/** AuditService.log — nuốt mọi lời gọi, test không quan tâm nội dung nhật ký. */
+const ghiNhatKy = vi.fn().mockResolvedValue(undefined);
   const resetAttempts = vi.fn();
 
   beforeEach(async () => {
@@ -51,6 +54,7 @@ describe('AuthService', () => {
     getLockRemainingMinutes.mockReset().mockReturnValue(0);
     recordFailure.mockReset();
     resetAttempts.mockReset();
+    ghiNhatKy.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -65,6 +69,7 @@ describe('AuthService', () => {
             reset: resetAttempts,
           },
         },
+        { provide: AuditService, useValue: { log: ghiNhatKy } },
       ],
     }).compile();
 

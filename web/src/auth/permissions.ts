@@ -74,3 +74,15 @@ export function coTheChotSo(role: Role | undefined): boolean {
 export function coTheTaoKy(role: Role | undefined): boolean {
   return role === 'ADMIN' || role === 'HR';
 }
+
+/**
+ * Xem nhật ký thao tác.
+ *
+ * HR và MANAGER cố ý KHÔNG vào được: nhật ký ghi lại chính thao tác của họ
+ * (đặt lại mật khẩu, đổi vai trò, chấm điểm), nên cho họ đọc là để đối tượng
+ * bị giám sát tự kiểm tra mình. Ban giám đốc vào được nhưng backend chỉ trả
+ * bản ghi của phiếu KPI — chốt 10/09.
+ */
+export function coTheXemNhatKy(role: Role | undefined): boolean {
+  return role === 'ADMIN' || role === 'EXECUTIVE';
+}

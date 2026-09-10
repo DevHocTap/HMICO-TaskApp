@@ -1,5 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { AuditService } from './audit.service.js';
+import { AuditQueryService } from './audit-query.service.js';
+import { AuditController } from './audit.controller.js';
 
 /**
  * @Global vì gần như mọi module nghiệp vụ đều phải ghi nhật ký. Bắt từng
@@ -7,7 +9,8 @@ import { AuditService } from './audit.service.js';
  */
 @Global()
 @Module({
-  providers: [AuditService],
+  providers: [AuditService, AuditQueryService],
+  controllers: [AuditController],
   exports: [AuditService],
 })
 export class AuditModule {}

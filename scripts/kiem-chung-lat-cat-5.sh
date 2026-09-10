@@ -652,6 +652,82 @@ print(','.join(str(float(i['managerComputed']['dongGop'])) for i in bsc))" 2>/de
   && pass "    đóng góp Mục 1 khớp Excel: $DONG_GOP" \
   || fail "    đóng góp = $DONG_GOP (Excel: 15,15,10,10,10,10)"
 
+# ================================================= 30 NHẬT KÝ THAO TÁC
+buoc "30  NHẬT KÝ THAO TÁC — phân quyền và nội dung"
+
+R=$(goi GET "$AT_ADMIN" "/audit-logs?limit=5")
+mong "$(ma_cua "$R")" 200 "30. ADMIN đọc được nhật ký"
+TONG=$(than_cua "$R" | jq_ "d['total']")
+[ "${TONG:-0}" -gt 0 ] && pass "    có $TONG bản ghi" || fail "    nhật ký rỗng"
+
+# Đăng nhập phải để lại dấu vết — nợ kỹ thuật cũ là auth không ghi log gì
+SO_LOGIN=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Auth' AND action='LOGIN';")
+[ "${SO_LOGIN:-0}" -gt 0 ] \
+  && pass "    đăng nhập có ghi nhật ký ($SO_LOGIN bản ghi LOGIN)" \
+  || fail "    không có bản ghi LOGIN nào"
+
+# Đăng nhập sai cũng phải ghi, kèm lý do
+curl -s -o /dev/null -X POST "$API/auth/login" -H 'Content-Type: application/json' \
+  -d '{"email":"admin@hmico.vn","password":"sai-mat-khau-that"}'
+LY_DO=$(sql "SELECT after->>'lyDo' FROM \"AuditLog\" WHERE action='LOGIN_FAILED' ORDER BY \"createdAt\" DESC LIMIT 1;")
+[ "$LY_DO" = "sai mật khẩu" ] \
+  && pass "    đăng nhập sai ghi LOGIN_FAILED kèm lý do: $LY_DO" \
+  || fail "    LOGIN_FAILED ghi lý do = '$LY_DO'"
+
+# Mật khẩu KHÔNG được lọt vào nhật ký
+CO_MAT_KHAU=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE after::text ILIKE '%sai-mat-khau-that%' OR before::text ILIKE '%sai-mat-khau-that%';")
+[ "$CO_MAT_KHAU" = "0" ] \
+  && pass "    mật khẩu KHÔNG lọt vào nhật ký" \
+  || fail "    $CO_MAT_KHAU bản ghi chứa mật khẩu"
+
+# BGĐ chỉ thấy phiếu KPI
+R=$(goi GET "$AT_BGD" "/audit-logs?limit=100")
+mong "$(ma_cua "$R")" 200 "    ban giám đốc đọc được nhật ký"
+LOAI=$(than_cua "$R" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print(','.join(sorted({r['entityType'] for r in d['data']})) or '(rong)')" 2>/dev/null)
+[ "$LOAI" = "Scorecard" ] || [ "$LOAI" = "(rong)" ] \
+  && pass "    BGĐ chỉ thấy loại Scorecard (thấy: $LOAI)" \
+  || fail "    BGĐ thấy cả: $LOAI"
+
+# Xin loại ngoài phạm vi thì rỗng, KHÔNG âm thầm nới ra
+R=$(goi GET "$AT_BGD" "/audit-logs?entityType=User&limit=50")
+SO_USER=$(than_cua "$R" | jq_ "d['total']")
+[ "$SO_USER" = "0" ] \
+  && pass "    BGĐ xin nhật ký nhân sự -> rỗng, không nới phạm vi" \
+  || fail "    BGĐ thấy $SO_USER bản ghi nhân sự"
+
+for T in "$AT_HR" "$AT_KT" "$AT_NV1"; do
+  MA=$(ma -H "Authorization: Bearer $T" "$API/audit-logs")
+  [ "$MA" = "403" ] || { fail "    vai trò không có quyền đọc được nhật ký -> $MA"; break; }
+done
+[ "$MA" = "403" ] && pass "    HR, trưởng phòng, nhân viên đều bị chặn -> 403"
+
+# ================================================= 31 EXCEPTION FILTER
+buoc "31  EXCEPTION FILTER"
+
+R=$(goi GET "$AT_ADMIN" "/scorecards/khong-phai-uuid/scoring")
+MA_UUID=$(ma_cua "$R")
+CO_PATH=$(than_cua "$R" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print('co' if 'path' in d and 'timestamp' in d and 'message' in d else 'thieu')" 2>/dev/null)
+mong "$MA_UUID" 400 "31. id sai định dạng -> 400"
+[ "$CO_PATH" = "co" ] \
+  && pass "    thân lỗi có đủ message, path, timestamp" \
+  || fail "    thân lỗi thiếu trường: $(than_cua "$R" | head -c 150)"
+
+# Lỗi trùng khoá của Prisma phải thành 409, không phải 500 lộ tên bảng
+R=$(goi POST "$AT_ADMIN" /scorecards "{\"userId\":\"$U_NV1\",\"periodId\":\"$KY_08\"}")
+MA_TRUNG=$(ma_cua "$R")
+LO_BANG=$(than_cua "$R" | grep -ci "Scorecard_ownerUserId\|Unique constraint\|prisma" || true)
+[ "$MA_TRUNG" = "409" ] && pass "    tạo trùng phiếu -> 409 (HTTP $MA_TRUNG)" \
+  || fail "    tạo trùng phiếu -> $MA_TRUNG (mong đợi 409)"
+[ "$LO_BANG" = "0" ] \
+  && pass "    thông điệp lỗi KHÔNG lộ tên bảng hay tên ràng buộc" \
+  || fail "    lộ chi tiết nội bộ: $(than_cua "$R" | head -c 150)"
+
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"
 echo "  PASS: $SO_PASS    FAIL: $SO_FAIL"

@@ -9,6 +9,7 @@ import {
   IdcardOutlined,
   LogoutOutlined,
   TeamOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
@@ -17,6 +18,7 @@ import {
   coTheGiaoKpi,
   coTheXemNhanVien,
   coTheXemToChuc,
+  coTheXemNhatKy,
 } from '../auth/permissions';
 import { ROLE_LABELS } from '../types/auth';
 import type { Role } from '../types/auth';
@@ -115,6 +117,14 @@ export function AdminLayout() {
       key: '/admin/kpi-templates',
       icon: <FileTextOutlined />,
       label: <Link to="/admin/kpi-templates">Mẫu KPI</Link>,
+    });
+  }
+
+  if (coTheXemNhatKy(user?.role)) {
+    mucQuanTri.push({
+      key: '/admin/audit-logs',
+      icon: <HistoryOutlined />,
+      label: <Link to="/admin/audit-logs">Nhật ký thao tác</Link>,
     });
   }
 

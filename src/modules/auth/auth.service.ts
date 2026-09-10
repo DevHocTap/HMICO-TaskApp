@@ -8,6 +8,7 @@ import {
 import * as argon2 from 'argon2';
 import type { User } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { AuditService } from '../audit/audit.service.js';
 import { TokenService, type TokenPair } from './token.service.js';
 import { LoginAttemptService } from './login-attempt.service.js';
 import type { LoginDto } from './dto/login.dto.js';
@@ -59,7 +60,37 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokenService: TokenService,
     private readonly loginAttempts: LoginAttemptService,
+    private readonly audit: AuditService,
   ) {}
+
+  /**
+   * Ghi nhật ký cho thao tác xác thực.
+   *
+   * `entityType = 'Auth'` chứ không phải `'User'`: đây là sự kiện phiên
+   * đăng nhập, không phải thay đổi hồ sơ nhân sự. Trộn chung thì màn nhật
+   * ký của một nhân viên sẽ ngập bản ghi đăng nhập và không còn nhìn ra
+   * lần đổi vai trò nào.
+   *
+   * KHÔNG kèm mật khẩu hay token vào `after` — `AuditService.lamSach()` có
+   * che theo tên khoá, nhưng chỗ này thì đơn giản là không đưa vào.
+   */
+  private async ghiNhatKy(
+    action: string,
+    userId: string | null,
+    email: string,
+    client: ClientInfo,
+    them?: Record<string, unknown>,
+  ): Promise<void> {
+    await this.audit.log({
+      actorId: userId,
+      entityType: 'Auth',
+      // Không có userId (đăng nhập sai email) thì lấy email làm mốc tra cứu.
+      entityId: userId ?? email,
+      action,
+      after: { email, ...them },
+      ipAddress: client.ipAddress ?? null,
+    });
+  }
 
   async hashPassword(plain: string): Promise<string> {
     return argon2.hash(plain);
@@ -89,18 +120,23 @@ export class AuthService {
     if (!user) {
       await argon2.hash(dto.password);
       this.loginAttempts.recordFailure(email);
+      await this.ghiNhatKy('LOGIN_FAILED', null, email, client, { lyDo: 'email không tồn tại' });
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     const matched = await argon2.verify(user.passwordHash, dto.password);
     if (!matched) {
       this.loginAttempts.recordFailure(email);
+      await this.ghiNhatKy('LOGIN_FAILED', user.id, email, client, { lyDo: 'sai mật khẩu' });
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     // Kiểm tra sau khi đã xác thực mật khẩu: người ngoài không dò được
     // tài khoản nào đang bị khoá.
     if (!user.isActive) {
+      await this.ghiNhatKy('LOGIN_FAILED', user.id, email, client, {
+        lyDo: 'tài khoản đã vô hiệu hoá',
+      });
       throw new UnauthorizedException('Tài khoản đã bị vô hiệu hoá');
     }
 
@@ -114,6 +150,7 @@ export class AuthService {
     });
 
     const tokens = await this.tokenService.issuePair(user, client);
+    await this.ghiNhatKy('LOGIN', user.id, email, client);
     return { ...tokens, user: this.toProfile(user) };
   }
 
@@ -130,9 +167,22 @@ export class AuthService {
     await this.tokenService.revoke(refreshToken);
   }
 
-  /** Đăng xuất khỏi mọi thiết bị. */
-  async logoutAll(userId: string): Promise<void> {
+  /**
+   * Đăng xuất khỏi mọi thiết bị.
+   *
+   * `ghiNhatKy` bỏ qua khi `boQuaNhatKy` — `changePassword` gọi lại hàm này
+   * và đã tự ghi `CHANGE_PASSWORD` rồi; ghi thêm một dòng `LOGOUT_ALL` chỉ
+   * làm nhiễu, vì thu hồi phiên là hệ quả tất yếu của đổi mật khẩu.
+   */
+  async logoutAll(userId: string, boQuaNhatKy = false): Promise<void> {
     await this.tokenService.revokeAllForUser(userId);
+    if (boQuaNhatKy) return;
+    await this.audit.log({
+      actorId: userId,
+      entityType: 'Auth',
+      entityId: userId,
+      action: 'LOGOUT_ALL',
+    });
   }
 
   /**
@@ -163,9 +213,17 @@ export class AuthService {
       },
     });
 
+    await this.audit.log({
+      actorId: userId,
+      entityType: 'Auth',
+      entityId: userId,
+      action: 'CHANGE_PASSWORD',
+      after: { email: user.email },
+    });
+
     // Đổi mật khẩu thì thu hồi mọi phiên, kể cả phiên hiện tại — người dùng
     // phải đăng nhập lại bằng mật khẩu mới trên mọi thiết bị.
-    await this.logoutAll(userId);
+    await this.logoutAll(userId, true);
   }
 
   async getProfile(userId: string): Promise<UserProfile> {

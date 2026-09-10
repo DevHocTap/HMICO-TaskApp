@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 267 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 77 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 267 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 90 kiểm tra curl.**
 
 ## Đang làm
 
@@ -159,7 +159,7 @@ Giai đoạn 2 — bảy endpoint:
   việc, cột trưởng bộ phận mở từ PENDING kèm `noSelfScoreReason` bắt buộc.
 - Kỳ khoá và phiếu chưa ký nhận trả 409 — đã thống nhất mã này cho cả luồng
   giao KPI của lát cắt 4.
-- `scripts/kiem-chung-lat-cat-5.sh`: **77 kiểm tra bằng curl**.
+- `scripts/kiem-chung-lat-cat-5.sh`: **90 kiểm tra bằng curl**.
 
 Giai đoạn 3 — giao diện:
 - **`/kpi/scorecards/:id/scoring`** — MỘT màn hình cho cả hai vai, hai cột
@@ -224,6 +224,24 @@ công thức tính điểm; bốn file trong `docs/mau-kpi/` từ nay chỉ là 
 test, không phải nguồn sự thật nghiệp vụ.
 
 **LÁT CẮT 5 XONG CẢ HAI ĐẦU.**
+
+---
+
+**Chuẩn bị chạy thật (10/09) — ba việc hạ tầng đã xong:**
+
+- **Hạn mức đăng nhập đổi KHOÁ, không nâng số.** Ba lớp: 5 lần/phút theo
+  cặp `(IP, email)`, 120 lần/phút theo IP, khoá tạm theo email >10 lần sai
+  /15 phút. Trước đây khoá theo IP thuần nên 200 người sau NAT dùng chung
+  một hạn mức — người thứ sáu đăng nhập buổi sáng đã bị chặn.
+- **`AllExceptionsFilter`** — dịch lỗi Prisma sang mã HTTP đúng
+  (`P2002`→409, `P2025`→404, `P2003`→400), lỗi 5xx ghi stack vào log máy chủ
+  và chỉ trả ra ngoài một câu chung. Giữ nguyên hình dạng body cũ.
+- **`/admin/audit-logs`** — màn nhật ký thao tác, chỉ đọc. ADMIN xem mọi
+  loại; ban giám đốc chỉ xem `Scorecard`. Đã nối `AuditService` vào `auth`
+  nên đăng nhập, đăng nhập sai, đổi mật khẩu đều để lại dấu vết.
+- Thêm `TRUST_PROXY` — **phải đặt `1` khi triển khai sau nginx.**
+
+`scripts/kiem-chung-lat-cat-5.sh` nay **90 kiểm tra**.
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 
