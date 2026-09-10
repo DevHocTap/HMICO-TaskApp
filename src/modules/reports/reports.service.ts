@@ -4,7 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AssignStatus, PeriodType, ResultStatus, Role, type Period } from '@prisma/client';
+import {
+  AssignStatus,
+  Grade,
+  PeriodType,
+  Prisma,
+  ResultStatus,
+  Role,
+  type Period,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DepartmentScopeService } from '../org/department-scope.service.js';
 import { tinhTinhTrangHanNop } from '../period/period-calendar.js';
@@ -201,6 +209,114 @@ export class ReportsService {
     }
 
     return { ky, dongs };
+  }
+
+  /**
+   * Số liệu tổng hợp cho dashboard.
+   *
+   * CHỈ PHIẾU ĐÃ CHỐT ĐIỂM (`MANAGER_SCORED` hoặc `RECEIVED`) mới vào phân
+   * bố xếp loại và điểm trung bình. Gộp phiếu chưa chấm vào là kéo trung
+   * bình xuống bằng những con số CHƯA TỒN TẠI — và người xem sẽ tin vào nó,
+   * vì trên màn hình nó trông y hệt một con số thật.
+   *
+   * Vì vậy phản hồi luôn kèm `soPhieuDaChot` / `soPhieuTrongKy`: giao diện
+   * phải nói được "trung bình tính trên 18/45 phiếu đã chấm", không được
+   * hiện một con số trần trụi.
+   *
+   * Sáu truy vấn cố định, không tăng theo số phòng.
+   */
+  async dashboard(periodId: string, user: AuthenticatedUser) {
+    const ky = await this.mustFindKyThang(periodId);
+    const trongPhamVi = await this.departmentScope.getAccessibleDepartmentIds(user);
+    this.assertCoPhamVi(trongPhamVi, user);
+
+    const trongKy = { periodId: ky.id, departmentId: { in: trongPhamVi } };
+    const daChot = {
+      ...trongKy,
+      resultStatus: { in: [ResultStatus.MANAGER_SCORED, ResultStatus.RECEIVED] },
+    };
+
+    const [theoTrangThai, theoXepLoai, theoPhong, phongBan] = await Promise.all([
+      this.prisma.scorecard.groupBy({
+        by: ['resultStatus'],
+        where: trongKy,
+        _count: { _all: true },
+      }),
+      this.prisma.scorecard.groupBy({
+        by: ['grade'],
+        where: daChot,
+        _count: { _all: true },
+      }),
+      this.prisma.scorecard.groupBy({
+        by: ['departmentId'],
+        where: daChot,
+        _count: { _all: true },
+        _avg: { managerTotalScore: true },
+      }),
+      this.prisma.department.findMany({
+        where: { id: { in: trongPhamVi } },
+        select: { id: true, name: true, code: true },
+        orderBy: { code: 'asc' },
+      }),
+    ]);
+
+    const tenPhong = new Map(phongBan.map((p) => [p.id, p.name]));
+    const soPhieuTrongKy = theoTrangThai.reduce((a, x) => a + x._count._all, 0);
+    const soPhieuDaChot = theoPhong.reduce((a, x) => a + x._count._all, 0);
+
+    return {
+      period: { id: ky.id, code: ky.code, name: ky.name },
+      soPhieuTrongKy,
+      soPhieuDaChot,
+      theoTrangThai: this.demTheoKhoa(
+        Object.values(ResultStatus),
+        theoTrangThai.map((x) => [x.resultStatus, x._count._all]),
+      ),
+      phanBoXepLoai: this.demTheoKhoa(
+        Object.values(Grade),
+        // `grade` null lọt vào đây nghĩa là phiếu chốt mà không có xếp loại
+        // — không xảy ra, nhưng lọc cho chắc thay vì tạo khoá "null".
+        theoXepLoai.filter((x) => x.grade !== null).map((x) => [x.grade!, x._count._all]),
+      ),
+      /**
+       * Trung bình của TỪNG PHÒNG, KHÔNG cộng dồn lên phòng cha.
+       *
+       * Trung bình của các trung bình là sai: phòng 2 người điểm 100 và
+       * phòng 20 người điểm 60 không ra 80. Muốn có số đúng ở cấp chi nhánh
+       * thì phải cộng tổng điểm rồi chia tổng số phiếu — khác hẳn phép cộng
+       * dồn của bảng tiến độ, nên cố ý không làm ở đây.
+       */
+      diemTrungBinhTheoPhong: theoPhong
+        .map((x) => ({
+          departmentId: x.departmentId,
+          departmentName: tenPhong.get(x.departmentId) ?? '',
+          soPhieuDaChot: x._count._all,
+          diemTrungBinh: this.lamTron(x._avg.managerTotalScore),
+        }))
+        .sort((a, b) => a.departmentName.localeCompare(b.departmentName, 'vi')),
+    };
+  }
+
+  /** Đếm về đủ MỌI khoá của enum, khoá không có phiếu nào thì 0. */
+  private demTheoKhoa<T extends string>(
+    moiKhoa: readonly T[],
+    cap: [T, number][],
+  ): Record<T, number> {
+    const ra = Object.fromEntries(moiKhoa.map((k) => [k, 0])) as Record<T, number>;
+    for (const [khoa, so] of cap) ra[khoa] = so;
+    return ra;
+  }
+
+  /**
+   * Trung bình -> chuỗi hai chữ số thập phân, `null` khi chưa có phiếu nào.
+   *
+   * `null` chứ KHÔNG phải 0: "chưa ai chấm" và "trung bình 0 điểm" là hai
+   * chuyện khác hẳn, mà trên màn hình số 0 trông như kết quả thật.
+   * Prisma trả `null` cho `_avg` khi không có dòng nào nên không có phép
+   * chia cho 0 ở đây.
+   */
+  private lamTron(d: Prisma.Decimal | null): string | null {
+    return d === null || d === undefined ? null : d.toFixed(2);
   }
 
   // ------------------------------------------------------------- nội bộ

@@ -11,6 +11,7 @@ import {
   TeamOutlined,
   HistoryOutlined,
   BarChartOutlined,
+  PieChartOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
@@ -84,6 +85,11 @@ export function AdminLayout() {
                 key: '/kpi/progress',
                 icon: <BarChartOutlined />,
                 label: <Link to="/kpi/progress">Tiến độ nộp</Link>,
+              },
+              {
+                key: '/kpi/dashboard',
+                icon: <PieChartOutlined />,
+                label: <Link to="/kpi/dashboard">Tổng hợp KPI</Link>,
               },
             ]
           : []),

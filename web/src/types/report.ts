@@ -53,3 +53,35 @@ export function dungCayPhong(dongs: DongTienDo[]): DongTienDoCay[] {
 export function moiIdPhong(dongs: DongTienDo[]): string[] {
   return dongs.map((d) => d.departmentId);
 }
+
+// ----------------------------------------------------------- dashboard
+
+export type TrangThaiCham =
+  | 'PENDING'
+  | 'SELF_SCORED'
+  | 'MANAGER_SCORED'
+  | 'REJECTED'
+  | 'RECEIVED';
+
+export type XepLoaiKpi =
+  | 'NOT_ACHIEVED'
+  | 'NEEDS_IMPROVEMENT'
+  | 'COMPLETED'
+  | 'EXCEEDED';
+
+export interface DiemTrungBinhPhong {
+  departmentId: string;
+  departmentName: string;
+  soPhieuDaChot: number;
+  /** Chuỗi hai chữ số thập phân; `null` khi phòng chưa có phiếu nào chốt. */
+  diemTrungBinh: string | null;
+}
+
+export interface SoLieuDashboard {
+  period: { id: string; code: string; name: string };
+  soPhieuTrongKy: number;
+  soPhieuDaChot: number;
+  theoTrangThai: Record<TrangThaiCham, number>;
+  phanBoXepLoai: Record<XepLoaiKpi, number>;
+  diemTrungBinhTheoPhong: DiemTrungBinhPhong[];
+}

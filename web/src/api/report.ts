@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { BaoCaoTienDo } from '../types/report';
+import type { BaoCaoTienDo, SoLieuDashboard } from '../types/report';
 
 export async function layTienDoNop(periodId: string): Promise<BaoCaoTienDo> {
   const { data } = await apiClient.get<BaoCaoTienDo>('/reports/submission-progress', {
@@ -54,4 +54,11 @@ export async function docLoiBlob(e: unknown): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+export async function laySoLieuDashboard(periodId: string): Promise<SoLieuDashboard> {
+  const { data } = await apiClient.get<SoLieuDashboard>('/reports/dashboard', {
+    params: { periodId },
+  });
+  return data;
 }

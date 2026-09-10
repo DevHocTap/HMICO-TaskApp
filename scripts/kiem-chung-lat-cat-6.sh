@@ -437,6 +437,78 @@ echo "$KET_QUA" | grep -q "dongbang" \
 echo "$KET_QUA" | grep -q "|loc" \
   && pass "    bật bộ lọc trên dòng tiêu đề" || fail "    không có autoFilter"
 
+# ================================================= 17-21 DASHBOARD
+buoc "17–21  DASHBOARD"
+
+R=$(goi GET "$AT_HR" "/reports/dashboard?periodId=$KY_08")
+mong "$(ma_cua "$R")" 200 "17. HR gọi" "$(than_cua "$R")"
+THAN_DB=$(than_cua "$R")
+
+R=$(goi GET "$AT_NV1" "/reports/dashboard?periodId=$KY_08")
+mong "$(ma_cua "$R")" 403 "18. STAFF gọi"
+
+# Kỳ tháng 10 chưa phiếu nào -> trung bình null, không chia cho 0
+R=$(goi GET "$AT_HR" "/reports/dashboard?periodId=$KY_10")
+mong "$(ma_cua "$R")" 200 "19. kỳ chưa phiếu nào chốt"
+RONG=$(than_cua "$R" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print(f\"{d['soPhieuDaChot']}|{len(d['diemTrungBinhTheoPhong'])}|{sum(d['phanBoXepLoai'].values())}\")" 2>/dev/null)
+[ "$RONG" = "0|0|0" ] \
+  && pass "    soPhieuDaChot=0, không phòng nào có trung bình, phân bố rỗng" \
+  || fail "    kỳ rỗng trả: $RONG"
+
+# Ca 20: phiếu SELF_SCORED chưa chốt KHÔNG được vào phân bố xếp loại.
+# Dựng thêm một phiếu ở đúng trạng thái đó rồi so lại các con số.
+TRUOC=$(echo "$THAN_DB" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print(f\"{d['soPhieuDaChot']}|{sum(d['phanBoXepLoai'].values())}\")" 2>/dev/null)
+goi PUT "$AT_NV1" "/scorecards/$SC_CHUA_CHAM/self-scores" "$(payload_cham_du "$SC_CHUA_CHAM")" >/dev/null
+R=$(goi POST "$AT_NV1" "/scorecards/$SC_CHUA_CHAM/self-submit")
+mong "$(ma_cua "$R")" 200 "20. nhân viên nộp phiếu tự chấm (chưa chốt)"
+R=$(goi GET "$AT_HR" "/reports/dashboard?periodId=$KY_08")
+SAU=$(than_cua "$R" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print(f\"{d['soPhieuDaChot']}|{sum(d['phanBoXepLoai'].values())}\")" 2>/dev/null)
+SO_SELF=$(than_cua "$R" | jq_ "d['theoTrangThai']['SELF_SCORED']")
+[ "$SAU" = "$TRUOC" ] \
+  && pass "    phiếu SELF_SCORED KHÔNG vào phân bố xếp loại ($TRUOC giữ nguyên)" \
+  || fail "    trước $TRUOC, sau khi thêm phiếu tự chấm thành $SAU"
+[ "${SO_SELF:-0}" -ge 1 ] \
+  && pass "    nhưng VẪN được đếm ở theoTrangThai.SELF_SCORED = $SO_SELF" \
+  || fail "    theoTrangThai.SELF_SCORED = $SO_SELF"
+
+# Ca 21: MANAGER chỉ thấy số của phạm vi phòng mình
+R=$(goi GET "$AT_KT" "/reports/dashboard?periodId=$KY_08")
+mong "$(ma_cua "$R")" 200 "21. MANAGER gọi"
+PHONG_KT=$(than_cua "$R" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+ten=sorted(r['departmentName'] for r in d['diemTrungBinhTheoPhong'])
+print(','.join(ten) or '(rong)')" 2>/dev/null)
+SO_KT=$(than_cua "$R" | jq_ "d['soPhieuTrongKy']")
+SO_HR=$(echo "$THAN_DB" | jq_ "d['soPhieuTrongKy']")
+{ [ "$PHONG_KT" = "Phòng Kỹ thuật" ] || [ "$PHONG_KT" = "(rong)" ]; } \
+  && pass "    chỉ có số của phòng mình: $PHONG_KT" \
+  || fail "    thấy: $PHONG_KT"
+[ "${SO_KT:-0}" -le "${SO_HR:-0}" ] \
+  && pass "    đếm phiếu trong phạm vi ($SO_KT) không vượt toàn công ty ($SO_HR)" \
+  || fail "    MANAGER đếm $SO_KT phiếu, HR chỉ đếm $SO_HR"
+
+# Trung bình phải khớp phép tính trực tiếp trong database
+TB_DB=$(sql "SELECT round(avg(\"managerTotalScore\"), 2) FROM \"Scorecard\"
+  WHERE \"periodId\"='$KY_08' AND \"departmentId\"='$P_KT'
+    AND \"resultStatus\" IN ('MANAGER_SCORED','RECEIVED');" | tr -d ' ')
+TB_API=$(echo "$THAN_DB" | python3 -c "
+import json,sys
+r=next((x for x in json.load(sys.stdin)['diemTrungBinhTheoPhong'] if x['departmentId']=='$P_KT'), None)
+print(r['diemTrungBinh'] if r else 'KHONG_CO')" 2>/dev/null)
+[ "$TB_API" = "$TB_DB" ] \
+  && pass "    điểm trung bình khớp phép tính trực tiếp trong DB: $TB_API" \
+  || fail "    API trả $TB_API, DB tính ra $TB_DB"
+
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"
 echo "  PASS: $SO_PASS    FAIL: $SO_FAIL"

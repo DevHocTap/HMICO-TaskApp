@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 267 test backend + 25 test frontend + 3 e2e; 35 + 159 + 35 + 90 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 289 test backend + 25 test frontend + 3 e2e; 35 + 60 + 35 + 82 + 159 + 90 + 47 kiểm tra curl.**
 
 ## Đang làm
 
@@ -258,9 +258,36 @@ test, không phải nguồn sự thật nghiệp vụ.
 ngoài code chưa xác nhận: **mở cổng 80/443 từ internet vào máy chủ công ty**
 — việc của IT, và là điều kiện bắt buộc để tên miền dùng được.
 
-**Việc tiếp: lát cắt 6** (bảng theo dõi tiến độ nộp cho HCNS, xuất Excel,
-dashboard cho ban giám đốc). Hai endpoint đã có sẵn mà chưa màn hình nào
-gọi — `GET /scorecards` và `GET /scorecards/readiness` — dùng ở lát cắt này.
+---
+
+**Lát cắt 6 — báo cáo: XONG CẢ HAI ĐẦU (10/09).**
+
+- **`GET /reports/submission-progress`** + màn **`/kpi/progress`** — mỗi
+  phòng một dòng, bảy cột đếm theo trạng thái phiếu, bảng dạng cây mở sẵn.
+  Chỉ nhận kỳ THÁNG (quý/năm trả 400 kèm lý do). Số của phòng cha ĐÃ cộng
+  dồn từ cây con — làm ở backend bằng `congDonTheoCay()`, hàm thuần có 11
+  test. **5 truy vấn cố định**, không tăng theo số phòng.
+- **`GET /reports/export`** + nút trên màn tiến độ — file `.xlsx` một kỳ,
+  mỗi người một dòng, 13 cột. Điểm ghi dạng SỐ định dạng `0.00`; phiếu chưa
+  chốt để ô TRỐNG chứ không ghi 0. Đóng băng tiêu đề, bật autoFilter. Ghi
+  `AuditLog` mỗi lần xuất. `exceljs@4.4.0`.
+- **`GET /reports/dashboard`** + màn **`/kpi/dashboard`** — đếm theo trạng
+  thái, phân bố xếp loại, điểm trung bình theo phòng. **Chỉ phiếu ĐÃ CHỐT**
+  vào hai mục sau; mọi chỗ hiện trung bình đều kèm "tính trên N/M phiếu đã
+  chốt". Không thêm thư viện biểu đồ.
+- `scripts/kiem-chung-lat-cat-6.sh`: **47 kiểm tra bằng curl**, trong đó có
+  đọc lại chính file Excel vừa tải để kiểm từng ô.
+
+**Hai chỗ cố ý khác prompt, đã ghi lý do trong code:**
+- Bản xuất Excel gồm cả **người đã nghỉ việc mà còn phiếu trong kỳ** — lát
+  cắt 5 cho phép chốt điểm phiếu của họ, bỏ ra là mất chính con số dùng
+  tính lương.
+- Điểm trung bình **KHÔNG cộng dồn** lên phòng cha: trung bình của các
+  trung bình không phải trung bình chung.
+
+**Việc tiếp: triển khai** (tuần 13+). Chưa có nginx, systemd, CI hay
+`.env.production.example` — xem `no-ky-thuat.md`. Hai endpoint cũ vẫn chưa
+màn hình nào gọi: `GET /scorecards` và `GET /scorecards/readiness`.
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 
@@ -272,7 +299,7 @@ gọi — `GET /scorecards` và `GET /scorecards/readiness` — dùng ở lát c
 | 7–8 | `scorecard`: giao KPI tháng, ký nhận, sao chép từ kỳ trước |
 | 9–10 | `scoring`: hai cột chấm, tính điểm, xếp loại |
 | **11** | ~~Đối chiếu Excel tháng 08 thật~~ — **đã đổi**: không có phiếu thật, đã đối chiếu công thức với cả 4 mẫu (`doi-chieu-excel.spec.ts`) |
-| 12 | **← ĐANG TỚI** — theo dõi tiến độ nộp, xuất Excel, dashboard BGĐ ("Việc của tôi" đã xong ở lát cắt 5) |
+| 12 | **XONG** — theo dõi tiến độ nộp, xuất Excel, dashboard ("Việc của tôi" đã xong ở lát cắt 5) |
 | 13+ | Chạy thật một phòng, sửa theo phản hồi |
 
 ## Chưa quyết

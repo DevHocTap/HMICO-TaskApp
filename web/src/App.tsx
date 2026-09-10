@@ -12,6 +12,7 @@ import { ScorecardDetailPage } from './pages/kpi/ScorecardDetailPage';
 import { ScoringPage } from './pages/kpi/ScoringPage';
 import { PeriodsPage } from './pages/kpi/PeriodsPage';
 import { SubmissionProgressPage } from './pages/kpi/SubmissionProgressPage';
+import { DashboardPage } from './pages/kpi/DashboardPage';
 import { DepartmentsPage } from './pages/admin/DepartmentsPage';
 import { JobTitlesPage } from './pages/admin/JobTitlesPage';
 import { UsersPage } from './pages/admin/UsersPage';
@@ -59,6 +60,7 @@ export function App() {
           {/* Báo cáo tiến độ — mọi vai trò quản lý, STAFF không vào. */}
           <Route element={<RoleRoute duocPhep={coTheXemBaoCao} />}>
             <Route path="/kpi/progress" element={<SubmissionProgressPage />} />
+            <Route path="/kpi/dashboard" element={<DashboardPage />} />
           </Route>
 
           {/* Kỳ đánh giá và chốt sổ — HCNS, ban giám đốc, quản trị. */}

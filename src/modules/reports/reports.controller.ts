@@ -33,6 +33,15 @@ export class ReportsController {
   }
 
   /**
+   * Số liệu tổng hợp: đếm theo trạng thái, phân bố xếp loại, điểm trung
+   * bình theo phòng. Chỉ phiếu ĐÃ CHỐT mới vào hai mục sau.
+   */
+  @Get('dashboard')
+  dashboard(@Query() query: ReportPeriodQuery, @CurrentUser() user: AuthenticatedUser) {
+    return this.reports.dashboard(query.periodId, user);
+  }
+
+  /**
    * Bản tổng hợp một kỳ, mỗi người một dòng.
    *
    * GHI AUDITLOG MỖI LẦN XUẤT. Đây là file chứa điểm của cả phòng — căn cứ
