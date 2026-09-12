@@ -1,5 +1,6 @@
 import { Role } from '@prisma/client';
 import { Type } from 'class-transformer';
+import { BoolQuery } from '../../../common/transforms/bool-query.js';
 import {
   IsBoolean,
   IsEmail,
@@ -125,9 +126,15 @@ export class ListUsersQuery {
   jobTitleId?: string;
 
   @IsOptional()
-  @Type(() => Boolean)
+  @BoolQuery()
   @IsBoolean()
   isActive?: boolean;
+
+  /** Lọc người chưa đổi mật khẩu lần đầu — HCNS nhắc họ đăng nhập. */
+  @IsOptional()
+  @BoolQuery()
+  @IsBoolean()
+  mustChangePassword?: boolean;
 
   /** Tìm theo họ tên hoặc mã nhân viên. */
   @IsOptional()

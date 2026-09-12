@@ -412,6 +412,30 @@ MA=$(ma -X PATCH -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: applicat
   -d "{\"managerId\":\"$U_KT\"}" "$API/users/$U_KT")
 [ "$MA" = "400" ] && pass "tự làm quản lý của chính mình -> 400" || fail "tự quản lý -> $MA (mong đợi 400)"
 
+# ===================================================== LỌC BOOLEAN QUA QUERY
+buoc "LỌC BOOLEAN QUA QUERY STRING"
+# `?isActive=false` từng trả về người ĐANG hoạt động vì @Type(() => Boolean)
+# gọi Boolean("false") = true. Tạo một người rồi vô hiệu hoá để có dữ liệu.
+R=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d '{"employeeCode":"ZTEST-BOOL","email":"ztest.bool@hmico.vn","fullName":"ZTEST Bool","role":"STAFF"}' "$API/users")
+U_BOOL=$(echo "$R" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+if [ -n "$U_BOOL" ]; then
+  curl -s -o /dev/null -X PATCH -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+    "$API/users/$U_BOOL/deactivate"
+  DEM=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/users?isActive=false&limit=100" \
+    | python3 -c "import json,sys;d=json.load(sys.stdin);print(all(not u['isActive'] for u in d['data']) and d['total']>0)" 2>/dev/null)
+  [ "$DEM" = "True" ] && pass "isActive=false chỉ trả người đã vô hiệu hoá" \
+    || fail "isActive=false trả về lẫn người đang hoạt động: $DEM"
+  DEM=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/users?mustChangePassword=true&limit=100" \
+    | python3 -c "import json,sys;d=json.load(sys.stdin);print(all(u['mustChangePassword'] for u in d['data']) and d['total']>0)" 2>/dev/null)
+  [ "$DEM" = "True" ] && pass "mustChangePassword=true chỉ trả người chưa đổi mật khẩu" \
+    || fail "mustChangePassword=true trả về: $DEM"
+  MA=$(ma -H "Authorization: Bearer $AT_ADMIN" "$API/users?isActive=yes")
+  [ "$MA" = "400" ] && pass "isActive=yes -> 400" || fail "isActive=yes -> $MA (mong 400)"
+else
+  fail "không tạo được người dùng ZTEST-BOOL: ${R:0:150}"
+fi
+
 # ===================================================== TỔNG KẾT
 echo
 printf '%.0s=' {1..60}; echo
