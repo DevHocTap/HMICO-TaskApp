@@ -725,7 +725,7 @@ d=json.load(sys.stdin); n=sum(1 for r in d if r['scorecardId'] is None)
 print('OK' if all(r['scorecardId'] is None for r in d[:n]) else 'SAI')" 2>/dev/null)
 [ "$DAU_DANH_SACH" = "OK" ] && pass "người chưa có phiếu nằm ở ĐẦU danh sách" || fail "thứ tự sai"
 
-for TRUONG in userId employeeCode ownerName jobTitleName departmentName scorecardId assignStatus totalWeight acceptedAt evaluatorName isDepartmentManager; do
+for TRUONG in userId employeeCode ownerName jobTitleName departmentName scorecardId assignStatus totalWeight acceptedAt evaluatorName isDepartmentManager resultStatus selfTotalScore managerTotalScore evaluatorId; do
   echo "$KQ" | grep -q "\"$TRUONG\"" && pass "có trường $TRUONG" || fail "thiếu trường $TRUONG"
 done
 

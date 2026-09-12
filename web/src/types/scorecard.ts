@@ -223,6 +223,11 @@ export interface DongBangGiaoKpi {
   /** Bốn trường dưới đây `null` khi người này CHƯA có phiếu trong kỳ. */
   scorecardId: string | null;
   assignStatus: AssignStatus | null;
+  /** Bước chấm điểm và điểm đã chốt; `null` khi chưa có phiếu. */
+  resultStatus: ResultStatus | null;
+  selfTotalScore: string | null;
+  managerTotalScore: string | null;
+  evaluatorId: string | null;
   totalWeight: string | null;
   acceptedAt: string | null;
   evaluatorName: string | null;

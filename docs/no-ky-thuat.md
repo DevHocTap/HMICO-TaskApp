@@ -328,6 +328,17 @@ tự động rồi mới vỡ.
 - Có báo cáo/đề xuất điều chỉnh giải pháp thiết kế
 - Đề xuất sản phẩm mới/ hãng mới cho các giải pháp cụ thể
 
+## Script kiểm chứng và dữ liệu dev
+
+- [ ] **`verify-scorecard.sh` giả định dữ liệu đúng seed** (mẫu Shop Drawing
+      41 dòng, không có phiếu tạo tay). Máy dev sau khi thử tay có 7 ca đỏ
+      không phải lỗi code (đối chứng 12/09: HEAD trước/sau đều 7 FAIL). Muốn
+      xanh lại: `npx prisma db seed` rồi chạy. Các script `kiem-chung-*` mới
+      hơn đã so với SQL thay vì gõ cứng, nên không mắc chuyện này.
+- [ ] Mẫu bị "Vô hiệu hoá" thì **không có endpoint kích hoạt lại** — chỉ
+      sửa thẳng database (`UPDATE "KpiTemplate" SET "isActive"=true`). Bấm
+      nhầm trên máy thật là kẹt; cần thêm `POST :id/activate` trước tháng 11.
+
 ## Lát cắt 5 — chấm điểm
 
 ### Chưa rõ, cần hỏi

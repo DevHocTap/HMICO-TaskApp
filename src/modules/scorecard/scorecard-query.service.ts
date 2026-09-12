@@ -508,7 +508,11 @@ export class ScorecardQueryService {
         id: true,
         ownerUserId: true,
         assignStatus: true,
+        resultStatus: true,
+        selfTotalScore: true,
+        managerTotalScore: true,
         acceptedAt: true,
+        evaluatorId: true,
         evaluator: { select: { fullName: true } },
       },
     });
@@ -537,6 +541,10 @@ export class ScorecardQueryService {
         totalWeight: p ? (tongCua.get(p.id) ?? '0') : null,
         acceptedAt: p?.acceptedAt ?? null,
         evaluatorName: p?.evaluator?.fullName ?? null,
+        resultStatus: p?.resultStatus ?? null,
+        selfTotalScore: p?.selfTotalScore ?? null,
+        managerTotalScore: p?.managerTotalScore ?? null,
+        evaluatorId: p?.evaluatorId ?? null,
       };
     });
 

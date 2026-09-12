@@ -333,4 +333,12 @@ export interface AssignmentBoardRow {
   totalWeight: string | null;
   acceptedAt: Date | null;
   evaluatorName: string | null;
+  /**
+   * Bước chấm điểm và điểm đã chốt — để màn giao KPI chỉ ra ai đã được chấm,
+   * ai chưa (phản hồi 12/09/2026). `null` khi chưa có phiếu.
+   */
+  resultStatus: ResultStatus | null;
+  selfTotalScore: Prisma.Decimal | null;
+  managerTotalScore: Prisma.Decimal | null;
+  evaluatorId: string | null;
 }
