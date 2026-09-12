@@ -83,6 +83,8 @@ export interface SoLieuDashboard {
   soPhieuDaChot: number;
   theoTrangThai: Record<TrangThaiCham, number>;
   phanBoXepLoai: Record<XepLoaiKpi, number>;
+  /** Điểm TB của từng hạng (chuỗi hai chữ số), `null` khi hạng chưa có ai. */
+  diemTrungBinhTheoXepLoai: Record<XepLoaiKpi, string | null>;
   diemTrungBinhTheoPhong: DiemTrungBinhPhong[];
 }
 

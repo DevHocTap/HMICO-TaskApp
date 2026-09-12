@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 327 test backend + 41 test frontend + 3 e2e; 35 + 63 + 44 + 82 + 159 + 96 + 72 + 37 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 327 test backend + 41 test frontend + 3 e2e; 35 + 63 + 44 + 82 + 159 + 96 + 76 + 37 kiểm tra curl.**
 
 ## Đang làm
 
@@ -423,6 +423,17 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   Backend: `GET /scorecards` thêm lọc `evaluatorId` và trả `selfTotalScore`,
   `managerTotalScore`, `grade`, `selfScoredAt`, `managerScoredAt` — endpoint
   này lần đầu có màn hình gọi. Script 6 → **72**.
+
+- **Báo cáo kỳ (`/kpi/dashboard`) theo mẫu chốt sổ HCNS (12/09):** 4 thẻ
+  (tiến độ thẩm định · trễ hạn tự nộp kèm tên phòng · bị trả lại · **hạn chốt
+  sổ** thẻ tối), 4 thẻ hạng có số / % / **điểm TB từng hạng** (backend
+  `diemTrungBinhTheoXepLoai`), xếp loại + hiệu suất phòng (`TheBaoCao.tsx`
+  dùng chung với Tổng quan), **bảng nhân sự** lọc theo phòng (chip) / xếp loại
+  (`GET /scorecards?grade=`) / trạng thái, dòng đỏ khi chưa đạt hoặc quá hạn
+  tự nộp; nút Xuất .xlsx và **Khoá sổ kỳ** (HCNS, BGĐ, ADMIN, có xác nhận).
+  Xu hướng 6 tháng bỏ khỏi màn này (chỉ còn dùng cho "so tháng trước").
+  Thay thế của mẫu: PIP → bị trả lại; đếm ngược tự khoá → hạn chốt sổ (hệ
+  thống KHÔNG tự khoá). Script 6 → **76**.
 
 **Chưa theo mẫu:** Phiếu KPI của tôi (bảng), Tiến độ nộp, Kỳ đánh giá,
 Phòng ban, Chức danh, Nhật ký (bố cục cũ, đã hưởng theme).

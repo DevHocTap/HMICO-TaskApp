@@ -1,6 +1,5 @@
-import { Card, Empty, Tag, Typography } from 'antd';
+import { Card, Tag, Typography } from 'antd';
 import {
-  ArrowRightOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   RiseOutlined,
@@ -9,40 +8,14 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { laySoLieuDashboard, layXuHuong } from '../api/report';
-import type { DiemTrungBinhPhong, XepLoaiKpi } from '../types/report';
 import type { KyDanhGia } from '../types/scorecard';
-import { NHAN_XEP_LOAI } from '../types/scorecard';
 import { TheSoLieu } from './TheSoLieu';
-import { ThanhXepChong } from './bieu-do/ThanhXepChong';
+import { TheHieuSuatPhong, TheXepLoai } from './TheBaoCao';
 import { giaiDoanCuaKy, ngayTrongThang } from '../utils/period';
 import { diemTomTat, phanTram } from '../utils/format';
-import {
-  NGUONG_PHONG_CAN_CHU_Y,
-  mauChuDao,
-  mauNhan,
-  mauVang,
-  mauXanhLa,
-} from '../config/theme';
-
-/**
- * Bảng màu xếp loại — đã chạy qua validator của bộ quy tắc biểu đồ (12/09):
- * bốn màu tách nhau cả với người mù màu. Mọi phần đều có SỐ in kèm.
- */
-const MAU_XEP_LOAI_BD: Record<XepLoaiKpi, string> = {
-  EXCEEDED: '#1466a0',
-  COMPLETED: '#3fa3c9',
-  NEEDS_IMPROVEMENT: '#e0932b',
-  NOT_ACHIEVED: '#d63b3b',
-};
-const THU_TU_XEP_LOAI: XepLoaiKpi[] = [
-  'EXCEEDED',
-  'COMPLETED',
-  'NEEDS_IMPROVEMENT',
-  'NOT_ACHIEVED',
-];
+import { mauChuDao, mauNhan, mauXanhLa } from '../config/theme';
 
 /** Ô "+3,8 so với tháng 09" — xanh khi tăng, đỏ khi giảm, xám khi bằng. */
 function SoSanh({
@@ -153,10 +126,6 @@ export function BangDieuHanhKy({ ky }: { ky: KyDanhGia }) {
       nhan: 'Đã tiếp nhận',
     },
   ];
-
-  const phongTheoDiem = [...data.diemTrungBinhTheoPhong]
-    .filter((p) => p.diemTrungBinh !== null)
-    .sort((a, b) => Number(b.diemTrungBinh) - Number(a.diemTrungBinh));
 
   const tieuDeThe = (ten: string, phu?: string) => (
     <span className="viec-tieu-de">
@@ -340,88 +309,8 @@ export function BangDieuHanhKy({ ky }: { ky: KyDanhGia }) {
       </div>
 
       <div className="dashboard-luoi">
-        <Card title={tieuDeThe('Phân bố xếp loại', ghiChuChot)}>
-          {daChot === 0 ? (
-            <Empty description="Chưa phiếu nào chốt điểm trong kỳ này" />
-          ) : (
-            <>
-              <ThanhXepChong
-                tong={daChot}
-                doan={THU_TU_XEP_LOAI.map((xl) => ({
-                  ten: NHAN_XEP_LOAI[xl],
-                  giaTri: data.phanBoXepLoai[xl],
-                  mau: MAU_XEP_LOAI_BD[xl],
-                }))}
-              />
-              <div className="xep-loai-o-luoi">
-                {THU_TU_XEP_LOAI.map((xl) => (
-                  <div key={xl} className="xep-loai-o">
-                    <span className="xep-loai-o-ten">
-                      <i style={{ background: MAU_XEP_LOAI_BD[xl] }} />
-                      {NHAN_XEP_LOAI[xl]}
-                    </span>
-                    <div className="xep-loai-o-so">
-                      {phanTram(data.phanBoXepLoai[xl], daChot)}%
-                    </div>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      {data.phanBoXepLoai[xl]} người
-                    </Typography.Text>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </Card>
-
-        <Card
-          title={tieuDeThe('Hiệu suất theo phòng ban', ghiChuChot)}
-          extra={
-            <Link to="/kpi/progress">
-              Chi tiết <ArrowRightOutlined />
-            </Link>
-          }
-        >
-          {phongTheoDiem.length === 0 ? (
-            <Empty description="Chưa phòng nào có phiếu chốt điểm" />
-          ) : (
-            <div className="hang-phong">
-              {phongTheoDiem.map((p: DiemTrungBinhPhong, i) => {
-                const diem = Number(p.diemTrungBinh);
-                const duoiNguong = diem < NGUONG_PHONG_CAN_CHU_Y;
-                return (
-                  <div key={p.departmentId} className="hang-phong-dong">
-                    <span className="hang-phong-stt">{i + 1}</span>
-                    <span className="ten-va-phu">
-                      <Typography.Text strong>
-                        {p.departmentName}
-                      </Typography.Text>
-                      <small>{p.soPhieuDaChot} phiếu đã chốt</small>
-                    </span>
-                    <Typography.Text
-                      strong
-                      style={{ color: duoiNguong ? mauNhan : undefined }}
-                    >
-                      {diemTomTat(p.diemTrungBinh)}
-                    </Typography.Text>
-                    <div className="hang-phong-thanh">
-                      <span
-                        style={{
-                          width: `${Math.min(diem, 100)}%`,
-                          background: duoiNguong ? mauVang : mauChuDao,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                Đỏ: dưới ngưỡng {NGUONG_PHONG_CAN_CHU_Y}. KHÔNG cộng dồn lên
-                phòng cha — trung bình của các trung bình không phải trung bình
-                chung.
-              </Typography.Text>
-            </div>
-          )}
-        </Card>
+        <TheXepLoai data={data} />
+        <TheHieuSuatPhong data={data} />
       </div>
     </>
   );

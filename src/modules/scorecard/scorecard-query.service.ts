@@ -804,6 +804,7 @@ export class ScorecardQueryService {
       assignStatus: query.assignStatus,
       resultStatus: query.resultStatus,
       evaluatorId: query.evaluatorId,
+      grade: query.grade,
     };
 
     if (query.departmentId) {

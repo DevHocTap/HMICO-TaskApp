@@ -211,6 +211,11 @@ export class ListScorecardsQuery {
   @IsOptional()
   @IsUUID('4')
   evaluatorId?: string;
+
+  /** Lọc theo xếp loại đã chốt — bảng nhân sự ở Báo cáo kỳ. */
+  @IsOptional()
+  @IsEnum(Grade, { message: 'Xếp loại không hợp lệ' })
+  grade?: Grade;
 }
 
 export class ReadinessQuery {

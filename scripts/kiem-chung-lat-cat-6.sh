@@ -623,6 +623,19 @@ print(f'{ok}|{co}|{len(d)}')" 2>/dev/null)
 R=$(goi GET "$AT_KT" "/scorecards?periodId=$KY_08&evaluatorId=khong-phai-uuid")
 mong "$(ma_cua "$R")" 400 "    evaluatorId không phải UUID -> 400"
 
+# ================================================= 34-35 TB THEO HẠNG, LỌC THEO HẠNG
+buoc "34–35  ĐIỂM TB THEO HẠNG VÀ LỌC PHIẾU THEO HẠNG"
+R=$(goi GET "$AT_HR" "/reports/dashboard?periodId=$KY_08")
+TB_HANG=$(than_cua "$R" | jq_ "d['diemTrungBinhTheoXepLoai']['COMPLETED']")
+TB_HANG_DB=$(sql "SELECT round(avg(\"managerTotalScore\"),2)::text FROM \"Scorecard\" WHERE \"periodId\"='$KY_08' AND grade='COMPLETED' AND \"resultStatus\" IN ('MANAGER_SCORED','RECEIVED');")
+[ "${TB_HANG:-None}" = "${TB_HANG_DB:-None}" ] && pass "34. điểm TB hạng Hoàn thành khớp DB: $TB_HANG" || fail "34. API $TB_HANG, DB $TB_HANG_DB"
+R=$(goi GET "$AT_HR" "/scorecards?periodId=$KY_08&grade=COMPLETED&limit=100")
+mong "$(ma_cua "$R")" 200 "35. lọc phiếu theo xếp loại"
+KQ=$(than_cua "$R" | jq_ "all(x['grade']=='COMPLETED' for x in d['data']) and d['total']>0")
+[ "$KQ" = "True" ] && pass "    mọi dòng đều COMPLETED, có ít nhất một" || fail "    lọc grade sai: $KQ"
+R=$(goi GET "$AT_HR" "/scorecards?periodId=$KY_08&grade=HANG_LA")
+mong "$(ma_cua "$R")" 400 "    grade lạ -> 400"
+
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"
 echo "  PASS: $SO_PASS    FAIL: $SO_FAIL"

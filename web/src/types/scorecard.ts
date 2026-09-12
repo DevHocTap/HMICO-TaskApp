@@ -155,6 +155,7 @@ export interface ThamSoDanhSachPhieu {
   evaluatorId?: string;
   assignStatus?: AssignStatus;
   resultStatus?: ResultStatus;
+  grade?: XepLoai;
   page?: number;
   limit?: number;
 }

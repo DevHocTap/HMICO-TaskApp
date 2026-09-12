@@ -1390,3 +1390,57 @@
   border-radius: 12px;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
 }
+
+/* ---------- Báo cáo kỳ ---------- */
+.the-so-lieu-toi {
+  background: #1f2937;
+  border-color: #1f2937;
+  color: #fff;
+}
+.the-hang {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.the-hang-dau {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.the-hang-ten {
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.the-hang-so {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.the-hang-so small {
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b7280;
+}
+.the-hang-tb {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 12px;
+  color: #6b7280;
+}
+.the-hang-tb strong {
+  color: #111827;
+}
+.dong-can-chu-y > td {
+  background: #fff7f7 !important;
+}

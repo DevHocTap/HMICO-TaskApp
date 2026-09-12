@@ -246,6 +246,7 @@ export class ReportsService {
         by: ['grade'],
         where: daChot,
         _count: { _all: true },
+        _avg: { managerTotalScore: true },
       }),
       this.prisma.scorecard.groupBy({
         by: ['departmentId'],
@@ -278,6 +279,13 @@ export class ReportsService {
         // — không xảy ra, nhưng lọc cho chắc thay vì tạo khoá "null".
         theoXepLoai.filter((x) => x.grade !== null).map((x) => [x.grade!, x._count._all]),
       ),
+      /** Điểm trung bình của TỪNG hạng — thẻ "Hạng A · điểm TB 88,4" (12/09). */
+      diemTrungBinhTheoXepLoai: Object.fromEntries(
+        Object.values(Grade).map((g) => [
+          g,
+          this.lamTron(theoXepLoai.find((x) => x.grade === g)?._avg.managerTotalScore ?? null),
+        ]),
+      ) as Record<Grade, string | null>,
       /**
        * Trung bình của TỪNG PHÒNG, KHÔNG cộng dồn lên phòng cha.
        *
