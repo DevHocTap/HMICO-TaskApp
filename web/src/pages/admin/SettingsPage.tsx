@@ -147,7 +147,9 @@ export function SettingsPage() {
             <span className="ten-va-phu">
               <span>Lịch kỳ đánh giá</span>
               <small>
-                Bốn mốc áp cho mọi kỳ THÁNG sinh ra từ nay; kỳ đã có giữ mốc cũ.
+                Lưu là áp ngay cho kỳ tháng đang mở (từ tháng này trở đi, chưa
+                khoá sổ) và mọi kỳ sinh sau. Kỳ quá khứ và kỳ đã khoá giữ
+                nguyên.
               </small>
             </span>
           }
@@ -157,32 +159,32 @@ export function SettingsPage() {
             {[
               {
                 ten: 'Nhân viên tự chấm',
-                phu: 'Cửa tự chấm đóng cuối ngày này',
+                phu: 'Cửa tự chấm đóng cuối ngày này — giai đoạn 1',
                 v: l.ngayTuCham,
                 set: (v: number) => dat('lichKy', { ngayTuCham: v }),
               },
               {
-                ten: 'Giao KPI tháng mới',
-                phu: 'Trưởng bộ phận lên chỉ tiêu cho tháng sau',
-                v: l.ngayLenKpiThangSau,
-                set: (v: number) => dat('lichKy', { ngayLenKpiThangSau: v }),
-              },
-              {
                 ten: 'Trưởng bộ phận chấm',
-                phu: 'Chốt điểm cho nhân viên',
+                phu: 'Chốt điểm cho nhân viên — giai đoạn 2',
                 v: l.ngayTruongCham,
                 set: (v: number) => dat('lichKy', { ngayTruongCham: v }),
               },
               {
                 ten: 'Gửi hành chính bản cuối',
-                phu: 'Hành chính tiếp nhận và chốt sổ',
+                phu: 'Hành chính tiếp nhận và chốt sổ — giai đoạn 3',
                 v: l.ngayGuiHcns,
                 set: (v: number) => dat('lichKy', { ngayGuiHcns: v }),
+              },
+              {
+                ten: 'Giao KPI tháng sau',
+                phu: 'Trưởng bộ phận lên chỉ tiêu cho tháng kế tiếp',
+                v: l.ngayLenKpiThangSau,
+                set: (v: number) => dat('lichKy', { ngayLenKpiThangSau: v }),
               },
             ].map((d, i) => (
               <div key={d.ten} className="giai-doan-the">
                 <div className="giai-doan-the-dau">
-                  <span className="eyebrow">Giai đoạn {i + 1}</span>
+                  <span className="eyebrow">Mốc {i + 1}</span>
                   {oNgay(d.v, d.set)}
                 </div>
                 <div className="giai-doan-the-ten">Ngày {d.v} hằng tháng</div>

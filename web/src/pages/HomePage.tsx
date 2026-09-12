@@ -493,10 +493,7 @@ export function HomePage() {
       </Card>
 
       {xemBaoCao && ky ? (
-        <>
-          <BangDieuHanhKy ky={ky} />
-          <PhieuCanXuLyGap ky={ky} />
-        </>
+        <BangDieuHanhKy ky={ky} />
       ) : (
         tomTat && (
           <div className="the-so-lieu-luoi">
@@ -507,7 +504,9 @@ export function HomePage() {
         )
       )}
 
-      <div>
+      {/* Hàng dưới: phiếu cần xử lý gấp (vai quản lý) bên trái, lịch bên phải */}
+      <div className={xemBaoCao && ky ? 'trang-chu-duoi' : undefined}>
+        {xemBaoCao && ky && <PhieuCanXuLyGap ky={ky} />}
         {ky && (
           <div className="lich-thang">
             <Typography.Title level={4} style={{ color: '#fff', margin: 0 }}>

@@ -472,8 +472,10 @@ vào tháng 3 mà không ai nhìn ra cho tới lúc đối chiếu số.
 **CHỈ kỳ THÁNG có bốn mốc này.** Kỳ quý và kỳ năm để `NULL`.
 
 **Từ 11/09/2026 bốn mốc là CÀI ĐẶT HỆ THỐNG** (nhóm `lichKy`, mặc định
-25 / 25 / 29 / 30). Mốc mới chỉ áp cho kỳ **sinh ra sau khi đổi**; kỳ đã có
-giữ mốc cũ — sửa thì HCNS sửa tay từng kỳ ở màn Kỳ đánh giá.
+25 / 25 / 29 / 30). **Lưu lịch là áp ngay** vào mọi kỳ THÁNG **chưa khoá sổ
+từ tháng hiện tại trở đi** và mọi kỳ sinh sau (chốt 12/09 — người dùng đổi
+lịch giữa tháng là muốn tháng này chạy theo lịch mới). Kỳ quá khứ và kỳ đã
+khoá giữ nguyên; `AuditLog` ghi danh sách kỳ đã áp (`kyDaApMoc`).
 
 Lý do: phiếu KPI luôn gắn với kỳ tháng, không có phiếu nào gắn trực tiếp
 vào kỳ quý hay kỳ năm — hai loại đó chỉ để tổng hợp. Đặt hạn cho chúng là

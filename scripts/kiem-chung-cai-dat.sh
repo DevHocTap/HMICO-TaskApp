@@ -54,11 +54,19 @@ don_du_lieu_thu() {
 }
 
 khoi_phuc_cai_dat() {
-  # Khôi phục NGUYÊN VĂN bảng SystemSetting từ bản chụp lúc đầu
+  # Khôi phục NGUYÊN VĂN bảng SystemSetting và bốn mốc của mọi kỳ từ bản chụp
+  # lúc đầu — đổi lịch giờ áp thẳng vào kỳ đang mở.
   sql "
     DELETE FROM \"SystemSetting\";
     INSERT INTO \"SystemSetting\" SELECT * FROM ztest_moc_setting;
+    UPDATE \"Period\" p SET
+      \"assignDeadline\" = m.\"assignDeadline\",
+      \"selfScoreDeadline\" = m.\"selfScoreDeadline\",
+      \"managerScoreDeadline\" = m.\"managerScoreDeadline\",
+      \"submitDeadline\" = m.\"submitDeadline\"
+      FROM ztest_moc_period_moc m WHERE m.id = p.id;
     DROP TABLE IF EXISTS ztest_moc_setting;
+    DROP TABLE IF EXISTS ztest_moc_period_moc;
   " >/dev/null 2>&1
 }
 
@@ -148,7 +156,9 @@ if ! curl -sf -o /dev/null "$API/"; then
 fi
 
 chup_moc_du_lieu
-sql "DROP TABLE IF EXISTS ztest_moc_setting; CREATE TABLE ztest_moc_setting AS SELECT * FROM \"SystemSetting\";" >/dev/null
+sql "DROP TABLE IF EXISTS ztest_moc_setting; CREATE TABLE ztest_moc_setting AS SELECT * FROM \"SystemSetting\";
+     DROP TABLE IF EXISTS ztest_moc_period_moc;
+     CREATE TABLE ztest_moc_period_moc AS SELECT id, \"assignDeadline\", \"selfScoreDeadline\", \"managerScoreDeadline\", \"submitDeadline\" FROM \"Period\";" >/dev/null
 don_du_lieu_thu
 
 KY_DANG_KHOA=$(sql "SELECT string_agg(code, ', ') FROM \"Period\" WHERE code IN ('2026-08','2026-09','2026-10','2026-Q3') AND \"isLocked\";")
@@ -204,8 +214,9 @@ lay_cai_dat() { curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/settings" | j
 buoc "1–4  ĐỌC VÀ PHÂN QUYỀN"
 R=$(goi GET "$AT_NV1" /settings)
 mong "$(ma_cua "$R")" 200 "1. STAFF đọc được cài đặt"
-MD=$(than_cua "$R" | jq_ "f\"{d['caiDat']['lichKy']['ngayTuCham']}|{d['caiDat']['nguongXepLoai']['canCaiThien']}|{d['caiDat']['baoMat']['soLanSaiToiDa']}|{d['capNhat']['lichKy']}\"")
-[ "$MD" = "25|80|10|None" ] && pass "    mặc định 25 / 80 / 10, chưa ai sửa (capNhat null)" || fail "    nhận: $MD"
+# Máy dev có thể đã được sửa tay, nên chỉ kiểm hình dạng: đủ 5 nhóm và 5 mục capNhat
+MD=$(than_cua "$R" | jq_ "'|'.join(sorted(d['caiDat'])) + '#' + str(len(d['capNhat']))")
+[ "$MD" = "baoMat|chamDiem|kyDanhGia|lichKy|nguongXepLoai#5" ] && pass "    đủ 5 nhóm cài đặt và 5 mục capNhat" || fail "    nhận: $MD"
 
 R=$(put_settings "$AT_NV1" '{"kyDanhGia":{"tuSinhHangThang":false}}')
 mong "$(ma_cua "$R")" 403 "2. STAFF ghi -> 403"
@@ -235,18 +246,23 @@ KQ=$(lay_cai_dat "f\"{d['caiDat']['lichKy']['ngayGuiHcns']}|{d['caiDat']['nguong
 SO=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Setting' AND \"entityId\"='lichKy' AND id NOT IN (SELECT id FROM ztest_moc_auditlog);")
 [ "$SO" = "1" ] && pass "11. một dòng AuditLog Setting/lichKy" || fail "11. có $SO dòng audit"
 
-# ================================================= 12-13 LỊCH KỲ ÁP VÀO KỲ MỚI
-buoc "12–13  KỲ TỰ SINH LẤY MỐC TỪ CÀI ĐẶT"
-# Xoá kỳ tháng sau (nếu script tạo được) rồi khởi động lại API để tự sinh
-# là quá nặng; thay vào đó gọi thẳng lệnh tạo kỳ thủ công KHÔNG kèm mốc và
-# kiểm kỳ do cron tạo ở lần khởi động tiếp theo qua unit test. Ở đây kiểm
-# endpoint tạo kỳ tay vẫn cho phép mốc riêng (không bị cài đặt ghi đè).
+# ================================================= 12-13 LỊCH MỚI ÁP VÀO KỲ ĐANG MỞ
+buoc "12–13  ĐỔI LỊCH THÌ KỲ THÁNG ĐANG MỞ ĐỔI MỐC NGAY"
+# Mục 9 vừa đặt 20/22/26/28. Kỳ chứa hôm nay phải mang mốc mới; kỳ quá khứ giữ nguyên.
+KY_NAY_CODE=$(sql "SELECT code FROM \"Period\" WHERE type='MONTH' AND \"startDate\"<=CURRENT_DATE AND \"endDate\">=CURRENT_DATE;")
+MOC=$(sql "SELECT to_char(\"selfScoreDeadline\",'DD') || '|' || to_char(\"managerScoreDeadline\",'DD') || '|' || to_char(\"submitDeadline\",'DD') FROM \"Period\" WHERE code='$KY_NAY_CODE';")
+[ "$MOC" = "22|26|28" ] && pass "12. kỳ $KY_NAY_CODE đổi sang 22/26/28 ngay khi lưu" || fail "12. kỳ $KY_NAY_CODE có mốc $MOC (mong 22|26|28)"
+MOC_CU=$(sql "SELECT to_char(\"selfScoreDeadline\",'DD') FROM \"Period\" WHERE code='2026-08';")
+[ "$MOC_CU" = "25" ] && pass "13. kỳ quá khứ 2026-08 giữ mốc cũ (25)" || fail "13. kỳ 2026-08 bị đổi thành $MOC_CU"
+KY_AP=$(sql "SELECT after->'kyDaApMoc' FROM \"AuditLog\" WHERE \"entityType\"='Setting' AND \"entityId\"='lichKy' AND id NOT IN (SELECT id FROM ztest_moc_auditlog) ORDER BY \"createdAt\" DESC LIMIT 1;")
+echo "$KY_AP" | grep -q "$KY_NAY_CODE" && pass "    AuditLog ghi danh sách kỳ đã áp mốc: $KY_AP" || fail "    AuditLog không ghi kỳ đã áp: $KY_AP"
+# Kỳ tạo tay vẫn không tự gán mốc
 NAM_SAU=$(( $(date +%Y) + 1 ))
 R=$(goi POST "$AT_ADMIN" /periods "{\"code\":\"ZTEST-$NAM_SAU-03\",\"name\":\"ZTEST tháng 03/$NAM_SAU\",\"type\":\"MONTH\",\"startDate\":\"$NAM_SAU-03-01\",\"endDate\":\"$NAM_SAU-03-31\"}")
-mong "$(ma_cua "$R")" 201 "12. tạo kỳ tay không kèm mốc" "$(than_cua "$R")"
+mong "$(ma_cua "$R")" 201 "    tạo kỳ tay không kèm mốc"
 [ "$(than_cua "$R" | jq_ "d.get('submitDeadline')")" = "None" ] \
-  && pass "13. kỳ tạo tay không tự gán mốc (HCNS chủ động điền)" \
-  || fail "13. kỳ tạo tay bị gán mốc: $(than_cua "$R" | jq_ "d.get('submitDeadline')")"
+  && pass "    kỳ tạo tay không tự gán mốc (HCNS chủ động điền)" \
+  || fail "    kỳ tạo tay bị gán mốc"
 
 # ================================================= 14-17 NGƯỠNG XẾP LOẠI
 buoc "14–17  NGƯỠNG XẾP LOẠI ÁP VÀO LẦN CHỐT ĐIỂM"

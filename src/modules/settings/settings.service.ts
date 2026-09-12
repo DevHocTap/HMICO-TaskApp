@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { PeriodType, type Prisma } from '@prisma/client';
+import { kyThang, namThangHienTai } from '../period/period-calendar.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
@@ -8,6 +9,7 @@ import {
   CAI_DAT_MAC_DINH,
   kiemTraCaiDat,
   type CaiDatHeThong,
+  type MocLichKy,
   type NhomCaiDat,
 } from './cai-dat-mac-dinh.js';
 import type { UpdateSettingsDto } from './dto/settings.dto.js';
@@ -73,7 +75,12 @@ export class SettingsService implements OnModuleInit {
    * Cập nhật từng nhóm gửi lên. Kiểm quan hệ trên BẢN GHÉP (nhóm mới + nhóm
    * giữ nguyên) rồi mới ghi, mỗi nhóm một dòng `AuditLog` kèm before/after.
    */
-  async capNhat(dto: UpdateSettingsDto, actor: AuthenticatedUser, ip?: string | null): Promise<CaiDatHeThong> {
+  async capNhat(
+    dto: UpdateSettingsDto,
+    actor: AuthenticatedUser,
+    ip?: string | null,
+    homNay = new Date(),
+  ): Promise<CaiDatHeThong> {
     const nhomGui = CAC_NHOM_CAI_DAT.filter((k) => dto[k] !== undefined);
     if (nhomGui.length === 0) {
       throw new BadRequestException('Không có nhóm cài đặt nào để cập nhật');
@@ -88,7 +95,11 @@ export class SettingsService implements OnModuleInit {
       throw new BadRequestException({ message: loi.join('. '), errors: loi });
     }
 
+    let kyDaApMoc: string[] = [];
     await this.prisma.$transaction(async (tx) => {
+      if (nhomGui.includes('lichKy')) {
+        kyDaApMoc = await this.apMocVaoKyDangMo(ghep.lichKy, tx, homNay);
+      }
       for (const k of nhomGui) {
         const truoc = this.cache[k] as unknown as Prisma.InputJsonValue;
         const sau = ghep[k] as unknown as Prisma.InputJsonValue;
@@ -104,7 +115,8 @@ export class SettingsService implements OnModuleInit {
             entityId: k,
             action: 'UPDATE',
             before: truoc,
-            after: sau,
+            // Lịch kỳ: ghi luôn những kỳ vừa bị đổi mốc để tra được sau này
+            after: k === 'lichKy' ? { ...(sau as object), kyDaApMoc } : sau,
             ipAddress: ip ?? undefined,
           },
           tx,
@@ -115,6 +127,42 @@ export class SettingsService implements OnModuleInit {
     await this.napLai();
     this.logger.log(`${actor.email} đã cập nhật cài đặt: ${nhomGui.join(', ')}`);
     return this.cache;
+  }
+
+  /**
+   * Đổi lịch thì áp NGAY vào các kỳ THÁNG đang mở: từ tháng hiện tại trở đi,
+   * chưa khoá sổ. Kỳ quá khứ và kỳ đã khoá giữ nguyên — người dùng đổi lịch
+   * giữa tháng là muốn tháng này chạy theo lịch mới, không phải tháng sau
+   * (phản hồi 12/09/2026: "đã chỉnh ngày rồi sao không cập nhật").
+   *
+   * Mốc tính lại bằng đúng `kyThang()` — cùng hàm sinh kỳ tự động, nên kỳ
+   * sinh sau và kỳ áp lại không lệch nhau. Trả về mã các kỳ đã đổi.
+   */
+  private async apMocVaoKyDangMo(
+    moc: MocLichKy,
+    tx: Prisma.TransactionClient,
+    homNay: Date,
+  ): Promise<string[]> {
+    const { nam, thang } = namThangHienTai(homNay);
+    const dauThangNay = new Date(Date.UTC(nam, thang - 1, 1));
+    const cacKy = await tx.period.findMany({
+      where: { type: PeriodType.MONTH, isLocked: false, startDate: { gte: dauThangNay } },
+      select: { id: true, code: true, startDate: true },
+    });
+    for (const ky of cacKy) {
+      const d = ky.startDate;
+      const moi = kyThang(d.getUTCFullYear(), d.getUTCMonth() + 1, moc);
+      await tx.period.update({
+        where: { id: ky.id },
+        data: {
+          assignDeadline: moi.assignDeadline,
+          selfScoreDeadline: moi.selfScoreDeadline,
+          managerScoreDeadline: moi.managerScoreDeadline,
+          submitDeadline: moi.submitDeadline,
+        },
+      });
+    }
+    return cacKy.map((k) => k.code).sort();
   }
 
   private async napLai(): Promise<void> {

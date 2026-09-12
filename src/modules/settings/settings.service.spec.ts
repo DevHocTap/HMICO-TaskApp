@@ -13,8 +13,9 @@ const ADMIN: AuthenticatedUser = { id: 'u-admin', email: 'admin@hmico.vn', role:
 describe('SettingsService', () => {
   const systemSetting = { findMany: vi.fn(), upsert: vi.fn() };
   const user = { findMany: vi.fn().mockResolvedValue([]) };
+  const period = { findMany: vi.fn().mockResolvedValue([]), update: vi.fn().mockResolvedValue({}) };
   const log = vi.fn();
-  const tx = { systemSetting, user };
+  const tx = { systemSetting, user, period };
   const prisma = {
     systemSetting,
     user,
@@ -25,6 +26,8 @@ describe('SettingsService', () => {
   beforeEach(async () => {
     systemSetting.findMany.mockReset().mockResolvedValue([]);
     systemSetting.upsert.mockReset().mockResolvedValue({});
+    period.findMany.mockReset().mockResolvedValue([]);
+    period.update.mockReset().mockResolvedValue({});
     log.mockReset();
     const module = await Test.createTestingModule({
       providers: [
@@ -74,7 +77,7 @@ describe('SettingsService', () => {
         entityId: 'lichKy',
         action: 'UPDATE',
         before: CAI_DAT_MAC_DINH.lichKy,
-        after: lichMoi,
+        after: { ...lichMoi, kyDaApMoc: [] },
         ipAddress: '::1',
       }),
       tx,
@@ -93,5 +96,38 @@ describe('SettingsService', () => {
 
   it('body rỗng -> 400', async () => {
     await expect(service.capNhat({}, ADMIN)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('đổi lịch thì áp mốc mới vào kỳ tháng đang mở từ tháng hiện tại, kỳ khoá và quá khứ không đụng', async () => {
+    period.findMany.mockResolvedValue([
+      { id: 'p10', code: '2026-10', startDate: new Date(Date.UTC(2026, 9, 1)) },
+      { id: 'p11', code: '2026-11', startDate: new Date(Date.UTC(2026, 10, 1)) },
+    ]);
+    const lichMoi = { ngayLenKpiThangSau: 20, ngayTuCham: 22, ngayTruongCham: 26, ngayGuiHcns: 28 };
+
+    await service.capNhat({ lichKy: lichMoi }, ADMIN, null, new Date('2026-10-12T03:00:00Z'));
+
+    // Chỉ hỏi kỳ THÁNG, chưa khoá, bắt đầu từ 01/10
+    expect(period.findMany.mock.calls[0]![0].where).toMatchObject({
+      type: 'MONTH',
+      isLocked: false,
+      startDate: { gte: new Date(Date.UTC(2026, 9, 1)) },
+    });
+    expect(period.update).toHaveBeenCalledTimes(2);
+    const kyMuoi = period.update.mock.calls.find((c) => c[0].where.id === 'p10')![0].data;
+    expect(kyMuoi.selfScoreDeadline.toISOString().slice(0, 10)).toBe('2026-10-22');
+    expect(kyMuoi.managerScoreDeadline.toISOString().slice(0, 10)).toBe('2026-10-26');
+    expect(kyMuoi.submitDeadline.toISOString().slice(0, 10)).toBe('2026-10-28');
+    // Hạn lên KPI của kỳ 10 nằm ở THÁNG 9 (ngày 20/09)
+    expect(kyMuoi.assignDeadline.toISOString().slice(0, 10)).toBe('2026-09-20');
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({ after: { ...lichMoi, kyDaApMoc: ['2026-10', '2026-11'] } }),
+      tx,
+    );
+  });
+
+  it('đổi nhóm khác (không phải lịch) thì không đụng kỳ', async () => {
+    await service.capNhat({ kyDanhGia: { tuSinhHangThang: false } }, ADMIN);
+    expect(period.findMany).not.toHaveBeenCalled();
   });
 });

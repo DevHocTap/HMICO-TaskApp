@@ -475,9 +475,9 @@ tự động rồi mới vỡ.
       trình thì tiến trình kia thấy giá trị cũ tới khi khởi động lại.
 - [ ] **Hạn mức đăng nhập theo IP (5/phút, 120/phút) KHÔNG nằm trong Cài
       đặt** — vẫn là biến môi trường. Chỉ khoá tạm theo email là cấu hình được.
-- [ ] Đổi `lichKy` không sửa kỳ đã sinh; đổi `nguongXepLoai` không tính lại
-      xếp loại đã chốt — cả hai CỐ Ý, ghi ở quy-tac-nghiep-vu.md mục 4 và 5.5.
-      Màn Cài đặt có ghi chú, nhưng người sửa vẫn có thể tưởng nó áp ngay.
+- [x] ~~Đổi `lichKy` không sửa kỳ đã sinh~~ — **đã đổi 12/09:** lưu lịch áp
+      ngay vào kỳ đang mở (`apMocVaoKyDangMo`). Đổi `nguongXepLoai` vẫn
+      KHÔNG tính lại xếp loại đã chốt — cố ý, ghi ở quy-tac mục 4.
 - [ ] `PUT /settings` kiểm quan hệ trong `kiemTraCaiDat()`; DTO chỉ kiểm từng
       ô. Thêm nhóm mới thì phải thêm cả hai chỗ.
 

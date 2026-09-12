@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 327 test backend + 41 test frontend + 3 e2e; 35 + 63 + 44 + 82 + 159 + 96 + 72 + 34 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 327 test backend + 41 test frontend + 3 e2e; 35 + 63 + 44 + 82 + 159 + 96 + 72 + 37 kiểm tra curl.**
 
 ## Đang làm
 
@@ -365,7 +365,8 @@ Bộ mẫu: chữ có chân (Lora), xanh ngọc `#0987b1` chủ đạo, nền x�
   **Hai chỗ CỐ Ý khác mẫu:** ngưỡng khởi tạo 80/90/100 (mẫu vẽ 70 — sai
   quy tắc mục 4); "Cho phép sửa điểm sau khi chốt sổ" hiện thực thành "cho
   phép TRẢ LẠI phiếu đã chốt", không có đường ghi đè điểm hay ghi vào kỳ khoá.
-  `kiem-chung-cai-dat.sh`: **34 kiểm tra**, chụp và khôi phục bảng cài đặt.
+  **Lưu lịch áp ngay vào kỳ đang mở** (12/09, `apMocVaoKyDangMo`).
+  `kiem-chung-cai-dat.sh`: **37 kiểm tra**, chụp và khôi phục cả bảng cài đặt lẫn mốc kỳ.
   Màn `/admin/settings` cho ADMIN / HR / EXECUTIVE (EXECUTIVE chỉ đọc).
 - **Nhật ký thao tác** — backend dựng **câu tiếng Việt** cho từng dòng
   (`mo-ta-ban-ghi.ts`, file thuần, 7 test; tra tên phiếu/người/kỳ mỗi loại
