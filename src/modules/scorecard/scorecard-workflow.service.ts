@@ -97,6 +97,15 @@ export class ScorecardWorkflowService {
           assignStatus: phieu.assignStatus,
           resultStatus: phieu.resultStatus,
           comment: input.comment ?? null,
+          // Điểm chốt ghi thẳng vào nhật ký để dòng "Chốt điểm phiếu X (92,40)"
+          // không phải tra ngược phiếu — phiếu bị chấm lại thì số này vẫn là
+          // số của LẦN chốt đó.
+          ...(input.managerTotalScore !== undefined
+            ? { managerTotalScore: input.managerTotalScore.toFixed(2), grade: input.grade ?? null }
+            : {}),
+          ...(input.selfTotalScore !== undefined
+            ? { selfTotalScore: input.selfTotalScore.toFixed(2) }
+            : {}),
         },
         ipAddress: input.ipAddress,
       },

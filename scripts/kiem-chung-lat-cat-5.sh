@@ -704,6 +704,30 @@ for T in "$AT_HR" "$AT_KT" "$AT_NV1"; do
 done
 [ "$MA" = "403" ] && pass "    HR, trưởng phòng, nhân viên đều bị chặn -> 403"
 
+# Câu mô tả do backend dựng: dòng chốt điểm phải nêu mã nhân viên, kỳ, điểm
+R=$(goi GET "$AT_ADMIN" "/audit-logs?entityType=Scorecard&action=MANAGER_SCORE&limit=1")
+MO_TA=$(than_cua "$R" | jq_ "d['data'][0]['moTa'] if d['data'] else '(rong)'")
+echo "$MO_TA" | grep -qE '^Chốt điểm phiếu HM[0-9]+ — Tháng [0-9]{2}/[0-9]{4} \([0-9]+,[0-9]{2}' \
+  && pass "    câu mô tả chốt điểm: $MO_TA" \
+  || fail "    câu mô tả chốt điểm không đúng dạng: $MO_TA"
+NHAN=$(than_cua "$R" | jq_ "d['data'][0]['nhanDoiTuong'] if d['data'] else '(rong)'")
+[ "$NHAN" = "Phiếu KPI" ] && pass "    nhãn đối tượng: $NHAN" || fail "    nhãn đối tượng: $NHAN"
+
+# Xuất Excel: đọc lại file, kiểm cột "Thao tác" của dòng đầu khớp câu mô tả
+curl -s -o "$TMP/nhat-ky.xlsx" -w '%{http_code}' -H "Authorization: Bearer $AT_ADMIN" \
+  "$API/audit-logs/export?entityType=Scorecard&action=MANAGER_SCORE" > "$TMP/ma.txt"
+[ "$(cat "$TMP/ma.txt")" = "200" ] && pass "    xuất nhật ký Excel -> 200" || fail "    xuất Excel -> $(cat "$TMP/ma.txt")"
+DONG_1=$(node -e "
+const ExcelJS=require('exceljs');(async()=>{const wb=new ExcelJS.Workbook();await wb.xlsx.readFile(process.argv[1]);
+const ws=wb.worksheets[0];console.log(ws.getRow(1).getCell(4).value+'|'+ws.getRow(2).getCell(4).value);})()" "$TMP/nhat-ky.xlsx" 2>/dev/null)
+[ "$DONG_1" = "Thao tác|$MO_TA" ] \
+  && pass "    file Excel: tiêu đề 'Thao tác', dòng đầu khớp câu mô tả" \
+  || fail "    file Excel dòng đầu: $DONG_1"
+SO_XUAT=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE action='EXPORT_AUDIT' AND id NOT IN (SELECT id FROM ztest_moc_auditlog);")
+[ "$SO_XUAT" = "1" ] && pass "    việc xuất nhật ký tự để lại một dòng EXPORT_AUDIT" || fail "    $SO_XUAT dòng EXPORT_AUDIT"
+MA=$(ma -H "Authorization: Bearer $AT_HR" "$API/audit-logs/export")
+[ "$MA" = "403" ] && pass "    HR xuất nhật ký -> 403" || fail "    HR xuất -> $MA"
+
 # ================================================= 31 EXCEPTION FILTER
 buoc "31  EXCEPTION FILTER"
 

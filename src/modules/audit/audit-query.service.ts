@@ -3,6 +3,26 @@ import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import type { ListAuditLogsQuery } from './dto/audit.dto.js';
+import { moTaBanGhi, NHAN_DOI_TUONG, type BangTra } from './mo-ta-ban-ghi.js';
+
+/** Trần số dòng một lần xuất Excel — nhật ký một năm ~50.000 dòng LOGIN. */
+export const TRAN_XUAT_EXCEL = 20_000;
+
+export interface DongNhatKy {
+  id: string;
+  createdAt: Date;
+  action: string;
+  entityType: string;
+  entityId: string;
+  ipAddress: string | null;
+  before: unknown;
+  after: unknown;
+  actor: { id: string; fullName: string; employeeCode: string; email: string } | null;
+  /** Câu tiếng Việt do backend dựng — xem `moTaBanGhi`. */
+  moTa: string;
+  /** Nhãn hiển thị của `entityType`. */
+  nhanDoiTuong: string;
+}
 
 /**
  * Loại bản ghi ban giám đốc được xem.
@@ -43,29 +63,122 @@ export class AuditQueryService {
     ]);
 
     return {
-      data: rows.map((r) => ({
-        id: r.id,
-        createdAt: r.createdAt,
-        action: r.action,
-        entityType: r.entityType,
-        entityId: r.entityId,
-        ipAddress: r.ipAddress,
-        before: r.before,
-        after: r.after,
-        actor: r.actor
-          ? {
-              id: r.actor.id,
-              fullName: r.actor.fullName,
-              employeeCode: r.actor.employeeCode,
-              email: r.actor.email,
-            }
-          : null,
-      })),
+      data: await this.dungDong(rows),
       total,
       page,
       limit,
       /** Loại bản ghi người này được xem — giao diện dùng để dựng ô lọc. */
       entityTypes: this.loaiXemDuoc(user),
+    };
+  }
+
+  /**
+   * Toàn bộ dòng khớp bộ lọc để xuất Excel, tối đa `TRAN_XUAT_EXCEL`.
+   * Quá trần thì trả `total` để giao diện bảo người dùng thu hẹp khoảng ngày.
+   */
+  async layDeXuat(query: ListAuditLogsQuery, user: AuthenticatedUser) {
+    const where = this.dieuKien(query, user);
+    const total = await this.prisma.auditLog.count({ where });
+    if (total > TRAN_XUAT_EXCEL) return { total, dongs: null };
+
+    const rows = await this.prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: TRAN_XUAT_EXCEL,
+      include: {
+        actor: { select: { id: true, fullName: true, employeeCode: true, email: true } },
+      },
+    });
+    return { total, dongs: await this.dungDong(rows) };
+  }
+
+  /**
+   * Gắn câu mô tả cho một loạt dòng: gom `entityId` theo loại, tra MỖI LOẠI
+   * MỘT truy vấn (tối đa 6), rồi dựng câu thuần. Không N+1.
+   */
+  private async dungDong(
+    rows: Array<
+      Prisma.AuditLogGetPayload<{
+        include: { actor: { select: { id: true; fullName: true; employeeCode: true; email: true } } };
+      }>
+    >,
+  ): Promise<DongNhatKy[]> {
+    const tra = await this.traTen(rows);
+    return rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      action: r.action,
+      entityType: r.entityType,
+      entityId: r.entityId,
+      ipAddress: r.ipAddress,
+      before: r.before,
+      after: r.after,
+      actor: r.actor
+        ? {
+            id: r.actor.id,
+            fullName: r.actor.fullName,
+            employeeCode: r.actor.employeeCode,
+            email: r.actor.email,
+          }
+        : null,
+      moTa: moTaBanGhi(r, tra),
+      nhanDoiTuong: NHAN_DOI_TUONG[r.entityType] ?? r.entityType,
+    }));
+  }
+
+  private async traTen(rows: { entityType: string; entityId: string }[]): Promise<BangTra> {
+    const ids = (loai: string) => [
+      ...new Set(rows.filter((r) => r.entityType === loai).map((r) => r.entityId)),
+    ];
+    // entityId của Auth khi sai email là chính chuỗi email — không phải uuid,
+    // Prisma vẫn lọc `in` được vì cột là text.
+    const [phieu, nguoi, phong, chucDanh, mau, ky] = await Promise.all([
+      this.prisma.scorecard.findMany({
+        where: { id: { in: ids('Scorecard') } },
+        select: {
+          id: true,
+          period: { select: { name: true } },
+          ownerUser: { select: { employeeCode: true, fullName: true } },
+        },
+      }),
+      this.prisma.user.findMany({
+        where: { id: { in: [...ids('User'), ...ids('Auth')] } },
+        select: { id: true, employeeCode: true, fullName: true },
+      }),
+      this.prisma.department.findMany({
+        where: { id: { in: ids('Department') } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.jobTitle.findMany({
+        where: { id: { in: ids('JobTitle') } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.kpiTemplate.findMany({
+        where: { id: { in: ids('KpiTemplate') } },
+        select: { id: true, code: true, name: true },
+      }),
+      this.prisma.period.findMany({
+        where: { id: { in: ids('Period') } },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    return {
+      scorecard: new Map(
+        phieu.map((p) => [
+          p.id,
+          {
+            maNhanVien: p.ownerUser?.employeeCode ?? '?',
+            tenNhanVien: p.ownerUser?.fullName ?? '?',
+            tenKy: p.period.name,
+          },
+        ]),
+      ),
+      user: new Map(nguoi.map((u) => [u.id, { maNhanVien: u.employeeCode, tenNhanVien: u.fullName }])),
+      department: new Map(phong.map((d) => [d.id, d.name])),
+      jobTitle: new Map(chucDanh.map((j) => [j.id, j.name])),
+      kpiTemplate: new Map(mau.map((m) => [m.id, { code: m.code, name: m.name }])),
+      period: new Map(ky.map((k) => [k.id, k.name])),
     };
   }
 
