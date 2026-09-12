@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Kiểm chứng lát cắt 6 — báo cáo tiến độ, xuất Excel, dashboard.
+# Kiểm chứng lát cắt 6 — báo cáo tiến độ, xuất Excel, dashboard, trang chủ.
 #
 # Chạy:  ./scripts/kiem-chung-lat-cat-6.sh
 # Yêu cầu: PostgreSQL đang chạy, đã `npm run build` và `npx prisma db seed`.
@@ -508,6 +508,120 @@ print(r['diemTrungBinh'] if r else 'KHONG_CO')" 2>/dev/null)
 [ "$TB_API" = "$TB_DB" ] \
   && pass "    điểm trung bình khớp phép tính trực tiếp trong DB: $TB_API" \
   || fail "    API trả $TB_API, DB tính ra $TB_DB"
+
+# ================================================= 22-28 TRANG CHỦ
+buoc "22–28  TRANG CHỦ — /reports/home-summary theo vai"
+
+# Kỳ tháng chứa hôm nay, tính trong DB để không phụ thuộc ngày chạy script
+KY_NAY=$(sql "SELECT id FROM \"Period\" WHERE type='MONTH' AND \"startDate\"<=CURRENT_DATE AND \"endDate\">=CURRENT_DATE;")
+KY_NAY_CODE=$(sql "SELECT code FROM \"Period\" WHERE id='$KY_NAY';")
+KY_TRUOC_ID=$(sql "SELECT id FROM \"Period\" WHERE type='MONTH' AND \"endDate\"<(SELECT \"startDate\" FROM \"Period\" WHERE id='$KY_NAY') ORDER BY \"startDate\" DESC LIMIT 1;")
+
+# 22. STAFF gọi được (khác /reports/dashboard vẫn chặn 403 ở ca 18)
+R=$(goi GET "$AT_SD" /reports/home-summary)
+mong "$(ma_cua "$R")" 200 "22. STAFF gọi được" "$(than_cua "$R")"
+THAN_SD=$(than_cua "$R")
+VAI=$(echo "$THAN_SD" | jq_ "d['role'] + '|' + (d['period'] or {}).get('code','')")
+[ "$VAI" = "STAFF|$KY_NAY_CODE" ] \
+  && pass "    role=STAFF, kỳ = kỳ chứa hôm nay ($KY_NAY_CODE)" \
+  || fail "    nhận: $VAI, mong STAFF|$KY_NAY_CODE"
+
+# 23. Điểm tháng trước của SD = phiếu đã chốt ở kỳ trước (dựng ở đầu script)
+DIEM_DB=$(sql "SELECT \"managerTotalScore\" FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_SD' AND \"periodId\"='$KY_TRUOC_ID' AND \"resultStatus\" IN ('MANAGER_SCORED','RECEIVED');")
+DIEM_API=$(echo "$THAN_SD" | jq_ "(d['thangTruoc'] or {}).get('diem')")
+if [ -n "$DIEM_DB" ]; then
+  [ "$DIEM_API" = "$DIEM_DB" ] \
+    && pass "23. điểm tháng trước khớp DB: $DIEM_API" \
+    || fail "23. API trả $DIEM_API, DB có $DIEM_DB"
+else
+  pass "23. (bỏ qua — kỳ trước không phải kỳ 08 nên không có phiếu dựng sẵn)"
+fi
+
+# 24. Tiêu chí chưa tự chấm = số tiêu chí LÁ có selfScore NULL trên phiếu kỳ này
+CHUA_DB=$(sql "SELECT count(*) FROM \"ScorecardItem\" i JOIN \"Scorecard\" s ON s.id=i.\"scorecardId\"
+  WHERE s.\"ownerUserId\"='$U_SD' AND s.\"periodId\"='$KY_NAY' AND i.\"selfScore\" IS NULL
+    AND NOT EXISTS (SELECT 1 FROM \"ScorecardItem\" c WHERE c.\"parentId\"=i.id);")
+CO_PHIEU=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"ownerUserId\"='$U_SD' AND \"periodId\"='$KY_NAY';")
+CHUA_API=$(echo "$THAN_SD" | jq_ "'null' if d['tuCham'] is None else str(d['tuCham']['chua'])")
+if [ "$CO_PHIEU" = "0" ]; then
+  [ "$CHUA_API" = "null" ] && pass "24. chưa có phiếu kỳ này -> tuCham=null, không phải 0/0" \
+    || fail "24. không có phiếu mà tuCham=$CHUA_API"
+else
+  [ "$CHUA_API" = "$CHUA_DB" ] && pass "24. tiêu chí lá chưa tự chấm khớp DB: $CHUA_API" \
+    || fail "24. API $CHUA_API, DB $CHUA_DB"
+fi
+
+# 25. MANAGER: nhân sự diện KPI trong phạm vi và trung bình phòng khớp DB
+R=$(goi GET "$AT_KT" /reports/home-summary)
+mong "$(ma_cua "$R")" 200 "25. trưởng phòng Kỹ thuật gọi"
+NS_DB=$(sql "SELECT count(*) FROM \"User\" WHERE \"isActive\" AND role NOT IN ('ADMIN','EXECUTIVE') AND \"departmentId\"='$P_KT';")
+NS_API=$(than_cua "$R" | jq_ "d['soNhanSu']")
+[ "$NS_API" = "$NS_DB" ] && pass "    soNhanSu khớp DB: $NS_API" || fail "    API $NS_API, DB $NS_DB"
+TB_DB=$(sql "SELECT round(avg(\"managerTotalScore\"),2)::text FROM \"Scorecard\" WHERE \"periodId\"='$KY_NAY' AND \"departmentId\"='$P_KT' AND \"resultStatus\" IN ('MANAGER_SCORED','RECEIVED');")
+TB_API=$(than_cua "$R" | jq_ "d['diemTrungBinh'] if d['diemTrungBinh'] is not None else ''")
+[ "$TB_API" = "$TB_DB" ] && pass "    diemTrungBinh khớp DB: '${TB_API:-null}'" || fail "    API '$TB_API', DB '$TB_DB'"
+
+# 26. HR: đếm phiếu kỳ này khớp DB; đủ + thiếu = tổng phòng có nhân sự
+R=$(goi GET "$AT_HR" /reports/home-summary)
+mong "$(ma_cua "$R")" 200 "26. HCNS gọi"
+PHIEU_DB=$(sql "SELECT count(*) FROM \"Scorecard\" WHERE \"periodId\"='$KY_NAY';")
+PHIEU_API=$(than_cua "$R" | jq_ "d['soPhieuTrongKy']")
+[ "$PHIEU_API" = "$PHIEU_DB" ] && pass "    soPhieuTrongKy khớp DB: $PHIEU_API" || fail "    API $PHIEU_API, DB $PHIEU_DB"
+CAN=$(than_cua "$R" | jq_ "'OK' if d['phongDaNopDu'] + len(d['phongConThieu']) == d['tongPhongCoNhanSu'] else f\"{d['phongDaNopDu']}+{len(d['phongConThieu'])}!={d['tongPhongCoNhanSu']}\"")
+[ "$CAN" = "OK" ] && pass "    phòng đủ + phòng thiếu = tổng phòng có nhân sự" || fail "    $CAN"
+
+# 27. EXECUTIVE: đạt + cần cải thiện = số phiếu đã chốt; phòng chú ý đều < 80
+R=$(goi GET "$AT_BGD" /reports/home-summary)
+mong "$(ma_cua "$R")" 200 "27. ban giám đốc gọi"
+CAN=$(than_cua "$R" | jq_ "'OK' if d['soNguoiDat'] + d['soNguoiCanCaiThien'] == d['soPhieuDaChot'] and all(float(p['diemTrungBinh']) < 80 for p in d['phongCanChuY']) else 'SAI'")
+[ "$CAN" = "OK" ] && pass "    đạt + cần cải thiện = đã chốt; phòng chú ý đều dưới 80" || fail "    $CAN"
+
+# 28. ADMIN: tổng tài khoản khớp DB, thao tác 24h > 0 (script vừa đăng nhập),
+#     phòng thiếu trưởng KHÔNG chứa đơn vị rỗng người
+R=$(goi GET "$AT_ADMIN" /reports/home-summary)
+mong "$(ma_cua "$R")" 200 "28. quản trị gọi"
+TK_DB=$(sql "SELECT count(*) FROM \"User\";")
+TK_API=$(than_cua "$R" | jq_ "d['tongTaiKhoan']")
+[ "$TK_API" = "$TK_DB" ] && pass "    tongTaiKhoan khớp DB: $TK_API" || fail "    API $TK_API, DB $TK_DB"
+TT=$(than_cua "$R" | jq_ "d['thaoTac24h']")
+[ "${TT:-0}" -gt 0 ] && pass "    thaoTac24h=$TT (> 0, script vừa đăng nhập)" || fail "    thaoTac24h=$TT"
+THIEU_DB=$(sql "SELECT string_agg(d.name, '|' ORDER BY d.code) FROM \"Department\" d WHERE d.\"isActive\" AND d.\"managerId\" IS NULL
+  AND EXISTS (SELECT 1 FROM \"User\" u WHERE u.\"departmentId\"=d.id AND u.\"isActive\" AND u.role NOT IN ('ADMIN','EXECUTIVE'));")
+THIEU_API=$(than_cua "$R" | jq_ "'|'.join(d['phongThieuTruong'])")
+[ "$THIEU_API" = "$THIEU_DB" ] && pass "    phongThieuTruong khớp DB: '${THIEU_API:-(rỗng)}'" || fail "    API '$THIEU_API', DB '$THIEU_DB'"
+
+# ================================================= 29-31 XU HƯỚNG THEO THÁNG
+buoc "29–31  XU HƯỚNG THEO THÁNG — /reports/trend"
+R=$(goi GET "$AT_HR" "/reports/trend?periodId=$KY_09&months=3")
+mong "$(ma_cua "$R")" 200 "29. HR gọi 3 kỳ tính lùi từ tháng 09"
+DAY=$(than_cua "$R" | jq_ "'|'.join(x['period']['code'] for x in d)")
+[ "$DAY" = "2026-07|2026-08|2026-09" ] || [ "$DAY" = "2026-08|2026-09" ] \
+  && pass "    dãy kỳ cũ -> mới, kết thúc ở kỳ chọn: $DAY" \
+  || fail "    dãy kỳ: $DAY"
+# Tháng 08 có phiếu đã chốt (dựng ở đầu script) -> điểm TB khớp DB
+TB_DB=$(sql "SELECT round(avg(\"managerTotalScore\"),2)::text FROM \"Scorecard\" WHERE \"periodId\"='$KY_08' AND \"resultStatus\" IN ('MANAGER_SCORED','RECEIVED');")
+TB_API=$(than_cua "$R" | jq_ "next((x['diemTrungBinh'] for x in d if x['period']['code']=='2026-08'), 'KHONG_CO')")
+[ "$TB_API" = "$TB_DB" ] && pass "30. điểm TB tháng 08 khớp DB: $TB_API" || fail "30. API $TB_API, DB $TB_DB"
+R=$(goi GET "$AT_NV1" "/reports/trend?periodId=$KY_09")
+mong "$(ma_cua "$R")" 403 "31. STAFF gọi -> 403"
+R=$(goi GET "$AT_HR" "/reports/trend?periodId=$KY_09&months=99")
+mong "$(ma_cua "$R")" 400 "    months=99 -> 400"
+
+# ================================================= 32-33 DANH SÁCH PHIẾU CHO TỔNG QUAN
+buoc "32–33  GET /scorecards?evaluatorId — thẻ 'phiếu cần xử lý gấp'"
+# Sau ca 20, SC_CHUA_CHAM đã SELF_SCORED và người chấm là trưởng phòng KT
+R=$(goi GET "$AT_KT" "/scorecards?periodId=$KY_08&evaluatorId=$U_KT&resultStatus=SELF_SCORED&limit=100")
+mong "$(ma_cua "$R")" 200 "32. trưởng phòng lọc phiếu chờ mình chấm"
+KQ=$(than_cua "$R" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)['data']
+ok=all(x['evaluatorId']=='$U_KT' and x['resultStatus']=='SELF_SCORED' for x in d)
+co=any(x['id']=='$SC_CHUA_CHAM' and x['selfTotalScore'] is not None and x['selfScoredAt'] for x in d)
+print(f'{ok}|{co}|{len(d)}')" 2>/dev/null)
+[ "${KQ%%|*}" = "True" ] && pass "    mọi dòng đúng người chấm và trạng thái ($KQ)" || fail "    lọc sai: $KQ"
+[ "$(echo "$KQ" | cut -d'|' -f2)" = "True" ] && pass "33. phiếu đã tự chấm có selfTotalScore và selfScoredAt" || fail "33. thiếu điểm tự chấm: $KQ"
+R=$(goi GET "$AT_KT" "/scorecards?periodId=$KY_08&evaluatorId=khong-phai-uuid")
+mong "$(ma_cua "$R")" 400 "    evaluatorId không phải UUID -> 400"
 
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"

@@ -297,6 +297,59 @@ export class ReportsService {
     };
   }
 
+  /**
+   * Xu hướng `months` kỳ THÁNG gần nhất, kết thúc ở `periodId` — cho biểu đồ
+   * đường trên dashboard. Mỗi kỳ: số phiếu, số đã chốt, điểm trung bình (chỉ
+   * phiếu đã chốt, `null` khi chưa có). Kỳ không có phiếu nào vẫn trả về
+   * với số 0 để trục thời gian không bị khuyết tháng.
+   *
+   * Hai truy vấn groupBy cho toàn bộ dãy, không lặp theo kỳ.
+   */
+  async trend(periodId: string, months: number, user: AuthenticatedUser) {
+    const ky = await this.mustFindKyThang(periodId);
+    const trongPhamVi = await this.departmentScope.getAccessibleDepartmentIds(user);
+    this.assertCoPhamVi(trongPhamVi, user);
+
+    const cacKy = await this.prisma.period.findMany({
+      where: { type: PeriodType.MONTH, startDate: { lte: ky.startDate } },
+      orderBy: { startDate: 'desc' },
+      take: months,
+      select: { id: true, code: true, name: true, startDate: true },
+    });
+    const ids = cacKy.map((k) => k.id);
+
+    const [tong, chot] = await Promise.all([
+      this.prisma.scorecard.groupBy({
+        by: ['periodId'],
+        where: { periodId: { in: ids }, departmentId: { in: trongPhamVi } },
+        _count: { _all: true },
+      }),
+      this.prisma.scorecard.groupBy({
+        by: ['periodId'],
+        where: {
+          periodId: { in: ids },
+          departmentId: { in: trongPhamVi },
+          resultStatus: { in: [ResultStatus.MANAGER_SCORED, ResultStatus.RECEIVED] },
+        },
+        _count: { _all: true },
+        _avg: { managerTotalScore: true },
+      }),
+    ]);
+    const tongTheoKy = new Map(tong.map((x) => [x.periodId, x._count._all]));
+    const chotTheoKy = new Map(chot.map((x) => [x.periodId, x]));
+
+    // Cũ -> mới, để vẽ trục thời gian từ trái sang phải
+    return cacKy.reverse().map((k) => {
+      const c = chotTheoKy.get(k.id);
+      return {
+        period: { id: k.id, code: k.code, name: k.name },
+        soPhieuTrongKy: tongTheoKy.get(k.id) ?? 0,
+        soPhieuDaChot: c?._count._all ?? 0,
+        diemTrungBinh: this.lamTron(c?._avg.managerTotalScore ?? null),
+      };
+    });
+  }
+
   /** Đếm về đủ MỌI khoá của enum, khoá không có phiếu nào thì 0. */
   private demTheoKhoa<T extends string>(
     moiKhoa: readonly T[],

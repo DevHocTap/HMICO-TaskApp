@@ -2,8 +2,9 @@ import { Controller, Get, Query, Res, StreamableFile } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { ReportsService } from './reports.service.js';
 import { ExportExcelService } from './export-excel.service.js';
+import { HomeSummaryService } from './home-summary.service.js';
 import { AuditService } from '../audit/audit.service.js';
-import { ReportPeriodQuery } from './dto/reports.dto.js';
+import { ReportPeriodQuery, ReportTrendQuery } from './dto/reports.dto.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
@@ -21,8 +22,22 @@ export class ReportsController {
   constructor(
     private readonly reports: ReportsService,
     private readonly excel: ExportExcelService,
+    private readonly tomTatTrangChu: HomeSummaryService,
     private readonly audit: AuditService,
   ) {}
+
+  /**
+   * Bộ số cho các thẻ trên trang chủ, theo vai của người gọi.
+   *
+   * MỞ CHO CẢ STAFF — ghi đè `@Roles` ở cấp class. STAFF chỉ nhận số của
+   * chính phiếu mình (`HomeSummaryService.choStaff`), không có gì của
+   * đồng nghiệp trong đó.
+   */
+  @Get('home-summary')
+  @Roles(Role.ADMIN, Role.HR, Role.EXECUTIVE, Role.MANAGER, Role.STAFF)
+  homeSummary(@CurrentUser() user: AuthenticatedUser) {
+    return this.tomTatTrangChu.tomTat(user);
+  }
 
   @Get('submission-progress')
   submissionProgress(
@@ -39,6 +54,12 @@ export class ReportsController {
   @Get('dashboard')
   dashboard(@Query() query: ReportPeriodQuery, @CurrentUser() user: AuthenticatedUser) {
     return this.reports.dashboard(query.periodId, user);
+  }
+
+  /** Xu hướng theo tháng cho biểu đồ đường — mặc định 6 kỳ, tối đa 24. */
+  @Get('trend')
+  trend(@Query() query: ReportTrendQuery, @CurrentUser() user: AuthenticatedUser) {
+    return this.reports.trend(query.periodId, query.months ?? 6, user);
   }
 
   /**

@@ -1,4 +1,4 @@
-import { AssignStatus, KpiSection, ResultStatus } from '@prisma/client';
+import { AssignStatus, Grade, KpiSection, Prisma, ResultStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -206,6 +206,11 @@ export class ListScorecardsQuery {
   @IsOptional()
   @IsEnum(ResultStatus, { message: 'Trạng thái chấm điểm không hợp lệ' })
   resultStatus?: ResultStatus;
+
+  /** Phiếu do người này chấm — khối "Phiếu cần xử lý gấp" ở Tổng quan (12/09). */
+  @IsOptional()
+  @IsUUID('4')
+  evaluatorId?: string;
 }
 
 export class ReadinessQuery {
@@ -249,6 +254,12 @@ export interface ScorecardSummary {
   acceptedAt: Date | null;
   disputedAt: Date | null;
   disputeReason: string | null;
+  /** Điểm ĐÃ CHỐT hai cột; `null` khi chưa nộp / chưa chốt. */
+  selfTotalScore: Prisma.Decimal | null;
+  managerTotalScore: Prisma.Decimal | null;
+  grade: Grade | null;
+  selfScoredAt: Date | null;
+  managerScoredAt: Date | null;
   /** Tổng trọng số tiêu chí cấp 1, tính bằng groupBy — không nạp cây item. */
   totalWeight: string;
   itemCount: number;
