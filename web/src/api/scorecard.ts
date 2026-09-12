@@ -7,7 +7,9 @@ import type {
   PhieuChamDiem,
   PhieuKpi,
   PhieuKpiChiTiet,
+  PhieuTomTat,
   SanSangCongTy,
+  ThamSoDanhSachPhieu,
   ViecCanXuLy,
 } from '../types/scorecard';
 
@@ -27,6 +29,16 @@ export async function laySanSangCongTy(): Promise<SanSangCongTy> {
 export async function layPhieuCuaToi(periodId?: string): Promise<PhieuKpi[]> {
   const { data } = await apiClient.get<PhieuKpi[]>('/scorecards/my', {
     params: periodId ? { periodId } : undefined,
+  });
+  return data;
+}
+
+/** Danh sách phiếu trong phạm vi — dùng cho thẻ "phiếu cần xử lý gấp". */
+export async function layDanhSachPhieu(
+  params: ThamSoDanhSachPhieu,
+): Promise<{ data: PhieuTomTat[]; total: number }> {
+  const { data } = await apiClient.get<{ data: PhieuTomTat[]; total: number }>('/scorecards', {
+    params,
   });
   return data;
 }

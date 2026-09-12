@@ -1,52 +1,120 @@
 import { useState } from 'react';
-import { Button, Layout, Menu, Space, Tag, Typography } from 'antd';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Layout,
+  Menu,
+  Popover,
+  Tag,
+  Typography,
+} from 'antd';
 import {
   CalendarOutlined,
   ScheduleOutlined,
   SolutionOutlined,
-  ApartmentOutlined,
   FileTextOutlined,
-  IdcardOutlined,
   LogoutOutlined,
   TeamOutlined,
-  HistoryOutlined,
   BarChartOutlined,
-  PieChartOutlined,
+  AppstoreOutlined,
+  SettingOutlined,
+  BellOutlined,
+  ArrowRightOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import {
-  coTheChotSo,
-  coTheGiaoKpi,
-  coTheXemNhanVien,
-  coTheXemToChuc,
-  coTheXemNhatKy,
-  coTheXemBaoCao,
-} from '../auth/permissions';
-import { ROLE_LABELS } from '../types/auth';
+import { coTheGiaoKpi, coTheXemNhanVien } from '../auth/permissions';
+import { layKyDanhGia, layViecCuaToi } from '../api/scorecard';
 import type { Role } from '../types/auth';
+import type { ViecCanXuLy } from '../types/scorecard';
+import {
+  chuVietTat,
+  giaiDoanCuaKy,
+  kyChuaHomNay,
+  ngayTrongThang,
+} from '../utils/period';
+import { mauChuDao } from '../config/theme';
+import { NHOM_TAB, loiVaoNhom } from './ThanhTab';
 
-/** Khung chung cho mọi trang sau khi đăng nhập: thanh trên + menu trái. */
 /**
- * Dòng phụ dưới tên người dùng.
+ * Dòng phụ dưới tên người dùng: chức danh · phòng ban.
  *
  * Tài khoản quản trị hệ thống CỐ Ý không thuộc phòng ban nào — HCNS chốt
  * 03/09/2026 (câu A4): đó là tài khoản kỹ thuật, không phải một vị trí nhân
  * sự. Ghi "Chưa gán phòng ban" ở đó đọc như một thiếu sót cần khắc phục,
  * trong khi không có gì để khắc phục.
  */
-function moTaViTri(user: { role: Role; departmentName?: string | null } | null): string {
+function moTaViTri(
+  user: {
+    role: Role;
+    departmentName?: string | null;
+    jobTitleName?: string | null;
+  } | null,
+): string {
   if (!user) return '';
-  if (user.departmentName) return user.departmentName;
-  if (user.role === 'ADMIN') return 'Tài khoản kỹ thuật — không thuộc phòng ban';
+  const phan = [user.jobTitleName, user.departmentName].filter(Boolean);
+  if (phan.length > 0) return phan.join(' · ');
+  if (user.role === 'ADMIN')
+    return 'Tài khoản kỹ thuật — không thuộc phòng ban';
   return 'Chưa gán phòng ban';
 }
 
+/**
+ * Đếm việc đang chờ theo màn hình đích, để gắn số lên mục menu.
+ * `link` của việc có thể kèm query (`/kpi/assign?periodId=…`) — chỉ lấy
+ * phần đường dẫn để khớp với `key` của menu.
+ */
+function demViecTheoDuongDan(viec: ViecCanXuLy[]): Record<string, number> {
+  const dem: Record<string, number> = {};
+  for (const v of viec) {
+    const duongDan = v.link.split('?')[0];
+    dem[duongDan] = (dem[duongDan] ?? 0) + v.count;
+  }
+  return dem;
+}
+
+/** Tên trang theo tiền tố đường dẫn — cho breadcrumb ở thanh trên. */
+const TEN_TRANG: [string, string][] = [
+  ['/kpi/my', 'Phiếu KPI của tôi'],
+  ['/kpi/assign', 'Giao KPI'],
+  ['/kpi/scorecards', 'Phiếu KPI'],
+  ['/kpi/progress', 'Tiến độ nộp'],
+  ['/kpi/dashboard', 'Bảng điều hành KPI'],
+  ['/kpi/periods', 'Kỳ đánh giá'],
+  ['/admin/departments', 'Phòng ban'],
+  ['/admin/job-titles', 'Chức danh'],
+  ['/admin/users', 'Nhân viên'],
+  ['/admin/kpi-templates', 'Mẫu KPI'],
+  ['/admin/audit-logs', 'Nhật ký thao tác'],
+  ['/admin/settings', 'Cài đặt hệ thống'],
+];
+
+/** Khung chung cho mọi trang sau khi đăng nhập: thanh trên + menu trái. */
 export function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [dangThoat, setDangThoat] = useState(false);
+
+  // Cùng queryKey với HomePage nên TanStack Query chỉ gọi một lần.
+  const { data: viec = [] } = useQuery({
+    queryKey: ['scorecards', 'pending-my-action'],
+    queryFn: layViecCuaToi,
+  });
+  const { data: kyDanhGia = [] } = useQuery({
+    queryKey: ['periods', 'MONTH'],
+    queryFn: () => layKyDanhGia('MONTH'),
+    staleTime: 5 * 60 * 1000,
+  });
+  const kyHienTai = kyChuaHomNay(kyDanhGia);
+  const giaiDoan = kyHienTai ? giaiDoanCuaKy(kyHienTai) : null;
+  const soViec = demViecTheoDuongDan(viec);
+  const tongViec = viec.reduce((a, v) => a + v.count, 0);
+  const tenTrang = TEN_TRANG.find(([tienTo]) =>
+    location.pathname.startsWith(tienTo),
+  )?.[1];
 
   async function onLogout() {
     setDangThoat(true);
@@ -54,153 +122,242 @@ export function AdminLayout() {
     navigate('/login', { replace: true });
   }
 
+  /** Nhãn menu kèm số việc đang chờ (nếu có). */
+  function nhan(duongDan: string, text: string) {
+    const so = soViec[duongDan];
+    return (
+      <Link to={duongDan} className="menu-nhan">
+        <span>{text}</span>
+        {so ? <span className="menu-badge">{so}</span> : null}
+      </Link>
+    );
+  }
+
   // Menu dựng theo vai trò. Xem permissions.ts — đây chỉ là giao diện,
   // backend chặn độc lập.
   //
   // Nhóm KPI đứng TRƯỚC nhóm quản trị: phiếu KPI là việc hàng tháng của mọi
   // người, còn phòng ban và chức danh là việc nhập một lần rồi thôi.
-  const mucMenu = [
+  // Bảy mục như bộ mẫu 12/09; màn phụ nằm trong tab của màn cha (ThanhTab).
+  const role = user?.role;
+  const nhanSu = loiVaoNhom('nhan-su', role);
+  const baoCao = loiVaoNhom('bao-cao', role);
+  const heThong = loiVaoNhom('he-thong', role);
+
+  const mucKpi = [
+    { key: '/', icon: <AppstoreOutlined />, label: nhan('/', 'Tổng quan') },
     {
-      key: 'kpi',
-      label: 'KPI',
-      type: 'group' as const,
-      children: [
-        {
-          key: '/kpi/my',
-          icon: <SolutionOutlined />,
-          label: <Link to="/kpi/my">Phiếu KPI của tôi</Link>,
-        },
-        ...(coTheGiaoKpi(user?.role)
-          ? [
-              {
-                key: '/kpi/assign',
-                icon: <ScheduleOutlined />,
-                label: <Link to="/kpi/assign">Giao KPI</Link>,
-              },
-            ]
-          : []),
-        ...(coTheXemBaoCao(user?.role)
-          ? [
-              {
-                key: '/kpi/progress',
-                icon: <BarChartOutlined />,
-                label: <Link to="/kpi/progress">Tiến độ nộp</Link>,
-              },
-              {
-                key: '/kpi/dashboard',
-                icon: <PieChartOutlined />,
-                label: <Link to="/kpi/dashboard">Tổng hợp KPI</Link>,
-              },
-            ]
-          : []),
-        ...(coTheChotSo(user?.role)
-          ? [
-              {
-                key: '/kpi/periods',
-                icon: <CalendarOutlined />,
-                label: <Link to="/kpi/periods">Kỳ đánh giá</Link>,
-              },
-            ]
-          : []),
-      ],
+      key: '/kpi/my',
+      icon: <SolutionOutlined />,
+      label: nhan('/kpi/my', 'Phiếu đánh giá'),
     },
   ];
-
-  const mucQuanTri = [];
-  if (coTheXemToChuc(user?.role)) {
-    mucQuanTri.push(
-      {
-        key: '/admin/departments',
-        icon: <ApartmentOutlined />,
-        label: <Link to="/admin/departments">Phòng ban</Link>,
-      },
-      {
-        key: '/admin/job-titles',
-        icon: <IdcardOutlined />,
-        label: <Link to="/admin/job-titles">Chức danh</Link>,
-      },
-    );
-  }
-  if (coTheXemNhanVien(user?.role)) {
-    mucQuanTri.push({
-      key: '/admin/users',
-      icon: <TeamOutlined />,
-      label: <Link to="/admin/users">Nhân viên</Link>,
+  if (coTheGiaoKpi(role)) {
+    mucKpi.push({
+      key: '/kpi/assign',
+      icon: <ScheduleOutlined />,
+      label: nhan('/kpi/assign', 'Giao KPI'),
     });
   }
-  // Mẫu KPI: STAFF không truy cập, các vai trò còn lại xem được
-  if (coTheXemNhanVien(user?.role)) {
-    mucQuanTri.push({
+  if (baoCao) {
+    mucKpi.push({
+      key: baoCao,
+      icon: <BarChartOutlined />,
+      label: nhan(baoCao, 'Báo cáo kỳ'),
+    });
+  }
+  if (nhanSu) {
+    mucKpi.push({
+      key: nhanSu,
+      icon: <TeamOutlined />,
+      label: nhan(nhanSu, 'Quản lý nhân sự'),
+    });
+  }
+  if (coTheXemNhanVien(role)) {
+    mucKpi.push({
       key: '/admin/kpi-templates',
       icon: <FileTextOutlined />,
-      label: <Link to="/admin/kpi-templates">Mẫu KPI</Link>,
+      label: nhan('/admin/kpi-templates', 'Mẫu KPI'),
+    });
+  }
+  if (heThong) {
+    mucKpi.push({
+      key: heThong,
+      icon: <SettingOutlined />,
+      label: nhan(heThong, 'Cài đặt hệ thống'),
     });
   }
 
-  if (coTheXemNhatKy(user?.role)) {
-    mucQuanTri.push({
-      key: '/admin/audit-logs',
-      icon: <HistoryOutlined />,
-      label: <Link to="/admin/audit-logs">Nhật ký thao tác</Link>,
-    });
-  }
+  const mucMenu = [
+    { key: 'kpi', label: 'Phân hệ điều hành', type: 'group' as const, children: mucKpi },
+  ];
 
-  if (mucQuanTri.length > 0) {
-    mucMenu.push({
-      key: 'quan-tri',
-      label: 'Quản trị',
-      type: 'group' as const,
-      children: mucQuanTri,
-    });
-  }
+  // Mục đang chọn: màn phụ (tab) sáng mục cha của nó; còn lại khớp tiền tố.
+  const nhomCua = (d: string) =>
+    (Object.keys(NHOM_TAB) as (keyof typeof NHOM_TAB)[]).find((n) =>
+      NHOM_TAB[n].some((t) => d.startsWith(t.to)),
+    );
+  const nhomHienTai = nhomCua(location.pathname);
+  const duongDanChon =
+    (nhomHienTai &&
+      (nhomHienTai === 'nhan-su'
+        ? nhanSu
+        : nhomHienTai === 'bao-cao'
+          ? baoCao
+          : heThong)) ??
+    (location.pathname.startsWith('/kpi/scorecards') ? '/kpi/assign' : null) ??
+    mucKpi
+      .map((m) => m.key)
+      .filter((k) => k !== '/' && location.pathname.startsWith(k))
+      .sort((a, b) => b.length - a.length)[0] ??
+    (location.pathname === '/' ? '/' : '');
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Layout.Header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-          background: '#fff',
-          borderBottom: '1px solid #f0f0f0',
-          paddingInline: 16,
-        }}
+      <Layout.Sider
+        width={232}
+        theme="light"
+        breakpoint="lg"
+        collapsedWidth={0}
       >
-        <Link to="/" style={{ color: 'inherit' }}>
-          <Typography.Text strong style={{ fontSize: 16, whiteSpace: 'nowrap' }}>
-            Quản lý KPI — HMICO
-          </Typography.Text>
-        </Link>
+        <div className="sidebar">
+          <Link to="/" className="sidebar-thuong-hieu">
+            <span className="sidebar-logo">H</span>
+            <span>
+              <strong>HMICO KPI</strong>
+              <small>Quản lý hiệu suất</small>
+            </span>
+          </Link>
 
-        <Space size="middle" align="center">
-          <Space direction="vertical" size={0} style={{ lineHeight: 1.3 }}>
-            {/* Tên, phòng ban lấy từ GET /auth/me — không từ cây phòng ban,
-                vì STAFF nhận cây rỗng. */}
-            <Typography.Text strong>{user?.fullName}</Typography.Text>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {moTaViTri(user)}
-            </Typography.Text>
-          </Space>
-          {user && <Tag color="blue">{ROLE_LABELS[user.role]}</Tag>}
-          <Button icon={<LogoutOutlined />} onClick={onLogout} loading={dangThoat}>
-            Đăng xuất
-          </Button>
-        </Space>
-      </Layout.Header>
+          <Menu
+            mode="inline"
+            selectedKeys={[duongDanChon]}
+            items={mucMenu}
+            style={{ flex: 1, background: 'transparent', borderInlineEnd: 0 }}
+          />
+
+          {/* Ba mốc của kỳ tháng chứa hôm nay — mọi vai đều đọc được /periods */}
+          {kyHienTai && giaiDoan && (
+            <div className="sidebar-ky">
+              <span className="eyebrow">Chu kỳ đang chạy</span>
+              <strong>{kyHienTai.name}</strong>
+              <span>
+                {giaiDoan.so === 4
+                  ? giaiDoan.ten
+                  : `GĐ ${giaiDoan.so} · ${giaiDoan.ten}${giaiDoan.conNgay !== null ? ` · còn ${giaiDoan.conNgay} ngày` : ''}`}
+              </span>
+              <small>
+                Mốc {ngayTrongThang(kyHienTai.selfScoreDeadline)} ·{' '}
+                {ngayTrongThang(kyHienTai.managerScoreDeadline)} ·{' '}
+                {ngayTrongThang(kyHienTai.submitDeadline)} hằng tháng
+              </small>
+            </div>
+          )}
+        </div>
+      </Layout.Sider>
 
       <Layout>
-        {mucMenu.length > 0 && (
-          <Layout.Sider width={220} theme="light" breakpoint="lg" collapsedWidth={0}>
-            <Menu
-              mode="inline"
-              selectedKeys={[location.pathname]}
-              items={mucMenu}
-              style={{ height: '100%', borderInlineEnd: 0 }}
-            />
-          </Layout.Sider>
-        )}
-        <Layout.Content style={{ padding: 16, overflow: 'auto' }}>
+        <Layout.Header className="thanh-tren">
+          <div className="thanh-tren-trai">
+            <span className="breadcrumb">
+              <Link to="/">Trang chủ</Link>
+              {tenTrang && (
+                <>
+                  <span className="breadcrumb-cach">/</span>
+                  <span className="breadcrumb-hien-tai">{tenTrang}</span>
+                </>
+              )}
+            </span>
+            {kyHienTai && giaiDoan && (
+              <Link to="/kpi/periods" className="chip-ky">
+                <CalendarOutlined />
+                <span>Kỳ {kyHienTai.name.toLowerCase()}</span>
+                <span className="chip-ky-cach">·</span>
+                <span className="chip-ky-giai-doan">
+                  {giaiDoan.so === 4
+                    ? giaiDoan.ten
+                    : `Giai đoạn ${giaiDoan.so}: ${giaiDoan.ten}`}
+                </span>
+              </Link>
+            )}
+          </div>
+
+          <div className="thanh-tren-nguoi-dung">
+            {/* Chuông = số việc đang chờ; bấm mở danh sách, không có "đã đọc" */}
+            <Popover
+              trigger="click"
+              placement="bottomRight"
+              title="Việc đang chờ bạn"
+              content={
+                viec.length === 0 ? (
+                  <Typography.Text type="secondary">
+                    Không có việc nào
+                  </Typography.Text>
+                ) : (
+                  <div className="chuong-danh-sach">
+                    {viec.map((v) => (
+                      <Link key={v.type} to={v.link} className="chuong-dong">
+                        <span>{v.message}</span>
+                        {v.isOverdue ? (
+                          <Tag color="error">Quá hạn</Tag>
+                        ) : v.daysUntilDeadline !== null ? (
+                          <Tag
+                            color={
+                              v.daysUntilDeadline <= 5 ? 'gold' : 'default'
+                            }
+                          >
+                            Còn {v.daysUntilDeadline} ngày
+                          </Tag>
+                        ) : null}
+                        <ArrowRightOutlined />
+                      </Link>
+                    ))}
+                  </div>
+                )
+              }
+            >
+              <Badge count={tongViec} size="small" offset={[-2, 4]}>
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<BellOutlined style={{ fontSize: 18 }} />}
+                  aria-label="Việc đang chờ"
+                />
+              </Badge>
+            </Popover>
+            {/* Tên, chức danh, phòng ban lấy từ GET /auth/me — không từ cây
+                phòng ban, vì STAFF nhận cây rỗng. */}
+            {user && (
+              <Avatar
+                size={38}
+                style={{
+                  background: '#dbe6ff',
+                  color: mauChuDao,
+                  fontWeight: 700,
+                }}
+              >
+                {chuVietTat(user.fullName)}
+              </Avatar>
+            )}
+            <span className="thanh-tren-ten">
+              <Typography.Text strong>{user?.fullName}</Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {moTaViTri(user)}
+              </Typography.Text>
+            </span>
+            <Button
+              icon={<LogoutOutlined />}
+              onClick={onLogout}
+              loading={dangThoat}
+              shape="round"
+              style={{ fontWeight: 600 }}
+            >
+              Đăng xuất
+            </Button>
+          </div>
+        </Layout.Header>
+
+        <Layout.Content style={{ padding: '20px 32px 32px', overflow: 'auto' }}>
           <Outlet />
         </Layout.Content>
       </Layout>

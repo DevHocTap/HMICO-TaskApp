@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { BaoCaoTienDo, SoLieuDashboard } from '../types/report';
+import type { BaoCaoTienDo, DiemXuHuong, SoLieuDashboard, TomTatTrangChu } from '../types/report';
 
 export async function layTienDoNop(periodId: string): Promise<BaoCaoTienDo> {
   const { data } = await apiClient.get<BaoCaoTienDo>('/reports/submission-progress', {
@@ -59,6 +59,20 @@ export async function docLoiBlob(e: unknown): Promise<string | null> {
 export async function laySoLieuDashboard(periodId: string): Promise<SoLieuDashboard> {
   const { data } = await apiClient.get<SoLieuDashboard>('/reports/dashboard', {
     params: { periodId },
+  });
+  return data;
+}
+
+/** Bộ số cho các thẻ trên trang chủ — backend chọn theo vai của người gọi. */
+export async function layTomTatTrangChu(): Promise<TomTatTrangChu> {
+  const { data } = await apiClient.get<TomTatTrangChu>('/reports/home-summary');
+  return data;
+}
+
+/** Xu hướng `months` kỳ tháng gần nhất, tính lùi từ `periodId` (cũ → mới). */
+export async function layXuHuong(periodId: string, months = 6): Promise<DiemXuHuong[]> {
+  const { data } = await apiClient.get<DiemXuHuong[]>('/reports/trend', {
+    params: { periodId, months },
   });
   return data;
 }

@@ -85,3 +85,83 @@ export interface SoLieuDashboard {
   phanBoXepLoai: Record<XepLoaiKpi, number>;
   diemTrungBinhTheoPhong: DiemTrungBinhPhong[];
 }
+
+// ------------------------------------------------- tóm tắt trang chủ
+// Khớp `TomTatTrangChu` ở backend (reports/home-summary.service.ts).
+// Một object theo vai của người gọi; kỳ luôn là kỳ THÁNG chứa hôm nay.
+
+interface KyTomTat {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface TomTatAdmin {
+  role: 'ADMIN';
+  period: KyTomTat | null;
+  taiKhoanHoatDong: number;
+  tongTaiKhoan: number;
+  chuaDoiMatKhau: number;
+  soPhongBan: number;
+  phongThieuTruong: string[];
+  mauDaXuatBan: number;
+  tongMau: number;
+  thaoTac24h: number;
+}
+
+export interface TomTatExecutive {
+  role: 'EXECUTIVE';
+  period: KyTomTat | null;
+  soPhieuTrongKy: number;
+  soPhieuDaChot: number;
+  diemTrungBinh: string | null;
+  soNguoiDat: number;
+  soNguoiCanCaiThien: number;
+  phongCanChuY: { departmentName: string; diemTrungBinh: string }[];
+}
+
+export interface TomTatHr {
+  role: 'HR';
+  period: KyTomTat | null;
+  soNhanSu: number;
+  soPhieuTrongKy: number;
+  soPhieuDaChot: number;
+  daTiepNhan: number;
+  phongDaNopDu: number;
+  tongPhongCoNhanSu: number;
+  phongConThieu: string[];
+}
+
+export interface TomTatManager {
+  role: 'MANAGER';
+  period: KyTomTat | null;
+  soNhanSu: number;
+  soPhieuTrongKy: number;
+  daTuCham: number;
+  daChot: number;
+  diemTrungBinh: string | null;
+}
+
+export interface TomTatStaff {
+  role: 'STAFF';
+  period: KyTomTat | null;
+  thangTruoc: { periodName: string; diem: string | null; grade: XepLoaiKpi | null } | null;
+  trungBinhGanDay: { diem: string; soPhieu: number; periodNames: string[] } | null;
+  tuCham: { chua: number; tong: number; scorecardId: string } | null;
+}
+
+export type TomTatTrangChu =
+  | TomTatAdmin
+  | TomTatExecutive
+  | TomTatHr
+  | TomTatManager
+  | TomTatStaff;
+
+/** Một điểm trên đường xu hướng — `GET /reports/trend`. */
+export interface DiemXuHuong {
+  period: { id: string; code: string; name: string };
+  soPhieuTrongKy: number;
+  soPhieuDaChot: number;
+  /** Chuỗi hai chữ số thập phân; `null` khi kỳ chưa có phiếu chốt. */
+  diemTrungBinh: string | null;
+}

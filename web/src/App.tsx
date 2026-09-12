@@ -19,11 +19,13 @@ import { UsersPage } from './pages/admin/UsersPage';
 import { KpiTemplatesPage } from './pages/admin/KpiTemplatesPage';
 import { KpiTemplateEditorPage } from './pages/admin/KpiTemplateEditorPage';
 import { AuditLogsPage } from './pages/admin/AuditLogsPage';
+import { SettingsPage } from './pages/admin/SettingsPage';
 import {
   coTheChotSo,
   coTheGiaoKpi,
   coTheXemBaoCao,
   coTheXemNhanVien,
+  coTheXemCaiDat,
   coTheXemNhatKy,
   coTheXemToChuc,
 } from './auth/permissions';
@@ -71,6 +73,11 @@ export function App() {
           {/* Nhật ký thao tác — chỉ quản trị và ban giám đốc. */}
           <Route element={<RoleRoute duocPhep={coTheXemNhatKy} />}>
             <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
+          </Route>
+
+          {/* Cài đặt hệ thống — quản trị, HCNS, ban giám đốc xem; ADMIN/HR sửa. */}
+          <Route element={<RoleRoute duocPhep={coTheXemCaiDat} />}>
+            <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
 
           <Route element={<RoleRoute duocPhep={coTheXemToChuc} />}>

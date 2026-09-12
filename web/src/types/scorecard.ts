@@ -52,6 +52,13 @@ export type ResultStatus =
   | 'RECEIVED'
   | 'REJECTED';
 
+/**
+ * Nhãn trạng thái giao KPI theo góc nhìn CHỦ PHIẾU — dùng ở "Phiếu KPI của
+ * tôi". Người giao KPI xem thì dùng `NHAN_TRANG_THAI_GIAO_NGUOI_GIAO`: cùng
+ * một trạng thái, "chờ bạn ký nhận" với nhân viên là "chờ nhân viên ký nhận"
+ * với trưởng phòng — đem nhãn này sang màn Giao KPI từng làm trưởng phòng
+ * tưởng mình phải ký (12/09/2026).
+ */
 export const NHAN_TRANG_THAI_GIAO: Record<AssignStatus, string> = {
   DRAFT: 'Đang soạn',
   PROPOSED: 'Chờ bạn ký nhận',
@@ -59,12 +66,26 @@ export const NHAN_TRANG_THAI_GIAO: Record<AssignStatus, string> = {
   DISPUTED: 'Bạn đã nêu ý kiến',
 };
 
+/** Cùng trạng thái, góc nhìn người GIAO KPI (trưởng phòng, ban giám đốc). */
+export const NHAN_TRANG_THAI_GIAO_NGUOI_GIAO: Record<AssignStatus, string> = {
+  DRAFT: 'Đang soạn',
+  PROPOSED: 'Chờ nhân viên ký nhận',
+  ACCEPTED: 'Đã ký nhận',
+  DISPUTED: 'Nhân viên nêu ý kiến',
+};
+
 /** Màu Tag của Ant Design cho từng trạng thái. */
+/**
+ * Màu theo NGHĨA, không theo bước: xám = chưa làm gì, vàng = đang chờ một
+ * người, xanh lá = xong, đỏ = có vấn đề cần xử lý. Trước đây "chờ" dùng
+ * `processing` (= màu chủ đạo) nên cả bảng một màu, không nhìn ra dòng nào
+ * đang kẹt (12/09/2026).
+ */
 export const MAU_TRANG_THAI_GIAO: Record<AssignStatus, string> = {
   DRAFT: 'default',
-  PROPOSED: 'processing',
+  PROPOSED: 'gold',
   ACCEPTED: 'success',
-  DISPUTED: 'warning',
+  DISPUTED: 'error',
 };
 
 export interface KyDanhGiaGon {
@@ -82,6 +103,8 @@ export interface KyDanhGiaGon {
  */
 export interface KyDanhGiaTrenPhieu extends KyDanhGiaGon {
   isLocked: boolean;
+  /** Hạn lên KPI (ngày 25 tháng trước) — chỉ endpoint chi tiết trả. */
+  assignDeadline: string | null;
 }
 
 export interface PhieuKpi {
@@ -98,6 +121,44 @@ export interface PhieuKpi {
   disputeReason: string | null;
 }
 
+/** Một dòng của `GET /scorecards` — danh sách phiếu trong phạm vi. */
+export interface PhieuTomTat {
+  id: string;
+  ownerUserId: string | null;
+  ownerName: string | null;
+  employeeCode: string | null;
+  periodId: string;
+  periodCode: string;
+  departmentId: string;
+  departmentName: string;
+  jobTitleName: string;
+  evaluatorId: string | null;
+  evaluatorName: string | null;
+  assignStatus: AssignStatus;
+  resultStatus: ResultStatus;
+  proposedAt: string | null;
+  acceptedAt: string | null;
+  /** Điểm ĐÃ CHỐT hai cột (chuỗi Decimal); `null` khi chưa nộp / chưa chốt. */
+  selfTotalScore: string | null;
+  managerTotalScore: string | null;
+  grade: XepLoai | null;
+  selfScoredAt: string | null;
+  managerScoredAt: string | null;
+  totalWeight: string;
+  itemCount: number;
+}
+
+export interface ThamSoDanhSachPhieu {
+  periodId?: string;
+  departmentId?: string;
+  ownerUserId?: string;
+  evaluatorId?: string;
+  assignStatus?: AssignStatus;
+  resultStatus?: ResultStatus;
+  page?: number;
+  limit?: number;
+}
+
 export interface DongPhieuKpi {
   id: string;
   parentId: string | null;
@@ -110,6 +171,21 @@ export interface DongPhieuKpi {
   weight: string;
   maxScale: number;
 }
+
+/** Nhãn hiển thị của `SuKienPhieu.action` — thao tác chưa có nhãn thì in mã. */
+export const NHAN_HANH_DONG: Record<string, string> = {
+  CREATE: 'Lập phiếu',
+  UPDATE_ITEMS: 'Sửa nội dung',
+  PROPOSE: 'Gửi đi ký nhận',
+  RE_PROPOSED_UNCHANGED: 'Gửi lại nguyên trạng',
+  ACCEPT: 'Ký nhận',
+  DISPUTE: 'Nêu ý kiến',
+  SELF_SCORE: 'Tự chấm',
+  MANAGER_SCORE: 'Trưởng phòng chấm',
+  REJECT: 'Trả lại',
+  RECEIVE: 'HCNS tiếp nhận',
+  REOPEN: 'Mở lại',
+};
 
 export interface SuKienPhieu {
   id: string;
@@ -214,9 +290,9 @@ export const NHAN_TRANG_THAI_CHAM: Record<ResultStatus, string> = {
 
 export const MAU_TRANG_THAI_CHAM: Record<ResultStatus, string> = {
   PENDING: 'default',
-  SELF_SCORED: 'processing',
+  SELF_SCORED: 'gold',
   MANAGER_SCORED: 'success',
-  REJECTED: 'warning',
+  REJECTED: 'error',
   RECEIVED: 'green',
 };
 

@@ -98,3 +98,22 @@ export function coTheXemBaoCao(role: Role | undefined): boolean {
     role === 'ADMIN' || role === 'HR' || role === 'EXECUTIVE' || role === 'MANAGER'
   );
 }
+
+/** Xem màn Cài đặt hệ thống: quản trị, HCNS, ban giám đốc. */
+export function coTheXemCaiDat(role: Role | undefined): boolean {
+  return role === 'ADMIN' || role === 'HR' || role === 'EXECUTIVE';
+}
+
+/** Sửa cài đặt — chốt 11/09/2026: quản trị và HCNS. Backend chặn độc lập. */
+export function coTheSuaCaiDat(role: Role | undefined): boolean {
+  return role === 'ADMIN' || role === 'HR';
+}
+
+/**
+ * Soạn mẫu KPI — chốt 12/09/2026: TRƯỞNG BỘ PHẬN (cho chức danh phòng mình)
+ * và ADMIN. HCNS và ban giám đốc chỉ xem: mẫu là yêu cầu chuyên môn của
+ * từng phòng, HCNS không nắm được. Backend chặn phạm vi độc lập.
+ */
+export function coTheGhiMau(role: Role | undefined): boolean {
+  return role === 'ADMIN' || role === 'MANAGER';
+}
