@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { Alert, App, Button, Card, Form, Input, Progress, Typography } from 'antd';
+import { Alert, App, Button, Form, Input, Tag, Typography } from 'antd';
+import { CheckCircleFilled, MinusCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '../auth/useAuth';
 import { doiMatKhau } from '../api/auth';
 import { layThongBaoLoi } from '../api/client';
 import { danhGiaMatKhau } from '../auth/password-strength';
+import { mauChuDao } from '../config/theme';
 
+/** Phải khớp MIN_PASSWORD_LENGTH ở backend (change-password.dto.ts). */
 const MIN_LENGTH = 8;
 
 interface ChangePasswordForm {
@@ -20,8 +23,20 @@ export function ChangePasswordPage() {
   const [dangGui, setDangGui] = useState(false);
   const [loi, setLoi] = useState<string | null>(null);
 
+  const lanDau = user?.mustChangePassword === true;
+  const matKhauHienTai = Form.useWatch('currentPassword', form) ?? '';
   const matKhauMoi = Form.useWatch('newPassword', form) ?? '';
   const doManh = danhGiaMatKhau(matKhauMoi);
+
+  // Chỉ liệt kê những gì backend THẬT SỰ kiểm — hiện thêm quy tắc hệ thống
+  // không ép là hứa suông với người dùng.
+  const quyTac = [
+    { text: `Ít nhất ${MIN_LENGTH} ký tự`, dat: matKhauMoi.length >= MIN_LENGTH },
+    {
+      text: lanDau ? 'Không trùng mật khẩu tạm' : 'Khác mật khẩu hiện tại',
+      dat: matKhauMoi.length > 0 && matKhauMoi !== matKhauHienTai,
+    },
+  ];
 
   async function onFinish(values: ChangePasswordForm) {
     setDangGui(true);
@@ -41,32 +56,21 @@ export function ChangePasswordPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'grid',
-        placeItems: 'center',
-        background: '#f0f2f5',
-        padding: 16,
-      }}
-    >
-      <Card style={{ width: '100%', maxWidth: 440 }}>
-        <Typography.Title level={4}>Đổi mật khẩu</Typography.Title>
-        <Alert
-          type={user?.mustChangePassword ? 'warning' : 'info'}
-          showIcon
-          style={{ marginBottom: 16 }}
-          message={
-            user?.mustChangePassword
-              ? 'Bắt buộc đổi mật khẩu'
-              : 'Đổi mật khẩu'
-          }
-          description={
-            user?.mustChangePassword
-              ? 'Đây là lần đăng nhập đầu tiên. Bạn cần đặt mật khẩu mới trước khi sử dụng hệ thống.'
-              : 'Sau khi đổi, bạn sẽ phải đăng nhập lại trên mọi thiết bị.'
-          }
-        />
+    <div className="doi-mk-trang">
+      <div className="doi-mk-the">
+        {lanDau && (
+          <Tag color="processing" style={{ borderRadius: 999, marginBottom: 16 }}>
+            Đăng nhập lần đầu
+          </Tag>
+        )}
+        <Typography.Title level={2} style={{ fontFamily: 'inherit', marginTop: 0 }}>
+          {lanDau ? 'Đặt mật khẩu mới' : 'Đổi mật khẩu'}
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" style={{ fontSize: 16, marginBottom: 28 }}>
+          {lanDau
+            ? 'Mật khẩu tạm do hành chính cấp chỉ dùng được một lần. Đặt mật khẩu riêng để tiếp tục.'
+            : 'Sau khi đổi, bạn sẽ phải đăng nhập lại trên mọi thiết bị.'}
+        </Typography.Paragraph>
 
         {loi && (
           <Alert type="error" message={loi} showIcon style={{ marginBottom: 16 }} />
@@ -77,13 +81,19 @@ export function ChangePasswordPage() {
           layout="vertical"
           onFinish={onFinish}
           disabled={dangGui}
+          requiredMark={false}
         >
           <Form.Item
             name="currentPassword"
-            label="Mật khẩu hiện tại"
+            label={lanDau ? 'Mật khẩu tạm' : 'Mật khẩu hiện tại'}
             rules={[{ required: true, message: 'Vui lòng nhập mật khẩu hiện tại' }]}
           >
-            <Input.Password autoComplete="current-password" autoFocus size="large" />
+            <Input.Password
+              variant="filled"
+              autoComplete="current-password"
+              autoFocus
+              size="large"
+            />
           </Form.Item>
 
           <Form.Item
@@ -107,19 +117,22 @@ export function ChangePasswordPage() {
               }),
             ]}
           >
-            <Input.Password autoComplete="new-password" size="large" />
+            <Input.Password variant="filled" autoComplete="new-password" size="large" />
           </Form.Item>
 
+          {/* Thanh độ mạnh bốn đoạn — điểm 0–4 của danhGiaMatKhau */}
           {matKhauMoi.length > 0 && (
-            <div style={{ marginTop: -16, marginBottom: 16 }}>
-              <Progress
-                percent={((doManh.score + 1) / 5) * 100}
-                strokeColor={doManh.color}
-                showInfo={false}
-                size="small"
-              />
-              <Typography.Text style={{ color: doManh.color, fontSize: 12 }}>
-                Độ mạnh: {doManh.label}
+            <div style={{ marginTop: -12, marginBottom: 20 }}>
+              <div className="doi-mk-do-manh">
+                {[1, 2, 3, 4].map((muc) => (
+                  <span
+                    key={muc}
+                    style={{ background: muc <= doManh.score ? doManh.color : undefined }}
+                  />
+                ))}
+              </div>
+              <Typography.Text strong style={{ color: doManh.color, fontSize: 13 }}>
+                {doManh.label}
               </Typography.Text>
             </div>
           )}
@@ -140,14 +153,30 @@ export function ChangePasswordPage() {
               }),
             ]}
           >
-            <Input.Password autoComplete="new-password" size="large" />
+            <Input.Password variant="filled" autoComplete="new-password" size="large" />
           </Form.Item>
 
-          <Button type="primary" htmlType="submit" loading={dangGui} block size="large">
-            Đổi mật khẩu
+          <ul className="doi-mk-quy-tac">
+            {quyTac.map((q) => (
+              <li key={q.text} style={{ color: q.dat ? mauChuDao : undefined }}>
+                {q.dat ? <CheckCircleFilled /> : <MinusCircleOutlined />}
+                {q.text}
+              </li>
+            ))}
+          </ul>
+
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={dangGui}
+            block
+            size="large"
+            style={{ fontWeight: 700, borderRadius: 999 }}
+          >
+            {lanDau ? 'Đổi mật khẩu và vào hệ thống' : 'Đổi mật khẩu'}
           </Button>
         </Form>
-      </Card>
+      </div>
     </div>
   );
 }
