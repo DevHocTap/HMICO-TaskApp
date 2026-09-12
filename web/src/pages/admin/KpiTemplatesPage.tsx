@@ -3,19 +3,19 @@ import {
   Alert,
   App,
   Button,
+  Dropdown,
+  Empty,
   Form,
   Input,
   Modal,
   Select,
-  Space,
-  Table,
+  Spin,
   Tag,
-  Tooltip,
   Typography,
 } from 'antd';
 import {
   CopyOutlined,
-  EditOutlined,
+  MoreOutlined,
   PlusOutlined,
   StopOutlined,
 } from '@ant-design/icons';
@@ -23,6 +23,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   layDanhSachMau,
+  layMau,
   saoChepMau,
   taoMau,
   voHieuHoaMau,
@@ -30,9 +31,17 @@ import {
 import { layChucDanh } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
-import { coTheGhiToChuc } from '../../auth/permissions';
+import { coTheGhiMau } from '../../auth/permissions';
 import { ReadOnlyNotice } from '../../components/ReadOnlyNotice';
-import type { KpiTemplate, TemplateStatus } from '../../types/kpi-template';
+import { TieuDeTrang } from '../../components/TieuDeTrang';
+import { TemplatePreviewModal } from '../../components/TemplatePreviewModal';
+import { sangDanhSachPhang } from '../../utils/template';
+import { mauChuDao, mauNhan } from '../../config/theme';
+import type {
+  KpiTemplate,
+  KpiTemplateDetail,
+  TemplateStatus,
+} from '../../types/kpi-template';
 
 interface FormValues {
   code: string;
@@ -45,18 +54,28 @@ export function KpiTemplatesPage() {
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
   const { user } = useAuth();
-  const coQuyenGhi = coTheGhiToChuc(user?.role);
+  const coQuyenGhi = coTheGhiMau(user?.role);
+  const laTruongPhong = user?.role === 'MANAGER';
   const [form] = Form.useForm<FormValues>();
 
   const [locChucDanh, setLocChucDanh] = useState<string | undefined>();
-  const [locTrangThai, setLocTrangThai] = useState<TemplateStatus | undefined>();
+  const [locTrangThai, setLocTrangThai] = useState<
+    TemplateStatus | undefined
+  >();
   const [modalMo, setModalMo] = useState(false);
   /** Null = tạo mới; có giá trị = đang sao chép từ mẫu đó. */
   const [dangSaoChep, setDangSaoChep] = useState<KpiTemplate | null>(null);
   const [loiForm, setLoiForm] = useState<string | null>(null);
+  /** Mẫu đang xem trước — tải chi tiết khi bấm, không tải sẵn cả danh sách. */
+  const [xemTruoc, setXemTruoc] = useState<KpiTemplateDetail | null>(null);
+  const [dangTaiXemTruoc, setDangTaiXemTruoc] = useState<string | null>(null);
 
   const { data: danhSach = [], isLoading } = useQuery({
-    queryKey: ['kpi-templates', locChucDanh ?? 'tat-ca', locTrangThai ?? 'tat-ca'],
+    queryKey: [
+      'kpi-templates',
+      locChucDanh ?? 'tat-ca',
+      locTrangThai ?? 'tat-ca',
+    ],
     queryFn: () =>
       layDanhSachMau({ jobTitleId: locChucDanh, status: locTrangThai }),
   });
@@ -72,9 +91,7 @@ export function KpiTemplatesPage() {
 
   const luu = useMutation({
     mutationFn: (values: FormValues) =>
-      dangSaoChep
-        ? saoChepMau(dangSaoChep.id, values)
-        : taoMau(values),
+      dangSaoChep ? saoChepMau(dangSaoChep.id, values) : taoMau(values),
     onSuccess: (mau) => {
       message.success(dangSaoChep ? 'Đã sao chép mẫu' : 'Đã tạo mẫu');
       setModalMo(false);
@@ -92,6 +109,17 @@ export function KpiTemplatesPage() {
     },
     onError: (e) => message.error(layThongBaoLoi(e)),
   });
+
+  async function moXemTruoc(mau: KpiTemplate) {
+    setDangTaiXemTruoc(mau.id);
+    try {
+      setXemTruoc(await layMau(mau.id));
+    } catch (e) {
+      message.error(layThongBaoLoi(e));
+    } finally {
+      setDangTaiXemTruoc(null);
+    }
+  }
 
   function moTaoMoi() {
     setDangSaoChep(null);
@@ -125,134 +153,187 @@ export function KpiTemplatesPage() {
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space style={{ justifyContent: 'space-between', width: '100%' }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Mẫu KPI
-        </Typography.Title>
-        <Space wrap>
-          <Select
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            style={{ minWidth: 220 }}
-            placeholder="Lọc theo chức danh"
-            value={locChucDanh}
-            onChange={setLocChucDanh}
-            options={chucDanh.map((t) => ({ value: t.id, label: t.name }))}
-          />
-          <Select
-            allowClear
-            style={{ minWidth: 160 }}
-            placeholder="Trạng thái"
-            value={locTrangThai}
-            onChange={setLocTrangThai}
-            options={[
-              { value: 'DRAFT', label: 'Bản nháp' },
-              { value: 'PUBLISHED', label: 'Đã xuất bản' },
-            ]}
-          />
-          {coQuyenGhi && (
-            <Button icon={<PlusOutlined />} type="primary" onClick={moTaoMoi}>
-              Tạo mẫu mới
-            </Button>
-          )}
-        </Space>
-      </Space>
-
-      {!coQuyenGhi && <ReadOnlyNotice role={user?.role} />}
-
-      <Table<KpiTemplate>
-        rowKey="id"
-        loading={isLoading}
-        dataSource={danhSach}
-        pagination={false}
-        scroll={{ x: 'max-content' }}
-        columns={[
-          { title: 'Mã', dataIndex: 'code', width: 150 },
-          {
-            title: 'Tên mẫu',
-            dataIndex: 'name',
-            render: (ten: string, row) => (
-              <Space size={6}>
-                <a onClick={() => navigate(`/admin/kpi-templates/${row.id}/edit`)}>
-                  {ten}
-                </a>
-                {row.isSystem && (
-                  <Tooltip title="Mục 2 — áp dụng chung cho mọi chức danh, chỉ quản trị viên sửa được">
-                    <Tag color="purple">Mẫu hệ thống</Tag>
-                  </Tooltip>
-                )}
-              </Space>
-            ),
-          },
-          {
-            title: 'Chức danh',
-            dataIndex: 'jobTitleName',
-            render: (v: string | null) =>
-              v ?? <Typography.Text type="secondary">Dùng chung</Typography.Text>,
-          },
-          {
-            title: 'Số tiêu chí',
-            dataIndex: 'criteriaCount',
-            width: 110,
-            align: 'right',
-          },
-          {
-            title: 'Trạng thái',
-            dataIndex: 'status',
-            width: 140,
-            render: (tt: TemplateStatus) =>
-              tt === 'PUBLISHED' ? (
-                <Tag color="green">Đã xuất bản</Tag>
-              ) : (
-                <Tag color="orange">Bản nháp</Tag>
-              ),
-          },
-          { title: 'Phiên bản', dataIndex: 'version', width: 100, align: 'center' },
-          {
-            title: '',
-            key: 'thao-tac',
-            width: 200,
-            render: (_, row) => (
-              <Space>
-                <Tooltip title={row.isSystem && coQuyenGhi ? 'Chỉ xem' : 'Sửa'}>
-                  <Button
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => navigate(`/admin/kpi-templates/${row.id}/edit`)}
-                  />
-                </Tooltip>
-                {coQuyenGhi && (
-                  <>
-                    <Tooltip title="Sao chép">
-                      <Button
-                        size="small"
-                        icon={<CopyOutlined />}
-                        onClick={() => moSaoChep(row)}
-                      />
-                    </Tooltip>
-                    {!row.isSystem && (
-                      <Tooltip title="Vô hiệu hoá">
-                        <Button
-                          size="small"
-                          danger
-                          icon={<StopOutlined />}
-                          onClick={() => xacNhanVoHieuHoa(row)}
-                        />
-                      </Tooltip>
-                    )}
-                  </>
-                )}
-              </Space>
-            ),
-          },
-        ]}
+    <div>
+      <TieuDeTrang
+        tieuDe="Mẫu KPI"
+        moTa="Trưởng bộ phận soạn mẫu cho chức danh của phòng mình; hành chính và ban giám đốc xem. Mẫu chức danh phải đủ 70% mục BSC mới xuất bản được."
+        phai={
+          <>
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              className="chon-tron"
+              size="large"
+              style={{ minWidth: 220 }}
+              placeholder="Lọc theo chức danh"
+              value={locChucDanh}
+              onChange={setLocChucDanh}
+              options={chucDanh.map((t) => ({ value: t.id, label: t.name }))}
+            />
+            <Select
+              allowClear
+              className="chon-tron"
+              size="large"
+              style={{ minWidth: 160 }}
+              placeholder="Trạng thái"
+              value={locTrangThai}
+              onChange={setLocTrangThai}
+              options={[
+                { value: 'DRAFT', label: 'Bản nháp' },
+                { value: 'PUBLISHED', label: 'Đã xuất bản' },
+              ]}
+            />
+            {coQuyenGhi && (
+              <Button
+                icon={<PlusOutlined />}
+                type="primary"
+                shape="round"
+                size="large"
+                onClick={moTaoMoi}
+              >
+                Tạo mẫu mới
+              </Button>
+            )}
+          </>
+        }
       />
+
+      {!coQuyenGhi && (
+        <ReadOnlyNotice
+          role={user?.role}
+          aiSua="trưởng bộ phận (cho chức danh phòng mình) hoặc quản trị viên"
+        />
+      )}
+
+      {isLoading ? (
+        <Spin />
+      ) : danhSach.length === 0 ? (
+        <Empty description="Chưa có mẫu nào" />
+      ) : (
+        <div className="mau-kpi-luoi">
+          {danhSach.map((mau) => {
+            const tong = Number(mau.weightTotal);
+            const du = tong >= mau.weightRequired;
+            const mau_ = du ? mauChuDao : mauNhan;
+            // Mẫu hệ thống chỉ ADMIN sửa; người khác chỉ xem (màn soạn tự khoá)
+            const nhanSua =
+              mau.isSystem && user?.role !== 'ADMIN' ? 'Xem' : 'Sửa';
+            return (
+              <div key={mau.id} className="mau-kpi-the">
+                <div className="mau-kpi-dau">
+                  <span className="eyebrow">{mau.code}</span>
+                  {mau.status === 'PUBLISHED' ? (
+                    <Tag color="success" className="tag-tron">
+                      Đã xuất bản
+                    </Tag>
+                  ) : (
+                    <Tag className="tag-tron">Bản nháp</Tag>
+                  )}
+                </div>
+                <Typography.Title level={4} style={{ margin: '10px 0 4px' }}>
+                  {mau.name}
+                  {mau.isSystem && (
+                    <Typography.Text
+                      type="secondary"
+                      style={{ fontSize: 14, fontWeight: 400 }}
+                    >
+                      {' '}
+                      (mẫu hệ thống)
+                    </Typography.Text>
+                  )}
+                </Typography.Title>
+                <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                  {mau.isSystem
+                    ? `${mau.criteriaCount} tiêu chí · áp cho mọi chức danh`
+                    : `${mau.criteriaCount} tiêu chí · ${mau.subCriteriaCount} KPI con · ${mau.jobTitleName ?? 'dùng chung'}`}
+                  {' · '}phiên bản {mau.version}
+                </Typography.Text>
+                <div className="the-so-lieu-thanh" style={{ marginTop: 14 }}>
+                  <span
+                    style={{
+                      width: `${Math.min((tong / mau.weightRequired) * 100, 100)}%`,
+                      background: mau_,
+                    }}
+                  />
+                </div>
+                <div className="mau-kpi-chan">
+                  <Typography.Text strong style={{ color: mau_ }}>
+                    {Number.isInteger(tong) ? tong : mau.weightTotal}/
+                    {mau.weightRequired} trọng số
+                  </Typography.Text>
+                  <span className="mau-kpi-nut">
+                    <Button
+                      type="link"
+                      style={{ padding: 0 }}
+                      loading={dangTaiXemTruoc === mau.id}
+                      onClick={() => void moXemTruoc(mau)}
+                    >
+                      Xem trước
+                    </Button>
+                    <Button
+                      shape="round"
+                      onClick={() =>
+                        navigate(`/admin/kpi-templates/${mau.id}/edit`)
+                      }
+                    >
+                      {nhanSua}
+                    </Button>
+                    {coQuyenGhi && (
+                      <Dropdown
+                        trigger={['click']}
+                        menu={{
+                          items: [
+                            {
+                              key: 'sao-chep',
+                              icon: <CopyOutlined />,
+                              label: 'Sao chép',
+                              onClick: () => moSaoChep(mau),
+                            },
+                            ...(mau.isSystem
+                              ? []
+                              : [
+                                  {
+                                    key: 'vo-hieu',
+                                    icon: <StopOutlined />,
+                                    label: 'Vô hiệu hoá',
+                                    danger: true,
+                                    onClick: () => xacNhanVoHieuHoa(mau),
+                                  },
+                                ]),
+                          ],
+                        }}
+                      >
+                        <Button
+                          type="text"
+                          icon={<MoreOutlined />}
+                          aria-label="Thao tác khác"
+                        />
+                      </Dropdown>
+                    )}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {xemTruoc && (
+        <TemplatePreviewModal
+          open
+          onClose={() => setXemTruoc(null)}
+          tenMau={xemTruoc.name}
+          chucDanh={xemTruoc.jobTitleName}
+          items={sangDanhSachPhang(xemTruoc.items)}
+        />
+      )}
 
       <Modal
         open={modalMo}
-        title={dangSaoChep ? `Sao chép "${dangSaoChep.name}"` : 'Tạo mẫu KPI mới'}
+        title={
+          dangSaoChep ? `Sao chép "${dangSaoChep.name}"` : 'Tạo mẫu KPI mới'
+        }
         onCancel={() => setModalMo(false)}
         onOk={() => form.submit()}
         confirmLoading={luu.isPending}
@@ -261,7 +342,12 @@ export function KpiTemplatesPage() {
         destroyOnHidden
       >
         {loiForm && (
-          <Alert type="error" message={loiForm} showIcon style={{ marginBottom: 16 }} />
+          <Alert
+            type="error"
+            message={loiForm}
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
         )}
         {dangSaoChep && (
           <Alert
@@ -300,20 +386,30 @@ export function KpiTemplatesPage() {
           <Form.Item
             name="jobTitleId"
             label="Chức danh áp dụng"
-            extra="Để trống nếu mẫu dùng chung cho nhiều chức danh"
+            extra={
+              laTruongPhong
+                ? 'Trưởng bộ phận soạn mẫu cho chức danh của phòng mình; mẫu dùng chung do quản trị viên soạn.'
+                : 'Để trống nếu mẫu dùng chung cho nhiều chức danh'
+            }
+            rules={
+              laTruongPhong
+                ? [{ required: true, message: 'Chọn chức danh của phòng bạn' }]
+                : []
+            }
           >
             <Select
-              allowClear
+              allowClear={!laTruongPhong}
               showSearch
               optionFilterProp="label"
               placeholder="Chọn chức danh"
               options={chucDanh
-                .filter((t) => t.isActive)
+                // Trưởng phòng: bỏ chức danh dùng chung (không gắn phòng) — backend từ chối
+                .filter((t) => t.isActive && (!laTruongPhong || t.departmentId))
                 .map((t) => ({ value: t.id, label: `${t.name} (${t.code})` }))}
             />
           </Form.Item>
         </Form>
       </Modal>
-    </Space>
+    </div>
   );
 }

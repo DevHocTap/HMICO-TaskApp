@@ -1,5 +1,17 @@
 import { useMemo, useState } from 'react';
-import { Alert, App, Button, Card, Empty, Select, Space, Table, Tag, Typography } from 'antd';
+import { ThanhTab } from '../../components/ThanhTab';
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Empty,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -20,7 +32,8 @@ import {
  * mắt phải quét từng ô mới thấy chỗ cần xử lý.
  */
 function so(giaTri: number, nhanManh = false) {
-  if (giaTri === 0) return <Typography.Text type="secondary">0</Typography.Text>;
+  if (giaTri === 0)
+    return <Typography.Text type="secondary">0</Typography.Text>;
   return nhanManh ? (
     <Typography.Text strong type="warning">
       {giaTri}
@@ -143,13 +156,22 @@ export function SubmissionProgressPage() {
       width: 95,
       align: 'right',
       render: (v: number) =>
-        v === 0 ? <Typography.Text type="secondary">0</Typography.Text> : <Tag color="success">{v}</Tag>,
+        v === 0 ? (
+          <Typography.Text type="secondary">0</Typography.Text>
+        ) : (
+          <Tag color="success">{v}</Tag>
+        ),
     },
   ];
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
+      <ThanhTab nhom="bao-cao" />
+      <Space
+        align="center"
+        wrap
+        style={{ justifyContent: 'space-between', width: '100%' }}
+      >
         <Typography.Title level={4} style={{ margin: 0 }}>
           Tiến độ nộp KPI
         </Typography.Title>

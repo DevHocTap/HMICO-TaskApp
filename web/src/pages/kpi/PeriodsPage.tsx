@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ThanhTab } from '../../components/ThanhTab';
 import {
   Alert,
   App,
@@ -144,7 +145,9 @@ export function PeriodsPage() {
       width: 130,
       render: (id: string | null, k) =>
         id ? (
-          <Typography.Text type="secondary">{k.createdByName ?? 'Người tạo'}</Typography.Text>
+          <Typography.Text type="secondary">
+            {k.createdByName ?? 'Người tạo'}
+          </Typography.Text>
         ) : (
           <Typography.Text type="secondary">Tự sinh</Typography.Text>
         ),
@@ -189,12 +192,20 @@ export function PeriodsPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
+      <ThanhTab nhom="he-thong" />
+      <Space
+        align="center"
+        style={{ justifyContent: 'space-between', width: '100%' }}
+      >
         <Typography.Title level={4} style={{ margin: 0 }}>
           Kỳ đánh giá
         </Typography.Title>
         {taoDuoc && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setMoTao(true)}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setMoTao(true)}
+          >
             Tạo kỳ thủ công
           </Button>
         )}
@@ -206,9 +217,9 @@ export function PeriodsPage() {
         message="Kỳ tháng được tạo tự động"
         description={
           <>
-            Hệ thống tự sinh kỳ của tháng này và tháng kế tiếp, kèm bốn mốc
-            25 / 25 / 29 / 30. <b>Không bù ngược quá khứ</b> — cần kỳ cũ thì tạo
-            thủ công. Chỉ kỳ THÁNG chốt sổ được: điểm quý là trung bình cộng ba
+            Hệ thống tự sinh kỳ của tháng này và tháng kế tiếp, kèm bốn mốc 25 /
+            25 / 29 / 30. <b>Không bù ngược quá khứ</b> — cần kỳ cũ thì tạo thủ
+            công. Chỉ kỳ THÁNG chốt sổ được: điểm quý là trung bình cộng ba
             tháng, và khoá kỳ cha không khoá kỳ con.
           </>
         }
@@ -248,7 +259,9 @@ export function PeriodsPage() {
               // Bỏ ô trống thay vì gửi chuỗi rỗng: backend từ chối chuỗi
               // không đúng dạng YYYY-MM-DD, kể cả chuỗi rỗng.
               Object.fromEntries(
-                Object.entries(v).filter(([, x]) => x !== undefined && x !== ''),
+                Object.entries(v).filter(
+                  ([, x]) => x !== undefined && x !== '',
+                ),
               ) as KyMoiInput,
             )
           }
@@ -269,10 +282,18 @@ export function PeriodsPage() {
             />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="startDate" label="Từ ngày" rules={[{ required: true }]}>
+            <Form.Item
+              name="startDate"
+              label="Từ ngày"
+              rules={[{ required: true }]}
+            >
               <Input placeholder="2026-07-01" />
             </Form.Item>
-            <Form.Item name="endDate" label="Đến ngày" rules={[{ required: true }]}>
+            <Form.Item
+              name="endDate"
+              label="Đến ngày"
+              rules={[{ required: true }]}
+            >
               <Input placeholder="2026-07-31" />
             </Form.Item>
           </Space>

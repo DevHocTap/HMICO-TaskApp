@@ -59,5 +59,7 @@ export interface ListUsersParams {
   role?: Role;
   jobTitleId?: string;
   isActive?: boolean;
+  /** Người chưa đổi mật khẩu lần đầu. */
+  mustChangePassword?: boolean;
   search?: string;
 }

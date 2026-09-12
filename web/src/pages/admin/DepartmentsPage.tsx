@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ThanhTab } from '../../components/ThanhTab';
 import {
   Alert,
   App,
@@ -79,7 +80,11 @@ export function DepartmentsPage() {
   const { data: nguoiTrongPhong } = useQuery({
     queryKey: ['users', 'cua-phong', idPhongDangSua],
     queryFn: () =>
-      layDanhSachNhanVien({ departmentId: idPhongDangSua, limit: 100, isActive: true }),
+      layDanhSachNhanVien({
+        departmentId: idPhongDangSua,
+        limit: 100,
+        isActive: true,
+      }),
     enabled: Boolean(idPhongDangSua),
   });
 
@@ -156,10 +161,13 @@ export function DepartmentsPage() {
       title: `Vô hiệu hoá "${node.name}"?`,
       content: (
         <div>
-          <p>Phòng ban sẽ không còn hiện trong danh sách chọn, nhưng dữ liệu cũ vẫn giữ nguyên.</p>
+          <p>
+            Phòng ban sẽ không còn hiện trong danh sách chọn, nhưng dữ liệu cũ
+            vẫn giữ nguyên.
+          </p>
           <p style={{ marginBottom: 0 }}>
-            Không thể vô hiệu hoá nếu phòng còn nhân viên hoặc còn phòng con đang
-            hoạt động.
+            Không thể vô hiệu hoá nếu phòng còn nhân viên hoặc còn phòng con
+            đang hoạt động.
           </p>
         </div>
       ),
@@ -195,13 +203,17 @@ export function DepartmentsPage() {
     return nodes.map((n) => ({
       key: n.id,
       title: dungTieuDe(n),
-      children: n.children.length > 0 ? chuyenSangDataNode(n.children) : undefined,
+      children:
+        n.children.length > 0 ? chuyenSangDataNode(n.children) : undefined,
     }));
   }
 
   // Mở sẵn hai tầng đầu
   const khoaMoSan = useMemo(
-    () => [...cay.map((n) => n.id), ...cay.flatMap((n) => n.children.map((c) => c.id))],
+    () => [
+      ...cay.map((n) => n.id),
+      ...cay.flatMap((n) => n.children.map((c) => c.id)),
+    ],
     [cay],
   );
 
@@ -213,6 +225,7 @@ export function DepartmentsPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <ThanhTab nhom="nhan-su" />
       <Space style={{ justifyContent: 'space-between', width: '100%' }} wrap>
         <Typography.Title level={4} style={{ margin: 0 }}>
           Cây phòng ban
@@ -224,7 +237,9 @@ export function DepartmentsPage() {
               onClick={() => moThemMoi(dangChon)}
               type="primary"
             >
-              {dangChon ? `Thêm phòng con của "${dangChon.name}"` : 'Thêm phòng ban'}
+              {dangChon
+                ? `Thêm phòng con của "${dangChon.name}"`
+                : 'Thêm phòng ban'}
             </Button>
             <Button
               icon={<EditOutlined />}
@@ -255,10 +270,10 @@ export function DepartmentsPage() {
           description={
             <>
               <div>
-                {phongBiChan.reduce((tong, p) => tong + p.headcount, 0)} người trong
-                các phòng này không sinh được phiếu KPI, vì hệ thống không biết ai
-                là người chấm. Các nút có dấu cảnh báo màu vàng là những phòng còn
-                thiếu.
+                {phongBiChan.reduce((tong, p) => tong + p.headcount, 0)} người
+                trong các phòng này không sinh được phiếu KPI, vì hệ thống không
+                biết ai là người chấm. Các nút có dấu cảnh báo màu vàng là những
+                phòng còn thiếu.
               </div>
               <div style={{ marginTop: 6 }}>
                 {phongBiChan.map((p) => (
@@ -302,7 +317,12 @@ export function DepartmentsPage() {
         destroyOnHidden
       >
         {loiForm && (
-          <Alert type="error" message={loiForm} showIcon style={{ marginBottom: 16 }} />
+          <Alert
+            type="error"
+            message={loiForm}
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
         )}
         <Form<FormValues>
           form={form}

@@ -33,6 +33,11 @@ export interface KpiTemplate {
   version: number;
   isActive: boolean;
   criteriaCount: number;
+  /** Số KPI con (cấp 2). */
+  subCriteriaCount: number;
+  /** Tổng trọng số mục mẫu chịu trách nhiệm (BSC 70 / nội quy 30), chuỗi Decimal. */
+  weightTotal: string;
+  weightRequired: number;
   createdAt: string;
   updatedAt: string;
 }

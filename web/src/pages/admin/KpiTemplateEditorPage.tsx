@@ -30,10 +30,16 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { kiemThuCayItem, layMau, luuCayItem, xuatBanMau } from '../../api/kpi-template';
+import {
+  kiemThuCayItem,
+  layMau,
+  luuCayItem,
+  xuatBanMau,
+} from '../../api/kpi-template';
 import { layThongBaoLoi } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
-import { coTheGhiToChuc } from '../../auth/permissions';
+import { sangDanhSachPhang } from '../../utils/template';
+import { coTheGhiMau } from '../../auth/permissions';
 import { ReadOnlyNotice } from '../../components/ReadOnlyNotice';
 import { WeightSummaryBar } from '../../components/WeightSummaryBar';
 import { TemplatePreviewModal } from '../../components/TemplatePreviewModal';
@@ -42,42 +48,11 @@ import {
   MAX_SCALE,
   TONG_TRONG_SO_CON,
   type EditorItem,
-  type KpiTemplateItem,
   type LoiKiemTra,
 } from '../../types/kpi-template';
 
 let demKhoa = 0;
 const khoaMoi = () => `tam-${Date.now()}-${demKhoa++}`;
-
-/** Đổi cây từ API sang danh sách phẳng để soạn. */
-function sangDanhSachPhang(items: KpiTemplateItem[]): EditorItem[] {
-  const ra: EditorItem[] = [];
-  for (const cha of items) {
-    ra.push({
-      key: cha.id,
-      parentKey: null,
-      name: cha.name,
-      description: cha.description ?? '',
-      section: cha.section,
-      measurementText: cha.measurementText ?? '',
-      measureMethod: cha.measureMethod ?? '',
-      weight: cha.weight,
-    });
-    for (const con of cha.children) {
-      ra.push({
-        key: con.id,
-        parentKey: cha.id,
-        name: con.name,
-        description: con.description ?? '',
-        section: con.section,
-        measurementText: con.measurementText ?? '',
-        measureMethod: con.measureMethod ?? '',
-        weight: con.weight,
-      });
-    }
-  }
-  return ra;
-}
 
 export function KpiTemplateEditorPage() {
   const { id = '' } = useParams();
@@ -85,7 +60,7 @@ export function KpiTemplateEditorPage() {
   const queryClient = useQueryClient();
   const { message, modal } = App.useApp();
   const { user } = useAuth();
-  const coQuyenGhi = coTheGhiToChuc(user?.role);
+  const coQuyenGhi = coTheGhiMau(user?.role);
 
   const [items, setItems] = useState<EditorItem[]>([]);
   const [dangChon, setDangChon] = useState<string | null>(null);
@@ -112,7 +87,9 @@ export function KpiTemplateEditorPage() {
   useEffect(() => {
     if (!id || items.length === 0 || chiDoc) return;
     const hen = setTimeout(() => {
-      kiemThuCayItem(id, items).then(setLoiKiemTra).catch(() => undefined);
+      kiemThuCayItem(id, items)
+        .then(setLoiKiemTra)
+        .catch(() => undefined);
     }, 400);
     return () => clearTimeout(hen);
   }, [id, items, chiDoc]);
@@ -122,7 +99,10 @@ export function KpiTemplateEditorPage() {
     setCoThayDoi(true);
   }, []);
 
-  const cap1 = useMemo(() => items.filter((i) => i.parentKey === null), [items]);
+  const cap1 = useMemo(
+    () => items.filter((i) => i.parentKey === null),
+    [items],
+  );
   const conCua = useCallback(
     (key: string) => items.filter((i) => i.parentKey === key),
     [items],
@@ -176,7 +156,8 @@ export function KpiTemplateEditorPage() {
     const con = conCua(key);
     const item = items.find((i) => i.key === key);
     modal.confirm({
-      title: con.length > 0 ? 'Xoá tiêu chí và toàn bộ KPI con?' : 'Xoá dòng này?',
+      title:
+        con.length > 0 ? 'Xoá tiêu chí và toàn bộ KPI con?' : 'Xoá dòng này?',
       content:
         con.length > 0
           ? `"${item?.name || '(chưa đặt tên)'}" có ${con.length} KPI con, sẽ bị xoá cùng.`
@@ -185,7 +166,9 @@ export function KpiTemplateEditorPage() {
       okButtonProps: { danger: true },
       cancelText: 'Huỷ',
       onOk: () => {
-        setItems((cu) => cu.filter((i) => i.key !== key && i.parentKey !== key));
+        setItems((cu) =>
+          cu.filter((i) => i.key !== key && i.parentKey !== key),
+        );
         setDangChon(null);
         setCoThayDoi(true);
       },
@@ -267,7 +250,10 @@ export function KpiTemplateEditorPage() {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Space style={{ justifyContent: 'space-between', width: '100%' }} wrap>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/kpi-templates')}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/admin/kpi-templates')}
+          >
             Danh sách mẫu
           </Button>
           <div>
@@ -276,7 +262,8 @@ export function KpiTemplateEditorPage() {
             </Typography.Title>
             <Typography.Text type="secondary">
               {mau.code}
-              {mau.jobTitleName ? ` · ${mau.jobTitleName}` : ''} · phiên bản {mau.version}
+              {mau.jobTitleName ? ` · ${mau.jobTitleName}` : ''} · phiên bản{' '}
+              {mau.version}
             </Typography.Text>
           </div>
           <Tag color={mau.status === 'PUBLISHED' ? 'green' : 'orange'}>
@@ -326,11 +313,19 @@ export function KpiTemplateEditorPage() {
           description="Mục “Chấp hành nội quy” áp dụng chung cho mọi chức danh, không sửa ở đây."
         />
       ) : (
-        chiDoc && <ReadOnlyNotice role={user?.role} />
+        chiDoc && (
+          <ReadOnlyNotice
+            role={user?.role}
+            aiSua="trưởng bộ phận (cho chức danh phòng mình) hoặc quản trị viên"
+          />
+        )
       )}
 
       {/* Thứ quan trọng nhất màn hình: thấy sai ngay lúc gõ */}
-      <WeightSummaryBar items={items} section={mau.isSystem ? 'COMPLIANCE' : 'BSC_WORK'} />
+      <WeightSummaryBar
+        items={items}
+        section={mau.isSystem ? 'COMPLIANCE' : 'BSC_WORK'}
+      />
 
       {loiKiemTra.length > 0 && (
         <Alert
@@ -354,7 +349,11 @@ export function KpiTemplateEditorPage() {
             title="Danh sách tiêu chí"
             extra={
               !chiDoc && (
-                <Button icon={<PlusOutlined />} type="primary" onClick={themTieuChi}>
+                <Button
+                  icon={<PlusOutlined />}
+                  type="primary"
+                  onClick={themTieuChi}
+                >
                   Thêm tiêu chí
                 </Button>
               )
@@ -364,7 +363,9 @@ export function KpiTemplateEditorPage() {
             {cap1.length === 0 && (
               <Empty
                 description={
-                  chiDoc ? 'Mẫu chưa có tiêu chí nào' : 'Bấm “Thêm tiêu chí” để bắt đầu'
+                  chiDoc
+                    ? 'Mẫu chưa có tiêu chí nào'
+                    : 'Bấm “Thêm tiêu chí” để bắt đầu'
                 }
               />
             )}
@@ -404,14 +405,19 @@ export function KpiTemplateEditorPage() {
                           )}
                         </Typography.Text>
                         <div>
-                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          <Typography.Text
+                            type="secondary"
+                            style={{ fontSize: 12 }}
+                          >
                             Trọng số {hienSo(tongTrongSo([cha.weight]))}
                             {con.length > 0 && (
                               <>
                                 {' · '}
                                 {con.length} KPI con, tổng {hienSo(tongCon)}{' '}
                                 {conDung ? (
-                                  <CheckCircleFilled style={{ color: '#52c41a' }} />
+                                  <CheckCircleFilled
+                                    style={{ color: '#52c41a' }}
+                                  />
                                 ) : (
                                   <WarningFilled style={{ color: '#faad14' }} />
                                 )}
@@ -440,11 +446,17 @@ export function KpiTemplateEditorPage() {
                             onClick={() => di(cha.key, 1)}
                           />
                         </Tooltip>
-                        <Button size="small" icon={<PlusOutlined />} onClick={() => themCon(cha.key)}>
+                        <Button
+                          size="small"
+                          icon={<PlusOutlined />}
+                          onClick={() => themCon(cha.key)}
+                        >
                           KPI con
                         </Button>
                         {con.length > 1 && (
-                          <Tooltip title={`Mỗi KPI con ${hienSo(100 / con.length)} — tổng đúng 100`}>
+                          <Tooltip
+                            title={`Mỗi KPI con ${hienSo(100 / con.length)} — tổng đúng 100`}
+                          >
                             <Button
                               size="small"
                               icon={<ColumnWidthOutlined />}
@@ -477,7 +489,10 @@ export function KpiTemplateEditorPage() {
                       }}
                     >
                       <Space
-                        style={{ width: '100%', justifyContent: 'space-between' }}
+                        style={{
+                          width: '100%',
+                          justifyContent: 'space-between',
+                        }}
                         wrap
                       >
                         <Space
@@ -529,7 +544,9 @@ export function KpiTemplateEditorPage() {
 
         {/* --- Cột phải: form sửa dòng đang chọn --- */}
         <Col xs={24} lg={10}>
-          <Card title={itemDangChon?.parentKey ? 'Sửa KPI con' : 'Sửa tiêu chí'}>
+          <Card
+            title={itemDangChon?.parentKey ? 'Sửa KPI con' : 'Sửa tiêu chí'}
+          >
             {!itemDangChon ? (
               <Empty description="Chọn một dòng bên trái để sửa" />
             ) : (
@@ -537,7 +554,9 @@ export function KpiTemplateEditorPage() {
                 <Form.Item label="Tên" required>
                   <Input
                     value={itemDangChon.name}
-                    onChange={(e) => capNhat(itemDangChon.key, { name: e.target.value })}
+                    onChange={(e) =>
+                      capNhat(itemDangChon.key, { name: e.target.value })
+                    }
                     placeholder={
                       itemDangChon.parentKey
                         ? 'VD: Hoàn thành bản vẽ theo kế hoạch được giao.'
@@ -569,11 +588,16 @@ export function KpiTemplateEditorPage() {
 
                 {itemDangChon.parentKey ? (
                   <>
-                    <Form.Item label="Mục tiêu" extra="Nguyên văn như biểu mẫu: ≥ 95%, ≤ 3%, 2 giờ, Đạt">
+                    <Form.Item
+                      label="Mục tiêu"
+                      extra="Nguyên văn như biểu mẫu: ≥ 95%, ≤ 3%, 2 giờ, Đạt"
+                    >
                       <Input
                         value={itemDangChon.measurementText}
                         onChange={(e) =>
-                          capNhat(itemDangChon.key, { measurementText: e.target.value })
+                          capNhat(itemDangChon.key, {
+                            measurementText: e.target.value,
+                          })
                         }
                       />
                     </Form.Item>
@@ -582,26 +606,34 @@ export function KpiTemplateEditorPage() {
                         rows={3}
                         value={itemDangChon.measureMethod}
                         onChange={(e) =>
-                          capNhat(itemDangChon.key, { measureMethod: e.target.value })
+                          capNhat(itemDangChon.key, {
+                            measureMethod: e.target.value,
+                          })
                         }
                         placeholder="VD: Số bản vẽ hoàn thành đúng hạn / Tổng số bản vẽ × 100%"
                       />
                     </Form.Item>
                   </>
                 ) : (
-                  <Form.Item label="Chỉ tiêu cụ thể" extra="Mô tả hiện trên biểu mẫu in">
+                  <Form.Item
+                    label="Chỉ tiêu cụ thể"
+                    extra="Mô tả hiện trên biểu mẫu in"
+                  >
                     <Input.TextArea
                       rows={4}
                       value={itemDangChon.description}
                       onChange={(e) =>
-                        capNhat(itemDangChon.key, { description: e.target.value })
+                        capNhat(itemDangChon.key, {
+                          description: e.target.value,
+                        })
                       }
                     />
                   </Form.Item>
                 )}
 
                 <Typography.Text type="secondary">
-                  Thang điểm tối đa: {MAX_SCALE[itemDangChon.section]} (theo mục, không sửa được)
+                  Thang điểm tối đa: {MAX_SCALE[itemDangChon.section]} (theo
+                  mục, không sửa được)
                 </Typography.Text>
               </Form>
             )}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ThanhTab } from '../../components/ThanhTab';
 import {
   Alert,
   App,
@@ -123,6 +124,7 @@ export function JobTitlesPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <ThanhTab nhom="nhan-su" />
       <Space style={{ justifyContent: 'space-between', width: '100%' }} wrap>
         <Typography.Title level={4} style={{ margin: 0 }}>
           Chức danh
@@ -161,7 +163,9 @@ export function JobTitlesPage() {
             title: 'Phòng ban',
             dataIndex: 'departmentName',
             render: (ten: string | null) =>
-              ten ?? <Typography.Text type="secondary">Dùng chung</Typography.Text>,
+              ten ?? (
+                <Typography.Text type="secondary">Dùng chung</Typography.Text>
+              ),
           },
           {
             title: 'Số người',
@@ -222,7 +226,12 @@ export function JobTitlesPage() {
         destroyOnHidden
       >
         {loiForm && (
-          <Alert type="error" message={loiForm} showIcon style={{ marginBottom: 16 }} />
+          <Alert
+            type="error"
+            message={loiForm}
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
         )}
         <Form<FormValues>
           form={form}

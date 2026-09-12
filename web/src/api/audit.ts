@@ -17,3 +17,27 @@ export async function layNhatKy(loc: BoLocNhatKy): Promise<TrangNhatKy> {
   });
   return data;
 }
+
+/** Xuất nhật ký theo bộ lọc đang xem ra .xlsx và lưu xuống máy; trả tên file. */
+export async function taiExcelNhatKy(loc: BoLocNhatKy): Promise<string> {
+  const res = await apiClient.get('/audit-logs/export', {
+    params: Object.fromEntries(
+      Object.entries(loc).filter(
+        ([k, v]) => k !== 'page' && k !== 'limit' && v !== undefined && v !== '' && v !== null,
+      ),
+    ),
+    responseType: 'blob',
+  });
+  const ten =
+    /filename="([^"]+)"/.exec(String(res.headers['content-disposition'] ?? ''))?.[1] ??
+    'nhat-ky-thao-tac.xlsx';
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = ten;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  return ten;
+}

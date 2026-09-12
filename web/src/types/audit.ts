@@ -16,6 +16,10 @@ export interface DongNhatKy {
     employeeCode: string;
     email: string;
   } | null;
+  /** Câu tiếng Việt do backend dựng — ví dụ "Chốt điểm phiếu HM012 — Tháng 10/2026 (92,40)". */
+  moTa: string;
+  /** Nhãn hiển thị của `entityType`, cũng do backend trả. */
+  nhanDoiTuong: string;
 }
 
 export interface TrangNhatKy {
@@ -51,6 +55,8 @@ export const NHAN_LOAI: Record<string, string> = {
   JobTitle: 'Chức danh',
   KpiTemplate: 'Mẫu KPI',
   Period: 'Kỳ đánh giá',
+  Report: 'Báo cáo',
+  Setting: 'Cài đặt',
 };
 
 export const NHAN_THAO_TAC: Record<string, string> = {

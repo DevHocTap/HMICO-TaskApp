@@ -1,6 +1,9 @@
 import { useState } from 'react';
+import { ThanhTab } from '../../components/ThanhTab';
 import {
   Alert,
+  App,
+  Button,
   Card,
   DatePicker,
   Empty,
@@ -11,12 +14,15 @@ import {
   Tag,
   Typography,
 } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { useQuery } from '@tanstack/react-query';
-import { layNhatKy } from '../../api/audit';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { layNhatKy, taiExcelNhatKy } from '../../api/audit';
+import { docLoiBlob } from '../../api/report';
+import { layThongBaoLoi } from '../../api/client';
+import { TieuDeTrang } from '../../components/TieuDeTrang';
 import {
   NHAN_LOAI,
-  NHAN_THAO_TAC,
   type BoLocNhatKy,
   type DongNhatKy,
 } from '../../types/audit';
@@ -53,7 +59,15 @@ const nhan = (bang: Record<string, string>, ma: string) => bang[ma] ?? ma;
  */
 export function AuditLogsPage() {
   const { user } = useAuth();
+  const { message } = App.useApp();
   const [loc, setLoc] = useState<BoLocNhatKy>({ page: 1, limit: 20 });
+
+  const xuat = useMutation({
+    mutationFn: () => taiExcelNhatKy(loc),
+    onSuccess: (ten) => message.success(`Đã tải ${ten}`),
+    onError: async (e) =>
+      message.error((await docLoiBlob(e)) ?? layThongBaoLoi(e)),
+  });
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['audit-logs', loc],
@@ -72,21 +86,18 @@ export function AuditLogsPage() {
     {
       title: 'Thời điểm',
       dataIndex: 'createdAt',
-      width: 175,
-      render: (v: string) => gioVN(v),
+      width: 160,
+      render: (v: string) => (
+        <Typography.Text type="secondary">{gioVN(v)}</Typography.Text>
+      ),
     },
     {
       title: 'Người thực hiện',
       dataIndex: 'actor',
-      width: 220,
+      width: 200,
       render: (a: DongNhatKy['actor']) =>
         a ? (
-          <div>
-            <div>{a.fullName}</div>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {a.employeeCode}
-            </Typography.Text>
-          </div>
+          <Typography.Text strong>{a.fullName}</Typography.Text>
         ) : (
           // actorId null = thao tác của hệ thống, hoặc đăng nhập bằng email
           // không tồn tại nên chưa biết là ai.
@@ -95,28 +106,28 @@ export function AuditLogsPage() {
     },
     {
       title: 'Thao tác',
-      dataIndex: 'action',
-      width: 200,
-      render: (a: string) => (
-        <Tag color={a === 'LOGIN_FAILED' ? 'error' : a === 'LOGIN' ? 'default' : 'blue'}>
-          {nhan(NHAN_THAO_TAC, a)}
-        </Tag>
+      dataIndex: 'moTa',
+      render: (moTa: string, dong) => (
+        <Typography.Text
+          type={dong.action === 'LOGIN_FAILED' ? 'danger' : undefined}
+        >
+          {moTa}
+        </Typography.Text>
       ),
     },
     {
       title: 'Đối tượng',
-      dataIndex: 'entityType',
-      width: 170,
+      dataIndex: 'nhanDoiTuong',
+      width: 140,
+      align: 'right',
       render: (t: string, dong) => (
-        <div>
-          <div>{nhan(NHAN_LOAI, t)}</div>
-          <Typography.Text type="secondary" style={{ fontSize: 11 }} copyable>
-            {dong.entityId}
-          </Typography.Text>
-        </div>
+        <Tag
+          className={`tag-tron${dong.entityType === 'Scorecard' || dong.entityType === 'Auth' ? ' tag-chua-co' : ''}`}
+        >
+          {t}
+        </Tag>
       ),
     },
-    { title: 'Địa chỉ IP', dataIndex: 'ipAddress', width: 130, render: (v) => v ?? '—' },
   ];
 
   /** Chi tiết trước/sau, mở ra khi bấm vào dòng. */
@@ -141,66 +152,102 @@ export function AuditLogsPage() {
         </div>
       );
 
-    if (dong.before === null && dong.after === null) {
-      return <Typography.Text type="secondary">Thao tác này không ghi dữ liệu kèm theo.</Typography.Text>;
-    }
     return (
-      <Space align="start" wrap size="large">
-        {khoi('Trước', dong.before)}
-        {khoi('Sau', dong.after)}
+      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          Mã thao tác <code>{dong.action}</code> · Mã đối tượng{' '}
+          <Typography.Text copyable style={{ fontSize: 12 }}>
+            {dong.entityId}
+          </Typography.Text>{' '}
+          · IP {dong.ipAddress ?? '—'}
+          {dong.actor && ` · ${dong.actor.employeeCode} · ${dong.actor.email}`}
+        </Typography.Text>
+        {dong.before === null && dong.after === null ? (
+          <Typography.Text type="secondary">
+            Thao tác này không ghi dữ liệu kèm theo.
+          </Typography.Text>
+        ) : (
+          <Space align="start" wrap size="large">
+            {khoi('Trước', dong.before)}
+            {khoi('Sau', dong.after)}
+          </Space>
+        )}
       </Space>
     );
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Typography.Title level={4} style={{ margin: 0 }}>
-        Nhật ký thao tác
-      </Typography.Title>
+    <div>
+      <ThanhTab nhom="he-thong" />
+      <TieuDeTrang
+        tieuDe="Nhật ký thao tác"
+        moTa={
+          user?.role === 'EXECUTIVE'
+            ? 'Chỉ đọc. Ban giám đốc chỉ thấy bản ghi liên quan tới phiếu KPI.'
+            : 'Chỉ đọc. Bấm vào một dòng để xem dữ liệu trước / sau và địa chỉ IP.'
+        }
+        phai={
+          <Button
+            shape="round"
+            size="large"
+            icon={<DownloadOutlined />}
+            loading={xuat.isPending}
+            disabled={!data || data.total === 0}
+            onClick={() => xuat.mutate()}
+          >
+            Xuất Excel
+          </Button>
+        }
+      />
 
-      {user?.role === 'EXECUTIVE' && (
+      <div className="chip-loc-hang">
+        <Select
+          allowClear
+          className="chon-tron"
+          size="large"
+          placeholder="Đối tượng"
+          style={{ width: 200 }}
+          value={loc.entityType}
+          onChange={(v) => doiLoc({ entityType: v })}
+          options={loaiChon.map((t) => ({
+            value: t,
+            label: nhan(NHAN_LOAI, t),
+          }))}
+        />
+        <Input
+          allowClear
+          className="o-tim-tron"
+          size="large"
+          placeholder="Mã thao tác, ví dụ MANAGER_SCORE"
+          style={{ width: 280 }}
+          value={loc.action}
+          onChange={(e) =>
+            doiLoc({ action: e.target.value.trim() || undefined })
+          }
+        />
+        <DatePicker.RangePicker
+          size="large"
+          className="o-tim-tron"
+          format="DD/MM/YYYY"
+          onChange={(v) =>
+            doiLoc({
+              from: v?.[0]?.format('YYYY-MM-DD'),
+              to: v?.[1]?.format('YYYY-MM-DD'),
+            })
+          }
+        />
+      </div>
+
+      {isError && (
         <Alert
-          type="info"
+          type="error"
           showIcon
-          message="Ban giám đốc xem nhật ký phiếu KPI"
-          description="Ai chấm điểm, ai nộp, ai duyệt và ai trả lại phiếu. Nhật ký nhân sự và đăng nhập không nằm trong phạm vi này."
+          message="Không đọc được nhật ký"
+          description={String(error)}
         />
       )}
 
-      <Card size="small">
-        <Space wrap>
-          <Select
-            allowClear
-            placeholder="Đối tượng"
-            style={{ width: 200 }}
-            value={loc.entityType}
-            onChange={(v) => doiLoc({ entityType: v })}
-            options={loaiChon.map((t) => ({ value: t, label: nhan(NHAN_LOAI, t) }))}
-          />
-          <Input
-            allowClear
-            placeholder="Mã thao tác, ví dụ MANAGER_SCORE"
-            style={{ width: 240 }}
-            value={loc.action}
-            onChange={(e) => doiLoc({ action: e.target.value.trim() || undefined })}
-          />
-          <DatePicker.RangePicker
-            format="DD/MM/YYYY"
-            onChange={(v) =>
-              doiLoc({
-                from: v?.[0]?.format('YYYY-MM-DD'),
-                to: v?.[1]?.format('YYYY-MM-DD'),
-              })
-            }
-          />
-        </Space>
-      </Card>
-
-      {isError && (
-        <Alert type="error" showIcon message="Không đọc được nhật ký" description={String(error)} />
-      )}
-
-      <Card size="small">
+      <Card styles={{ body: { padding: 0 } }}>
         {!isLoading && data?.data.length === 0 ? (
           <Empty description="Không có bản ghi nào khớp bộ lọc" />
         ) : (
@@ -211,7 +258,12 @@ export function AuditLogsPage() {
             columns={cot}
             dataSource={data?.data ?? []}
             scroll={{ x: 'max-content' }}
-            expandable={{ expandedRowRender: chiTiet }}
+            expandable={{
+              expandedRowRender: chiTiet,
+              expandRowByClick: true,
+              showExpandColumn: false,
+            }}
+            rowClassName="dong-bam-duoc"
             pagination={{
               current: data?.page ?? 1,
               pageSize: data?.limit ?? 20,
@@ -219,11 +271,12 @@ export function AuditLogsPage() {
               showSizeChanger: true,
               pageSizeOptions: ['20', '50', '100'],
               showTotal: (t) => `${t} bản ghi`,
-              onChange: (page, limit) => setLoc((truoc) => ({ ...truoc, page, limit })),
+              onChange: (page, limit) =>
+                setLoc((truoc) => ({ ...truoc, page, limit })),
             }}
           />
         )}
       </Card>
-    </Space>
+    </div>
   );
 }
