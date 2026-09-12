@@ -468,6 +468,36 @@ tự động rồi mới vỡ.
       Đúng theo phân quyền đã chốt, nhưng nếu sau này BGĐ cần biết ai tải
       file điểm về thì phải mở thêm loại này cho họ.
 
+## Cài đặt hệ thống (11/09)
+
+- [ ] **Cache cài đặt nằm trong bộ nhớ tiến trình** — cùng giới hạn với
+      `RateLimitGuard`: đúng khi chạy MỘT tiến trình (đã chốt), nhiều tiến
+      trình thì tiến trình kia thấy giá trị cũ tới khi khởi động lại.
+- [ ] **Hạn mức đăng nhập theo IP (5/phút, 120/phút) KHÔNG nằm trong Cài
+      đặt** — vẫn là biến môi trường. Chỉ khoá tạm theo email là cấu hình được.
+- [ ] Đổi `lichKy` không sửa kỳ đã sinh; đổi `nguongXepLoai` không tính lại
+      xếp loại đã chốt — cả hai CỐ Ý, ghi ở quy-tac-nghiep-vu.md mục 4 và 5.5.
+      Màn Cài đặt có ghi chú, nhưng người sửa vẫn có thể tưởng nó áp ngay.
+- [ ] `PUT /settings` kiểm quan hệ trong `kiemTraCaiDat()`; DTO chỉ kiểm từng
+      ô. Thêm nhóm mới thì phải thêm cả hai chỗ.
+
+## Giao diện theo bộ mẫu (11/09)
+
+- [ ] **"Việc của tôi" chưa có dòng phụ** dưới mỗi việc ("Cấp ngày 08/10",
+      "Hai chi nhánh · kỳ tháng 10/2026") như mẫu. Backend `pending-my-action`
+      chỉ trả `message`; muốn có thì thêm `detail` ở `pendingMyAction()`,
+      giao diện đã chừa chỗ.
+- [ ] **Font có chân (Lora) áp cho CẢ bảng số liệu** vì bộ mẫu dùng serif
+      mọi chỗ. Chưa có phản hồi người dùng thật; nếu bảng dày (Nhân viên,
+      Nhật ký) khó đọc thì đặt lại `fontFamily` cho `components.Table` trong
+      `theme.ts` — một chỗ.
+- [ ] Thẻ "Phòng đã nộp đủ" của HR định nghĩa "đủ" = mọi nhân sự diện KPI
+      đều có phiếu **đã chốt điểm** (`MANAGER_SCORED`/`RECEIVED`), không đợi
+      HCNS tiếp nhận. Tự quyết, chưa hỏi HCNS.
+- [ ] STAFF thẻ "Trung bình N tháng" tính trên **tối đa 3 kỳ gần nhất có
+      phiếu đã chốt**; kỳ chưa chốt bị bỏ qua chứ không tính 0. Nhãn thẻ ghi
+      đúng số kỳ thật sự được tính.
+
 ## Chờ HR xác nhận
 
 - [ ] **Quyền NGHIỆP VỤ của `EXECUTIVE` gồm những gì — chốt khi làm module

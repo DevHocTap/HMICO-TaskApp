@@ -4,7 +4,7 @@
 > Đây là trí nhớ của Claude Code giữa các phiên — để lạc hậu là nó sẽ
 > làm lại thứ đã có hoặc bỏ sót thứ đang dở.
 
-Cập nhật lần cuối: 10/09/2026
+Cập nhật lần cuối: 11/09/2026
 
 **Mốc bàn giao: một phòng Kỹ thuật chạy thật tháng 11/2026.**
 Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 289 test backend + 25 test frontend + 3 e2e; 35 + 60 + 35 + 82 + 159 + 90 + 47 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 327 test backend + 41 test frontend + 3 e2e; 35 + 63 + 44 + 82 + 159 + 96 + 72 + 34 kiểm tra curl.**
 
 ## Đang làm
 
@@ -285,9 +285,150 @@ ngoài code chưa xác nhận: **mở cổng 80/443 từ internet vào máy ch�
 - Điểm trung bình **KHÔNG cộng dồn** lên phòng cha: trung bình của các
   trung bình không phải trung bình chung.
 
+---
+
+**Làm mới giao diện theo bộ mẫu thiết kế (11/09) — ĐANG LÀM, từng màn một.**
+
+Bộ mẫu: chữ có chân (Lora), xanh ngọc `#0987b1` chủ đạo, nền xám ấm, hồng
+`#e8367d` cho số liệu cần chú ý. Đã áp:
+
+- **Theme toàn app** — `web/src/config/theme.ts` (token antd: màu, font, bo
+  góc, Menu/Layout). Font tự phục vụ qua `@fontsource/lora@5.3.0`, nạp ở
+  `main.tsx`, không gọi Google Fonts. **Phát hiện tiện thể:** `index.css`
+  trước đó chưa từng được import — rule `.dong-can-xu-ly` của lát cắt 6 chưa
+  bao giờ chạy; đã nối.
+- **Đăng nhập** — hai cột, cột trái nền tối có lưới; ẩn cột trái < 900px.
+  Bỏ "Quên mật khẩu?" (không có luồng), "Ghi nhớ đăng nhập" (không có tác
+  dụng), ba con số 200/10/2 (không có API công khai) — chốt 11/09.
+- **Đổi mật khẩu** — thẻ nền ấm, thanh độ mạnh 4 đoạn, quy tắc tick ✓ khi đạt.
+  **Chỉ hiện 2 quy tắc backend thật sự kiểm** (8 ký tự, khác mật khẩu cũ);
+  "10 ký tự", "có chữ và số" trong mẫu không có ở backend nên không hiện.
+- **Khung chung `AdminLayout`** — sidebar có logo, nhãn nhóm, **badge số
+  việc** trên mục menu (đếm `pending-my-action` theo `link`), thẻ kỳ tháng ở
+  đáy; header có avatar chữ tắt, "chức danh · phòng ban". Bỏ dãy tab đổi vai
+  và mục "Cài đặt" của mẫu.
+- **Trang chủ** — eyebrow kỳ, chào **tên gọi** (từ cuối họ tên, không
+  anh/chị), câu dẫn + nút chính theo vai, "Việc của tôi" kiểu mới, **bốn thẻ
+  số liệu theo vai**, "Điểm trung bình theo phòng" (vai quản lý), "Lịch tháng
+  này" 4 mốc (Đã qua / Đang mở ≤ 7 ngày / Sắp tới).
+- **`GET /reports/home-summary`** — MỘT endpoint trả bộ số theo vai
+  (`HomeSummaryService`, 10 test): ADMIN đếm tài khoản / phòng thiếu trưởng /
+  mẫu / thao tác 24h; EXECUTIVE điểm TB trên **toàn bộ** phiếu đã chốt (không
+  phải TB của TB), % hoàn thành trở lên, phòng dưới **80** (chốt 11/09); HR
+  phiếu / chốt / tiếp nhận / phòng nộp đủ; MANAGER phòng mình; STAFF điểm
+  tháng trước, TB ≤ 3 kỳ đã chốt, tiêu chí lá chưa tự chấm. Mở cho STAFF —
+  ghi đè `@Roles` cấp class, chỉ trả số của chính họ.
+  `kiem-chung-lat-cat-6.sh` nay **63 kiểm tra** (mục 22–28 so với SQL).
+- Tách `NGUOI_CO_KPI` / `VAI_TRO_KHONG_AP_KPI` ra `scorecard/nguoi-co-kpi.ts`
+  (file thuần) để `reports/` dùng chung.
+
+- **Giao KPI** — tiêu đề + câu dẫn, bộ chọn bo tròn, thanh "N người chưa có
+  phiếu" + 3 nút, phòng ban thành dòng phụ dưới tên, **bỏ cột Ngày ký nhận**,
+  trọng số < 100% tô hồng, dòng chưa có phiếu nền xanh nhạt. Nút hàng: đã ký
+  nhận → "Chấm điểm", chưa → "Mở phiếu".
+- **Chấm điểm** — hai cột: trái là dải trạng thái + hạn ("Hạn chấm 29/10 —
+  còn 4 ngày", tính từ kỳ của phiếu) và hai mục dạng bảng 5 cột (Tiêu chí ·
+  Trọng số · NV tự chấm · Trưởng BP · Đóng góp); phải là thẻ tổng điểm nền tối
+  (xếp loại, chênh lệch tổng) và **Lịch sử phiếu** (đọc thêm
+  `GET /scorecards/:id`, chủ phiếu cũng gọi được). **Bỏ ba cột Mục tiêu /
+  Thang / Chênh lệch**: Mục tiêu thành dòng phụ dưới tên, Thang lên đầu mục,
+  chênh lệch từng dòng thành **màu ô Trưởng BP** (hồng thấp hơn / xanh cao
+  hơn, tooltip số lệch) — chốt 11/09. Nút hành động lên góc phải đầu trang.
+  `LichSuPhieu` thành component dùng chung với màn chi tiết.
+- **Nhân viên** — chip lọc nhanh (Tất cả · Trưởng bộ phận · Chưa đổi mật
+  khẩu · Đã nghỉ việc, **không kèm số đếm**) + ô chọn phòng/chức danh; hàng:
+  avatar + tên / mã · email, chức danh (cấp bậc dòng phụ), phòng, vai trò,
+  trạng thái chữ màu; "Sửa" + menu ⋯ chứa Đặt lại mật khẩu / Vô hiệu hoá.
+  Backend thêm lọc `mustChangePassword`.
+- **Lỗi có sẵn bị lộ ra khi làm chip:** `?isActive=false` từng trả về người
+  ĐANG hoạt động vì `@Type(() => Boolean)` gọi `Boolean("false")` = `true`.
+  Sửa bằng `@BoolQuery()` (`src/common/transforms/bool-query.ts`, 4 test);
+  `verify-org.sh` thêm 3 kiểm → **63**.
+
+- **Mẫu KPI** — lưới thẻ: mã, trạng thái, tên, "N tiêu chí · N KPI con ·
+  phiên bản", thanh trọng số (hồng khi thiếu), "Xem trước" (tải chi tiết khi
+  bấm, dùng lại `TemplatePreviewModal`), Sửa + menu ⋯. Backend trả thêm
+  `subCriteriaCount` / `weightTotal` / `weightRequired` — một truy vấn cho cả
+  danh sách (`tongHopItem()`), `verify-kpi-template.sh` **38**.
+- **Cài đặt hệ thống — MODULE MỚI `settings/`** (chốt làm đủ 11/09):
+  bảng `SystemSetting` (key-value JSON, migration
+  `20260911090000_cai_dat_he_thong`), `SettingsService` @Global giữ cache
+  trong bộ nhớ, `GET /settings` mọi vai, `PUT /settings` ADMIN + HR, mỗi nhóm
+  một dòng AuditLog `Setting`. Năm nhóm và chỗ đọc:
+  | Nhóm | Đọc ở |
+  |---|---|
+  | `lichKy` 25/25/29/30 | `kyThang()` / `cacKyCanBaoDam()` qua `PeriodService` — chỉ kỳ sinh SAU khi đổi |
+  | `nguongXepLoai` 80/90/100 | `xepLoaiTuTongDiem()` qua `ScorecardScoringService` — chỉ lần chốt SAU khi đổi |
+  | `baoMat` | `UsersService` (mustChangePassword khi tạo / đặt lại), `LoginAttemptService` (ngưỡng, phút, bật/tắt) |
+  | `kyDanhGia.tuSinhHangThang` | `PeriodScheduler` |
+  | `chamDiem.choPhepTraLaiPhieuDaChot` | `reject()`: bật thì người chấm rút lại phiếu MANAGER_SCORED, HR/ADMIN trả lại phiếu RECEIVED — vẫn qua reject, vẫn ScorecardEvent |
+  **Hai chỗ CỐ Ý khác mẫu:** ngưỡng khởi tạo 80/90/100 (mẫu vẽ 70 — sai
+  quy tắc mục 4); "Cho phép sửa điểm sau khi chốt sổ" hiện thực thành "cho
+  phép TRẢ LẠI phiếu đã chốt", không có đường ghi đè điểm hay ghi vào kỳ khoá.
+  `kiem-chung-cai-dat.sh`: **34 kiểm tra**, chụp và khôi phục bảng cài đặt.
+  Màn `/admin/settings` cho ADMIN / HR / EXECUTIVE (EXECUTIVE chỉ đọc).
+- **Nhật ký thao tác** — backend dựng **câu tiếng Việt** cho từng dòng
+  (`mo-ta-ban-ghi.ts`, file thuần, 7 test; tra tên phiếu/người/kỳ mỗi loại
+  một truy vấn, không N+1) + `GET /audit-logs/export` ra .xlsx (trần 20.000
+  dòng, tự ghi `EXPORT_AUDIT`). Điểm chốt nay ghi thẳng vào `after` của sự
+  kiện `MANAGER_SCORE` / `SELF_SCORE`. Màn: hàng "giờ · người · câu · tag",
+  bấm dòng mở before/after + IP, nút Xuất Excel; **giữ bộ lọc**.
+  `kiem-chung-lat-cat-5.sh` **96**.
+
+---
+
+**Đổi sang bộ mẫu thứ hai (12/09) — phong cách PerformKPI.** Chốt 12/09:
+chữ không chân **Inter** (`@fontsource/inter@5.3.0`, gỡ Lora), xanh dương
+`#1d4ed8`, nền `#f5f7fb`, thẻ trắng viền mảnh; đỏ / vàng / xanh lá là màu
+theo nghĩa (chờ ai đó = vàng, xong = xanh lá, trả lại / trễ = đỏ). Màu trong
+CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
+
+- **Khung** — header 60px: breadcrumb · chip "Kỳ tháng X · Giai đoạn N"
+  (`giaiDoanCuaKy()`, 4 test) · chuông đếm việc mở danh sách. **Menu trái
+  gọn còn 7 mục** một nhóm; năm màn phụ thành **tab trong màn cha**
+  (`ThanhTab.tsx`): Báo cáo kỳ = Tổng quan · Tiến độ nộp; Quản lý nhân sự =
+  Nhân viên · Phòng ban · Chức danh; Cài đặt hệ thống = Cài đặt · Kỳ đánh
+  giá · Nhật ký. Route giữ nguyên, tab ẩn theo quyền.
+- **Dashboard (`/kpi/dashboard`)** — stepper 3 giai đoạn có tiến độ từng
+  bước; 4 thẻ có icon và **so với tháng trước** (từ `GET /reports/trend`,
+  endpoint mới, 2 groupBy cho cả dãy, script 6 → **68**); thẻ đỏ "Cần chú ý"
+  (trễ tự chấm / trễ chấm / bị trả lại, tính theo mốc kỳ); phân bố xếp loại
+  (thanh chia phần + 4 ô, bảng màu qua validator); xếp hạng phòng; xu hướng 6
+  tháng (2 đường SVG tay, có "Xem bảng"); việc cần xử lý; nút Xuất báo cáo.
+  **Không** vẽ bell curve, quỹ thưởng, PIP, gợi ý AI, "Thực đạt" — hệ thống
+  không có các khái niệm đó.
+- **Chấm điểm** — 5 ô đầu trang (nhân viên + tiến trình · NV tự chấm · Trưởng
+  BP · Độ lệch · Xếp loại), bảng toàn chiều ngang, dưới là **Ý kiến nhân
+  viên** / **Nhận xét trưởng bộ phận** (gom từ ghi chú từng tiêu chí, không
+  có trường nhận xét chung) và Lịch sử.
+- **Chi tiết phiếu** — hàng thẻ: nhân viên · đồng hồ trọng số hai mục · hạn
+  giao KPI (`assignDeadline` nay có trong `GET /scorecards/:id`); cây tiêu
+  chí xem gập/mở (`CayTieuChi.tsx`, sửa lỗi con đứng trước cha).
+- **Nhân viên** — 3 thẻ đầu trang từ `home-summary` theo vai.
+- **Cài đặt** — lịch kỳ thành 4 thẻ giai đoạn, ngưỡng thành bảng có chấm màu.
+- Component `ThanhNgang` (SVG) hiện không màn nào dùng — giữ cho màn sau.
+
+- **Quyền soạn mẫu KPI đổi (12/09):** TRƯỞNG BỘ PHẬN soạn cho chức danh
+  phòng mình + ADMIN; HCNS và BGĐ chỉ xem (trước: ADMIN + HR ghi, MANAGER
+  đọc). `VAI_TRO_GHI` ở controller, `assertCoTheGhi` / `assertCoTheGhiChucDanh`
+  ở service; frontend `coTheGhiMau()`, form tạo mẫu bắt trưởng phòng chọn chức
+  danh có phòng. `verify-kpi-template.sh` **44**. Ghi ở quy-tac mục 7.
+
+- **Tổng quan (`/`) theo mẫu bảng điều hành (12/09):** vai quản lý thấy
+  `BangDieuHanhKy` (khối dùng chung với Báo cáo kỳ: stepper, 4 thẻ, xếp loại,
+  phòng) + **`PhieuCanXuLyGap`** — thẻ từng người: trưởng BP/BGĐ thấy phiếu
+  chờ mình chấm và phiếu trễ hạn tự chấm; HCNS/ADMIN thấy phiếu chờ tiếp nhận
+  kèm nhãn "Lệch N đ" khi hai cột lệch quá 10. Nhân viên giữ bộ thẻ riêng.
+  Backend: `GET /scorecards` thêm lọc `evaluatorId` và trả `selfTotalScore`,
+  `managerTotalScore`, `grade`, `selfScoredAt`, `managerScoredAt` — endpoint
+  này lần đầu có màn hình gọi. Script 6 → **72**.
+
+**Chưa theo mẫu:** Phiếu KPI của tôi (bảng), Tiến độ nộp, Kỳ đánh giá,
+Phòng ban, Chức danh, Nhật ký (bố cục cũ, đã hưởng theme).
+
 **Việc tiếp: triển khai** (tuần 13+). Chưa có nginx, systemd, CI hay
-`.env.production.example` — xem `no-ky-thuat.md`. Hai endpoint cũ vẫn chưa
-màn hình nào gọi: `GET /scorecards` và `GET /scorecards/readiness`.
+`.env.production.example` — xem `no-ky-thuat.md`. Một endpoint cũ vẫn chưa
+màn hình nào gọi: `GET /scorecards/readiness` (`GET /scorecards` đã có Tổng quan gọi từ 12/09).
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được
 
