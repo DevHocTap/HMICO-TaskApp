@@ -122,12 +122,41 @@ buoc "PHÂN QUYỀN"
 MA=$(ma -H "Authorization: Bearer $AT_STAFF" "$API/kpi-templates")
 [ "$MA" = "403" ] && pass "STAFF gọi GET /kpi-templates -> 403" || fail "STAFF đọc -> $MA (mong đợi 403)"
 
+# Chốt 12/09/2026: TRƯỞNG BỘ PHẬN soạn mẫu cho chức danh phòng mình; HR và
+# ban giám đốc chỉ xem. Trước đây ngược lại (HR ghi, MANAGER đọc).
+JT_HCNS_CV=$(sql "SELECT id FROM \"JobTitle\" WHERE code='HCNS-CV';")
+MA=$(ma -X POST -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"ZTEST-HR\",\"name\":\"HR thử tạo\",\"jobTitleId\":\"$JT_KSTK\"}" "$API/kpi-templates")
+[ "$MA" = "403" ] && pass "HR tạo mẫu -> 403 (HCNS chỉ xem)" || fail "HR tạo -> $MA (mong đợi 403)"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_BGD" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"ZTEST-BGD\",\"name\":\"BGĐ thử tạo\",\"jobTitleId\":\"$JT_KSTK\"}" "$API/kpi-templates")
+[ "$MA" = "403" ] && pass "ban giám đốc tạo mẫu -> 403 (chỉ xem)" || fail "BGĐ tạo -> $MA (mong đợi 403)"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_RND" -H 'Content-Type: application/json' \
-  -d '{"code":"ZTESTX","name":"Thử"}' "$API/kpi-templates")
-[ "$MA" = "403" ] && pass "MANAGER gọi POST /kpi-templates -> 403" || fail "MANAGER tạo -> $MA (mong đợi 403)"
+  -d "{\"code\":\"ZTEST-RND\",\"name\":\"R&D tạo cho Kỹ thuật\",\"jobTitleId\":\"$JT_KSTK\"}" "$API/kpi-templates")
+[ "$MA" = "403" ] && pass "trưởng phòng R&D tạo mẫu cho chức danh phòng Kỹ thuật -> 403" \
+  || fail "R&D tạo cho KT -> $MA (mong đợi 403)"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+  -d '{"code":"ZTEST-KT-CHUNG","name":"KT tạo mẫu dùng chung"}' "$API/kpi-templates")
+[ "$MA" = "403" ] && pass "trưởng phòng tạo mẫu KHÔNG gắn chức danh -> 403 (chỉ ADMIN)" \
+  || fail "KT tạo mẫu chung -> $MA (mong đợi 403)"
+R=$(curl -s -w '\n%{http_code}' -X POST -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"ZTEST-KT-OK\",\"name\":\"KT tạo cho phòng mình\",\"jobTitleId\":\"$JT_KSTK\"}" "$API/kpi-templates")
+MA=$(echo "$R" | tail -1); ID_KT_OK=$(echo "$R" | sed '$d' | json "d['id']")
+[ "$MA" = "201" ] && pass "trưởng phòng Kỹ thuật tạo mẫu cho chức danh phòng mình -> 201" \
+  || fail "KT tạo cho phòng mình -> $MA (mong đợi 201)"
+if [ -n "$ID_KT_OK" ]; then
+  MA=$(ma -X PATCH -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+    -d "{\"jobTitleId\":\"$JT_HCNS_CV\"}" "$API/kpi-templates/$ID_KT_OK")
+  [ "$MA" = "403" ] && pass "trưởng phòng đổi mẫu sang chức danh phòng khác -> 403" \
+    || fail "đổi chức danh ngoài phòng -> $MA (mong đợi 403)"
+  MA=$(ma -X PATCH -H "Authorization: Bearer $AT_RND" -H 'Content-Type: application/json' \
+    -d '{"name":"R&D sửa trộm"}' "$API/kpi-templates/$ID_KT_OK")
+  [ "$MA" = "403" ] && pass "trưởng phòng khác sửa mẫu của Kỹ thuật -> 403" || fail "R&D sửa mẫu KT -> $MA"
+fi
 
 SO_BGD=$(curl -s -H "Authorization: Bearer $AT_BGD" "$API/kpi-templates" | json "len(d)")
-[ "$SO_BGD" = "5" ] && pass "EXECUTIVE xem được toàn bộ 5 mẫu" || fail "EXECUTIVE thấy $SO_BGD mẫu (mong đợi 5)"
+SO_DB=$(sql "SELECT count(*) FROM \"KpiTemplate\" WHERE \"isActive\";")
+[ "$SO_BGD" = "$SO_DB" ] && pass "EXECUTIVE xem được toàn bộ $SO_DB mẫu đang hoạt động" || fail "EXECUTIVE thấy $SO_BGD mẫu (DB có $SO_DB)"
 for M in "POST|$API/kpi-templates|{\"code\":\"ZTESTB\",\"name\":\"Thử\"}" "POST|$API/kpi-templates/$ID_SD/publish|" ; do
   IFS='|' read -r VERB URL BODY <<< "$M"
   if [ -n "$BODY" ]; then
@@ -292,6 +321,22 @@ luu_items "$ID_T6" '{"items":[{"key":"a","parentKey":null,"name":"A đổi","sec
 TT=$(sql "SELECT status FROM \"KpiTemplate\" WHERE code='ZTEST-REPUB';")
 [ "$TT" = "DRAFT" ] && pass "sửa item mẫu đã xuất bản -> tự về DRAFT" \
   || fail "status sau khi sửa=$TT (mong đợi DRAFT)"
+
+# ===================================================== TỔNG HỢP CHO MÀN DANH SÁCH
+buoc "TỔNG HỢP TRÊN DANH SÁCH — số KPI con và tổng trọng số"
+DS=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates")
+# Mẫu Shop Drawing nhập từ Excel: tổng mục BSC đúng 70, có KPI con
+KQ=$(echo "$DS" | json "next((f\"{t['weightTotal']}|{t['weightRequired']}|{t['subCriteriaCount']>0}\" for t in d if t['code']=='TPL-KT-SD'), 'KHONG_CO')")
+[ "$KQ" = "70.00|70|True" ] && pass "TPL-KT-SD: weightTotal=70.00, weightRequired=70, có KPI con" \
+  || fail "TPL-KT-SD trả: $KQ (mong 70.00|70|True)"
+# Mẫu hệ thống: cộng ở mục nội quy, yêu cầu 30
+KQ=$(echo "$DS" | json "next((f\"{t['weightTotal']}|{t['weightRequired']}\" for t in d if t['code']=='SYS-COMPLIANCE'), 'KHONG_CO')")
+[ "$KQ" = "30.00|30" ] && pass "SYS-COMPLIANCE: weightTotal=30.00, weightRequired=30" \
+  || fail "SYS-COMPLIANCE trả: $KQ (mong 30.00|30)"
+# Đối chiếu số KPI con với DB
+SO_DB=$(sql "SELECT count(*) FROM \"KpiTemplateItem\" WHERE \"templateId\"='$ID_SD' AND \"parentId\" IS NOT NULL;")
+SO_API=$(echo "$DS" | json "next((t['subCriteriaCount'] for t in d if t['code']=='TPL-KT-SD'), -1)")
+[ "$SO_API" = "$SO_DB" ] && pass "subCriteriaCount khớp DB: $SO_API" || fail "API $SO_API, DB $SO_DB"
 
 echo
 printf '%.0s=' {1..60}; echo

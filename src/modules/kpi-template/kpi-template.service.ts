@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  KpiSection,
   Prisma,
   Role,
   TemplateStatus,
@@ -15,7 +16,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { DepartmentScopeService } from '../org/department-scope.service.js';
-import { MAX_SCALE } from './kpi-scale.constants.js';
+import { MAX_SCALE, TONG_TRONG_SO } from './kpi-scale.constants.js';
 import { kiemTraMau, type ItemDeKiem, type LoiKiemTra } from './template-validation.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import type {
@@ -33,6 +34,12 @@ type TemplateWithExtras = KpiTemplate & {
   jobTitle: { name: string; departmentId: string | null } | null;
   _count: { items: number };
 };
+
+/** Số liệu tổng hợp từ bảng item — tính một lần cho cả danh sách. */
+interface TongHopItem {
+  subCriteriaCount: number;
+  weightTotal: Prisma.Decimal;
+}
 
 const INCLUDE_EXTRAS = {
   jobTitle: { select: { name: true, departmentId: true } },
@@ -72,7 +79,46 @@ export class KpiTemplateService {
     });
 
     const trongPhamVi = await this.locTheoPhamVi(rows, user);
-    return trongPhamVi.map((r) => this.toResponse(r));
+    const tongHop = await this.tongHopItem(trongPhamVi);
+    return trongPhamVi.map((r) => this.toResponse(r, tongHop.get(r.id)));
+  }
+
+  /**
+   * Đếm KPI con và cộng trọng số cấp 1 cho nhiều mẫu bằng MỘT truy vấn.
+   *
+   * Cộng ở mục mẫu chịu trách nhiệm (BSC với mẫu chức danh, nội quy với mẫu
+   * hệ thống) — cùng quy tắc với `template-validation.ts` lúc xuất bản, để
+   * thanh "70/70" trên màn danh sách và nút Xuất bản không nói hai điều
+   * khác nhau.
+   */
+  private async tongHopItem(
+    templates: TemplateWithExtras[],
+  ): Promise<Map<string, TongHopItem>> {
+    const ra = new Map<string, TongHopItem>();
+    if (templates.length === 0) return ra;
+
+    const items = await this.prisma.kpiTemplateItem.findMany({
+      where: { templateId: { in: templates.map((t) => t.id) } },
+      select: { templateId: true, parentId: true, section: true, weight: true },
+    });
+    const laHeThong = new Map(templates.map((t) => [t.id, t.isSystem]));
+
+    for (const it of items) {
+      const cur = ra.get(it.templateId) ?? {
+        subCriteriaCount: 0,
+        weightTotal: new Prisma.Decimal(0),
+      };
+      if (it.parentId !== null) {
+        cur.subCriteriaCount += 1;
+      } else {
+        const mucCuaMau = laHeThong.get(it.templateId)
+          ? KpiSection.COMPLIANCE
+          : KpiSection.BSC_WORK;
+        if (it.section === mucCuaMau) cur.weightTotal = cur.weightTotal.plus(it.weight);
+      }
+      ra.set(it.templateId, cur);
+    }
+    return ra;
   }
 
   async getById(id: string, user: AuthenticatedUser): Promise<TemplateDetailResponse> {
@@ -96,6 +142,7 @@ export class KpiTemplateService {
   ): Promise<TemplateResponse> {
     await this.assertCodeAvailable(dto.code);
     if (dto.jobTitleId) await this.assertJobTitleExists(dto.jobTitleId);
+    await this.assertCoTheGhiChucDanh(dto.jobTitleId ?? null, actor);
 
     const created = await this.prisma.kpiTemplate.create({
       data: {
@@ -135,6 +182,7 @@ export class KpiTemplateService {
     ipAddress?: string,
   ): Promise<TemplateResponse> {
     const goc = await this.mustFind(id);
+    await this.assertCoTheGhi(goc, actor);
     await this.assertCodeAvailable(dto.code);
     if (dto.jobTitleId) await this.assertJobTitleExists(dto.jobTitleId);
 
@@ -199,6 +247,10 @@ export class KpiTemplateService {
     ipAddress?: string,
   ): Promise<TemplateResponse> {
     const before = await this.mustFind(id);
+    await this.assertCoTheGhi(before, actor);
+    if (dto.jobTitleId !== undefined) {
+      await this.assertCoTheGhiChucDanh(dto.jobTitleId, actor);
+    }
     this.assertKhongPhaiMauHeThong(before);
 
     if (dto.code && dto.code !== before.code) await this.assertCodeAvailable(dto.code);
@@ -245,6 +297,7 @@ export class KpiTemplateService {
     ipAddress?: string,
   ): Promise<TemplateDetailResponse> {
     const template = await this.mustFind(id);
+    await this.assertCoTheGhi(template, actor);
     if (template.isSystem && actor.role !== Role.ADMIN) {
       throw new ForbiddenException(
         'Mẫu hệ thống chỉ quản trị viên mới sửa được, qua endpoint riêng.',
@@ -315,6 +368,7 @@ export class KpiTemplateService {
     ipAddress?: string,
   ): Promise<TemplateResponse> {
     const template = await this.mustFind(id);
+    await this.assertCoTheGhi(template, actor);
     if (template.isSystem && actor.role !== Role.ADMIN) {
       throw new ForbiddenException(
         'Mẫu hệ thống chỉ quản trị viên mới xuất bản được.',
@@ -365,6 +419,7 @@ export class KpiTemplateService {
     ipAddress?: string,
   ): Promise<TemplateResponse> {
     const before = await this.mustFind(id);
+    await this.assertCoTheGhi(before, actor);
     this.assertKhongPhaiMauHeThong(before);
 
     if (!before.isActive) {
@@ -459,6 +514,44 @@ export class KpiTemplateService {
     const trong = await this.locTheoPhamVi([t], user);
     if (trong.length === 0) {
       throw new ForbiddenException('Bạn không có quyền xem mẫu KPI này');
+    }
+  }
+
+  /**
+   * Quyền GHI mẫu — chốt 12/09/2026: ADMIN toàn quyền; TRƯỞNG BỘ PHẬN chỉ
+   * với mẫu của chức danh THUỘC PHÒNG MÌNH. Mẫu hệ thống và mẫu của chức
+   * danh dùng chung (không gắn phòng) chỉ ADMIN đụng được. HR và ban giám đốc
+   * bị guard chặn từ trước, không tới được đây.
+   */
+  private async assertCoTheGhi(t: TemplateWithExtras, user: AuthenticatedUser): Promise<void> {
+    if (user.role === Role.ADMIN) return;
+    if (t.isSystem) {
+      throw new ForbiddenException('Mẫu hệ thống chỉ quản trị viên sửa được');
+    }
+    await this.assertCoTheGhiChucDanh(t.jobTitleId, user);
+  }
+
+  private async assertCoTheGhiChucDanh(
+    jobTitleId: string | null,
+    user: AuthenticatedUser,
+  ): Promise<void> {
+    if (user.role === Role.ADMIN) return;
+    if (!jobTitleId) {
+      throw new ForbiddenException(
+        'Trưởng bộ phận chỉ soạn mẫu cho chức danh của phòng mình — hãy chọn chức danh.',
+      );
+    }
+    const chucDanh = await this.prisma.jobTitle.findUnique({
+      where: { id: jobTitleId },
+      select: { departmentId: true, name: true },
+    });
+    if (!chucDanh) throw new BadRequestException('Không tìm thấy chức danh');
+    const trongPhamVi = await this.departmentScope.getAccessibleDepartmentIds(user);
+    if (!chucDanh.departmentId || !trongPhamVi.includes(chucDanh.departmentId)) {
+      throw new ForbiddenException(
+        `Chức danh "${chucDanh.name}" không thuộc phòng bạn phụ trách. ` +
+          'Mẫu của chức danh dùng chung do quản trị viên soạn.',
+      );
     }
   }
 
@@ -594,7 +687,7 @@ export class KpiTemplateService {
     };
   }
 
-  private toResponse(t: TemplateWithExtras): TemplateResponse {
+  private toResponse(t: TemplateWithExtras, tongHop?: TongHopItem): TemplateResponse {
     return {
       id: t.id,
       code: t.code,
@@ -607,6 +700,9 @@ export class KpiTemplateService {
       version: t.version,
       isActive: t.isActive,
       criteriaCount: t._count.items,
+      subCriteriaCount: tongHop?.subCriteriaCount ?? 0,
+      weightTotal: (tongHop?.weightTotal ?? new Prisma.Decimal(0)).toFixed(2),
+      weightRequired: t.isSystem ? TONG_TRONG_SO.COMPLIANCE : TONG_TRONG_SO.BSC_WORK,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };

@@ -190,6 +190,15 @@ export interface TemplateResponse {
   isActive: boolean;
   /** Số tiêu chí cấp 1. */
   criteriaCount: number;
+  /** Số KPI con (cấp 2). */
+  subCriteriaCount: number;
+  /**
+   * Tổng trọng số của MỤC MÀ MẪU CHỊU TRÁCH NHIỆM: mẫu chức danh là mục BSC
+   * (phải đủ 70), mẫu hệ thống là mục nội quy (phải đủ 30). Chuỗi Decimal.
+   */
+  weightTotal: string;
+  /** 70 với mẫu chức danh, 30 với mẫu hệ thống — để giao diện vẽ thanh. */
+  weightRequired: number;
   createdAt: Date;
   updatedAt: Date;
 }

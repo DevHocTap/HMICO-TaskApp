@@ -33,6 +33,16 @@ interface RequestInfo {
 /** Đọc: ADMIN, HR, EXECUTIVE, MANAGER. STAFF không truy cập mẫu KPI. */
 const VAI_TRO_DOC = [Role.ADMIN, Role.HR, Role.EXECUTIVE, Role.MANAGER] as const;
 
+/**
+ * Ghi: TRƯỞNG BỘ PHẬN và ADMIN — chốt 12/09/2026.
+ *
+ * Trước đây là ADMIN + HR. Đổi vì mẫu KPI là yêu cầu chuyên môn của từng
+ * phòng: trưởng phòng Kỹ thuật mới biết kỹ sư triển khai phải đạt gì, HCNS
+ * không nắm được. HCNS và ban giám đốc chỉ XEM. Trưởng phòng bị service
+ * chặn trong phạm vi chức danh của phòng mình (`assertCoTheGhi`).
+ */
+const VAI_TRO_GHI = [Role.ADMIN, Role.MANAGER] as const;
+
 @Controller('kpi-templates')
 export class KpiTemplateController {
   constructor(private readonly service: KpiTemplateService) {}
@@ -71,7 +81,7 @@ export class KpiTemplateController {
 
   // --- Từ đây trở xuống chỉ ADMIN và HR ---
 
-  @Roles(Role.ADMIN, Role.HR)
+  @Roles(...VAI_TRO_GHI)
   @Post()
   create(
     @Body() dto: CreateTemplateDto,
@@ -81,7 +91,7 @@ export class KpiTemplateController {
     return this.service.create(dto, user, req.ip);
   }
 
-  @Roles(Role.ADMIN, Role.HR)
+  @Roles(...VAI_TRO_GHI)
   @Post(':id/duplicate')
   duplicate(
     @Param('id', ParseUUIDPipe) id: string,
@@ -92,7 +102,7 @@ export class KpiTemplateController {
     return this.service.duplicate(id, dto, user, req.ip);
   }
 
-  @Roles(Role.ADMIN, Role.HR)
+  @Roles(...VAI_TRO_GHI)
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -104,7 +114,7 @@ export class KpiTemplateController {
   }
 
   /** Lưu cả cây một lần, trong một transaction. Không kiểm trọng số. */
-  @Roles(Role.ADMIN, Role.HR)
+  @Roles(...VAI_TRO_GHI)
   @Put(':id/items')
   saveItems(
     @Param('id', ParseUUIDPipe) id: string,
@@ -118,7 +128,7 @@ export class KpiTemplateController {
   /** Chỗ DUY NHẤT kiểm trọng số. Qua hết mới được PUBLISHED. */
   // 200 chứ không phải 201: xuất bản là đổi trạng thái của mẫu đã có,
   // không tạo ra tài nguyên mới.
-  @Roles(Role.ADMIN, Role.HR)
+  @Roles(...VAI_TRO_GHI)
   @HttpCode(HttpStatus.OK)
   @Post(':id/publish')
   publish(
@@ -129,7 +139,7 @@ export class KpiTemplateController {
     return this.service.publish(id, user, req.ip);
   }
 
-  @Roles(Role.ADMIN, Role.HR)
+  @Roles(...VAI_TRO_GHI)
   @Delete(':id')
   deactivate(
     @Param('id', ParseUUIDPipe) id: string,

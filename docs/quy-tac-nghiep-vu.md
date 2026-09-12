@@ -296,6 +296,11 @@ So trên giá trị **đã làm tròn**: 89,996 làm tròn thành 90,00 nên ra
 `COMPLETED`, không phải `NEEDS_IMPROVEMENT`. Làm tròn trước, xếp loại sau —
 không bao giờ làm ngược lại.
 
+**Từ 11/09/2026 ba ngưỡng 80 / 90 / 100 là CÀI ĐẶT HỆ THỐNG** (màn Cài đặt,
+ADMIN và HCNS sửa được, bảng `SystemSetting` nhóm `nguongXepLoai`), mặc định
+đúng bằng ba số trên. Ngưỡng mới chỉ áp cho lần **chốt điểm sau khi đổi**;
+xếp loại đã ghi trên phiếu không tính lại — nó là căn cứ lương của tháng đó.
+
 **3. Xếp loại CHỈ tính trên cột trưởng bộ phận.**
 
 Cột tự chấm có tổng điểm riêng (`Scorecard.selfTotalScore`) để đối chiếu,
@@ -465,6 +470,10 @@ một kỳ nằm ở THÁNG TRƯỚC kỳ đó.** Kỳ tháng 09 có `assignDead
 vào tháng 3 mà không ai nhìn ra cho tới lúc đối chiếu số.
 
 **CHỈ kỳ THÁNG có bốn mốc này.** Kỳ quý và kỳ năm để `NULL`.
+
+**Từ 11/09/2026 bốn mốc là CÀI ĐẶT HỆ THỐNG** (nhóm `lichKy`, mặc định
+25 / 25 / 29 / 30). Mốc mới chỉ áp cho kỳ **sinh ra sau khi đổi**; kỳ đã có
+giữ mốc cũ — sửa thì HCNS sửa tay từng kỳ ở màn Kỳ đánh giá.
 
 Lý do: phiếu KPI luôn gắn với kỳ tháng, không có phiếu nào gắn trực tiếp
 vào kỳ quý hay kỳ năm — hai loại đó chỉ để tổng hợp. Đặt hạn cho chúng là
@@ -666,12 +675,20 @@ còn — đó chính là lúc cần tra cứu nhất.
 
 | Vai trò | Quyền |
 |---|---|
-| `ADMIN` | Toàn quyền, khoá/mở kỳ, quản lý mẫu KPI và chức danh |
-| `EXECUTIVE` | **Xem toàn công ty ở mọi màn hình, bao gồm cả màn quản trị. Không có quyền ghi ở module `org`.** Không chấm điểm |
-| `HR` | Xem toàn công ty + quản lý nhân sự, chức danh, tiếp nhận kết quả, xuất Excel |
-| `MANAGER` | Giao KPI, chấm điểm, xem trong phạm vi phòng mình |
+| `ADMIN` | Toàn quyền, khoá/mở kỳ, mẫu hệ thống và mẫu dùng chung, chức danh |
+| `EXECUTIVE` | **Xem toàn công ty ở mọi màn hình, bao gồm cả màn quản trị. Không có quyền ghi ở module `org`.** Không chấm điểm. Chấm trưởng bộ phận |
+| `HR` | Xem toàn công ty + quản lý nhân sự, chức danh, tiếp nhận kết quả, xuất Excel. **Chỉ XEM mẫu KPI** |
+| `MANAGER` | Giao KPI, chấm điểm, **soạn mẫu KPI cho chức danh phòng mình**, xem trong phạm vi phòng mình |
 | `STAFF` | Chỉ KPI bản thân, tự chấm |
 
+> **Mẫu KPI do TRƯỞNG BỘ PHẬN soạn — chốt 12/09/2026.** Trước đó là ADMIN +
+> HCNS. Đổi vì mẫu là yêu cầu chuyên môn của từng phòng: trưởng phòng Kỹ thuật
+> mới biết kỹ sư triển khai phải đạt gì, HCNS không nắm được. Trưởng bộ phận
+> chỉ soạn cho **chức danh thuộc phòng mình** (`assertCoTheGhi` trong
+> `kpi-template.service.ts`); mẫu hệ thống và mẫu của chức danh dùng chung
+> vẫn là việc của ADMIN. HCNS và ban giám đốc xem toàn bộ mẫu và nội dung
+> phiếu đã giao, không sửa.
+>
 > **Về `EXECUTIVE`:** ban giám đốc phải xem được cơ cấu tổ chức, chức danh
 > và danh sách nhân sự toàn công ty — giấu những màn hình đó đi thì họ đăng
 > nhập vào chỉ thấy trang trống. Backend vốn đã cho họ đọc toàn công ty;
