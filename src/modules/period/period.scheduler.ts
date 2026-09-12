@@ -1,6 +1,7 @@
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PeriodService } from './period.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { MUI_GIO } from './period-calendar.js';
 
 /**
@@ -19,7 +20,10 @@ import { MUI_GIO } from './period-calendar.js';
 export class PeriodScheduler implements OnApplicationBootstrap {
   private readonly logger = new Logger(PeriodScheduler.name);
 
-  constructor(private readonly periodService: PeriodService) {}
+  constructor(
+    private readonly periodService: PeriodService,
+    private readonly settings: SettingsService,
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     await this.chay('lúc khởi động');
@@ -31,6 +35,11 @@ export class PeriodScheduler implements OnApplicationBootstrap {
   }
 
   private async chay(boiCanh: string): Promise<void> {
+    // Tắt trong Cài đặt thì không sinh; HCNS tạo kỳ tay ở màn Kỳ đánh giá.
+    if (!this.settings.lay().kyDanhGia.tuSinhHangThang) {
+      this.logger.log(`Bỏ qua tự sinh kỳ (${boiCanh}): đã tắt trong Cài đặt hệ thống`);
+      return;
+    }
     try {
       const { daTao } = await this.periodService.ensurePeriodsExist();
       if (daTao.length === 0) {

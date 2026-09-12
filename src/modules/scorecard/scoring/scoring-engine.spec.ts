@@ -264,6 +264,30 @@ describe('tinhDiem — chống lỗi số thực', () => {
   });
 });
 
+describe('xepLoaiTuTongDiem — ngưỡng từ Cài đặt hệ thống', () => {
+  const nguong = { canCaiThien: 70, hoanThanh: 85, vuot: 100 };
+
+  it('ranh giới đổi theo ngưỡng truyền vào', () => {
+    expect(xepLoaiTuTongDiem(D('69.99'), nguong)).toBe(Grade.NOT_ACHIEVED);
+    expect(xepLoaiTuTongDiem(D('70'), nguong)).toBe(Grade.NEEDS_IMPROVEMENT);
+    expect(xepLoaiTuTongDiem(D('84.99'), nguong)).toBe(Grade.NEEDS_IMPROVEMENT);
+    expect(xepLoaiTuTongDiem(D('85'), nguong)).toBe(Grade.COMPLETED);
+    expect(xepLoaiTuTongDiem(D('100'), nguong)).toBe(Grade.COMPLETED);
+    expect(xepLoaiTuTongDiem(D('100.01'), nguong)).toBe(Grade.EXCEEDED);
+  });
+
+  it('tinhDiem và chotDiem chuyển ngưỡng xuống xếp loại', () => {
+    const dongs = [cha('b1', 100, 8)]; // 80 điểm
+    expect(tinhDiem(dongs, 'manager').xepLoai).toBe(Grade.NEEDS_IMPROVEMENT);
+    expect(tinhDiem(dongs, 'manager', { canCaiThien: 60, hoanThanh: 75, vuot: 100 }).xepLoai).toBe(
+      Grade.COMPLETED,
+    );
+    expect(chotDiem(dongs, 'manager', { canCaiThien: 85, hoanThanh: 95, vuot: 100 }).xepLoai).toBe(
+      Grade.NOT_ACHIEVED,
+    );
+  });
+});
+
 describe('xepLoaiTuTongDiem — bốn ranh giới', () => {
   it('79,99 -> NOT_ACHIEVED', () => {
     expect(xepLoaiTuTongDiem(D('79.99'))).toBe(Grade.NOT_ACHIEVED);

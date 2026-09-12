@@ -507,6 +507,18 @@ model ScorecardEvent {
   @@index([scorecardId, createdAt])
 }
 
+// Cấu hình dùng chung toàn công ty, mỗi nhóm một dòng (`lichKy`,
+// `nguongXepLoai`, `baoMat`, `kyDanhGia`, `chamDiem`). Hình dạng `value`
+// của từng nhóm và giá trị mặc định nằm ở
+// src/modules/settings/cai-dat-mac-dinh.ts — dòng không tồn tại nghĩa là
+// dùng mặc định, KHÔNG seed sẵn.
+model SystemSetting {
+  key         String   @id
+  value       Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
 // Cố ý không có khoá ngoại tới bảng nghiệp vụ: phiếu bị xoá thì log
 // vẫn phải còn — đó chính là lúc cần tra cứu nhất.
 model AuditLog {

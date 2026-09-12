@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { SettingsService } from '../settings/settings.service.js';
+import { settingsGia } from '../settings/settings.mock.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Role } from '@prisma/client';
@@ -84,6 +86,7 @@ describe('UsersService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
+        { provide: SettingsService, useValue: settingsGia() },
         {
           provide: PrismaService,
           useValue: {

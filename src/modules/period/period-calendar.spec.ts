@@ -68,6 +68,22 @@ describe('kyThang', () => {
     expect(iso(kyThang(2026, 2).endDate)).toBe('2026-02-28');
   });
 
+  it('nhận bốn mốc từ Cài đặt hệ thống thay cho mặc định 25/25/29/30', () => {
+    const moc = { ngayLenKpiThangSau: 20, ngayTuCham: 22, ngayTruongCham: 26, ngayGuiHcns: 28 };
+    const k = kyThang(2026, 10, moc);
+    expect(iso(k.assignDeadline)).toBe('2026-09-20');
+    expect(iso(k.selfScoreDeadline)).toBe('2026-10-22');
+    expect(iso(k.managerScoreDeadline)).toBe('2026-10-26');
+    expect(iso(k.submitDeadline)).toBe('2026-10-28');
+  });
+
+  it('mốc 31 trong tháng ngắn thì kẹp về ngày cuối tháng', () => {
+    const moc = { ngayLenKpiThangSau: 31, ngayTuCham: 31, ngayTruongCham: 31, ngayGuiHcns: 31 };
+    const k = kyThang(2026, 2, moc);
+    expect(iso(k.assignDeadline)).toBe('2026-01-31');
+    expect(iso(k.submitDeadline)).toBe('2026-02-28');
+  });
+
   it('tháng 2 năm nhuận có 29 ngày', () => {
     expect(iso(kyThang(2028, 2).endDate)).toBe('2028-02-29');
   });

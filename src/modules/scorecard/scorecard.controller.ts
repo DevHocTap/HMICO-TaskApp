@@ -298,8 +298,14 @@ export class ScorecardController {
     return this.scoring.managerSubmit(id, user, dto.noSelfScoreReason, req.ip);
   }
 
-  /** Trả phiếu về cho nhân viên tự chấm lại. HR KHÔNG có quyền này. */
-  @Roles(...VAI_TRO_CHAM_DIEM)
+  /**
+   * Trả phiếu về cho nhân viên tự chấm lại.
+   *
+   * HR và ADMIN qua được guard nhưng service chỉ cho họ trả lại phiếu ĐÃ
+   * TIẾP NHẬN, và chỉ khi Cài đặt hệ thống bật "cho phép trả lại phiếu đã
+   * chốt" — mặc định tắt, nên hành vi cũ giữ nguyên.
+   */
+  @Roles(...VAI_TRO_CHAM_DIEM, Role.HR, Role.ADMIN)
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
   reject(

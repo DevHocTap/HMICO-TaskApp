@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { TokenService } from '../auth/token.service.js';
 import { DepartmentScopeService } from './department-scope.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
@@ -46,6 +47,7 @@ export class UsersService {
     private readonly departmentScope: DepartmentScopeService,
     private readonly tokenService: TokenService,
     private readonly audit: AuditService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ------------------------------------------------------------------ đọc
@@ -75,6 +77,9 @@ export class UsersService {
         query.role ? { role: query.role } : {},
         query.jobTitleId ? { jobTitleId: query.jobTitleId } : {},
         query.isActive !== undefined ? { isActive: query.isActive } : {},
+        query.mustChangePassword !== undefined
+          ? { mustChangePassword: query.mustChangePassword }
+          : {},
         query.search
           ? {
               OR: [
@@ -133,7 +138,8 @@ export class UsersService {
         jobTitleId: dto.jobTitleId ?? null,
         level: dto.level ?? null,
         managerId: dto.managerId ?? null,
-        mustChangePassword: true,
+        // Theo Cài đặt hệ thống — tắt thì mật khẩu tạm dùng được luôn
+        mustChangePassword: this.settings.lay().baoMat.batBuocDoiMatKhauLanDau,
       },
       include: INCLUDE_EXTRAS,
     });
@@ -240,7 +246,8 @@ export class UsersService {
       where: { id },
       data: {
         passwordHash: await argon2.hash(temporaryPassword),
-        mustChangePassword: true,
+        // Theo Cài đặt hệ thống — tắt thì mật khẩu tạm dùng được luôn
+        mustChangePassword: this.settings.lay().baoMat.batBuocDoiMatKhauLanDau,
         passwordChangedAt: new Date(),
       },
     });

@@ -1,4 +1,5 @@
 import { Grade, KpiSection, Prisma } from '@prisma/client';
+import { CAI_DAT_MAC_DINH, type NguongXepLoai } from '../../settings/cai-dat-mac-dinh.js';
 import { HE_SO_VUOT_THANG } from '../../kpi-template/kpi-scale.constants.js';
 
 /**
@@ -145,10 +146,13 @@ export function tranDiemCuaDong(section: KpiSection, maxScale: number): Prisma.D
  * thay vì NEEDS_IMPROVEMENT. Làm tròn trước rồi mới xếp loại, không làm
  * ngược lại.
  */
-export function xepLoaiTuTongDiem(tongDiem: Prisma.Decimal): Grade {
-  if (tongDiem.lessThan(80)) return Grade.NOT_ACHIEVED;
-  if (tongDiem.lessThan(90)) return Grade.NEEDS_IMPROVEMENT;
-  if (tongDiem.lessThanOrEqualTo(100)) return Grade.COMPLETED;
+export function xepLoaiTuTongDiem(
+  tongDiem: Prisma.Decimal,
+  nguong: NguongXepLoai = CAI_DAT_MAC_DINH.nguongXepLoai,
+): Grade {
+  if (tongDiem.lessThan(nguong.canCaiThien)) return Grade.NOT_ACHIEVED;
+  if (tongDiem.lessThan(nguong.hoanThanh)) return Grade.NEEDS_IMPROVEMENT;
+  if (tongDiem.lessThanOrEqualTo(nguong.vuot)) return Grade.COMPLETED;
   return Grade.EXCEEDED;
 }
 
@@ -171,7 +175,11 @@ const layDiem = (dong: DongCham, cot: CotCham): Prisma.Decimal | null =>
  * TUYỆT ĐỐI không coi ô trống là 0 điểm: một tiêu chí quên chấm sẽ thành
  * "chấm 0", kéo tổng xuống và người bị chấm không có cách nào biết.
  */
-export function tinhDiem(dongs: readonly DongCham[], cot: CotCham): KetQuaCham {
+export function tinhDiem(
+  dongs: readonly DongCham[],
+  cot: CotCham,
+  nguong: NguongXepLoai = CAI_DAT_MAC_DINH.nguongXepLoai,
+): KetQuaCham {
   const conCuaCha = new Map<string, DongCham[]>();
   const theoId = new Map<string, DongCham>();
   for (const d of dongs) theoId.set(d.id, d);
@@ -278,7 +286,7 @@ export function tinhDiem(dongs: readonly DongCham[], cot: CotCham): KetQuaCham {
   return {
     dong: dongs.map((d) => ketQua.get(d.id)!),
     tongDiem,
-    xepLoai: daChamDu && cot === 'manager' ? xepLoaiTuTongDiem(tongDiem) : null,
+    xepLoai: daChamDu && cot === 'manager' ? xepLoaiTuTongDiem(tongDiem, nguong) : null,
     daChamDu,
     thieuDiem,
   };
@@ -297,8 +305,12 @@ export interface DiemDaChot {
  * Dùng ở `self-submit` / `manager-submit`. Mọi chỗ chỉ hiển thị thì gọi
  * `tinhDiem`.
  */
-export function chotDiem(dongs: readonly DongCham[], cot: CotCham): DiemDaChot {
-  const kq = tinhDiem(dongs, cot);
+export function chotDiem(
+  dongs: readonly DongCham[],
+  cot: CotCham,
+  nguong: NguongXepLoai = CAI_DAT_MAC_DINH.nguongXepLoai,
+): DiemDaChot {
+  const kq = tinhDiem(dongs, cot, nguong);
   if (!kq.daChamDu) {
     throw new LoiChamDiem(
       'CHUA_CHAM_DU',

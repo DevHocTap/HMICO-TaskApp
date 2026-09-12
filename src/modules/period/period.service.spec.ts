@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { SettingsService } from '../settings/settings.service.js';
+import { settingsGia } from '../settings/settings.mock.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PeriodService } from './period.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -41,6 +43,7 @@ describe('PeriodService.ensurePeriodsExist', () => {
         PeriodService,
         { provide: PrismaService, useValue: { period } },
         { provide: AuditService, useValue: { log } },
+        { provide: SettingsService, useValue: settingsGia() },
       ],
     }).compile();
     service = module.get(PeriodService);

@@ -1,4 +1,5 @@
 import { PeriodType } from '@prisma/client';
+import { CAI_DAT_MAC_DINH, type MocLichKy } from '../settings/cai-dat-mac-dinh.js';
 
 /**
  * Múi giờ nghiệp vụ. Máy chủ có thể chạy UTC, nhưng "tháng 9" phải hiểu
@@ -24,10 +25,15 @@ export const MUI_GIO = 'Asia/Ho_Chi_Minh';
  *
  * Bản trước ghi hạn nộp là "hết ngày 02 tháng kế tiếp" — sai hẳn tháng.
  */
-export const NGAY_LEN_KPI_THANG_SAU = 25;
-export const NGAY_TU_DANH_GIA = 25;
-export const NGAY_CHAM_DIEM = 29;
-export const NGAY_GUI_HCNS = 30;
+/**
+ * Bốn mốc MẶC ĐỊNH. Từ 11/09/2026 mốc thật lấy từ Cài đặt hệ thống
+ * (`SettingsService.lay().lichKy`) và truyền vào `kyThang()` /
+ * `cacKyCanBaoDam()`; bốn hằng này chỉ còn là giá trị khi không truyền.
+ */
+export const NGAY_LEN_KPI_THANG_SAU = CAI_DAT_MAC_DINH.lichKy.ngayLenKpiThangSau;
+export const NGAY_TU_DANH_GIA = CAI_DAT_MAC_DINH.lichKy.ngayTuCham;
+export const NGAY_CHAM_DIEM = CAI_DAT_MAC_DINH.lichKy.ngayTruongCham;
+export const NGAY_GUI_HCNS = CAI_DAT_MAC_DINH.lichKy.ngayGuiHcns;
 
 /**
  * Ngày lịch hiện tại theo giờ Việt Nam.
@@ -193,7 +199,11 @@ function ngayKep(nam: number, thang: number, ngayTrongThang: number): Date {
   return ngay(nam, thang, Math.min(ngayTrongThang, soNgayCuaThang(nam, thang)));
 }
 
-export function kyThang(nam: number, thang: number): KyCanTao {
+export function kyThang(
+  nam: number,
+  thang: number,
+  moc: MocLichKy = CAI_DAT_MAC_DINH.lichKy,
+): KyCanTao {
   // Trưởng phòng lên KPI cho tháng này vào ngày 25 THÁNG TRƯỚC
   const truoc = congThang(nam, thang, -1);
   return {
@@ -202,10 +212,10 @@ export function kyThang(nam: number, thang: number): KyCanTao {
     type: PeriodType.MONTH,
     startDate: ngay(nam, thang, 1),
     endDate: new Date(Date.UTC(nam, thang, 0)),
-    assignDeadline: ngayKep(truoc.nam, truoc.thang, NGAY_LEN_KPI_THANG_SAU),
-    selfScoreDeadline: ngayKep(nam, thang, NGAY_TU_DANH_GIA),
-    managerScoreDeadline: ngayKep(nam, thang, NGAY_CHAM_DIEM),
-    submitDeadline: ngayKep(nam, thang, NGAY_GUI_HCNS),
+    assignDeadline: ngayKep(truoc.nam, truoc.thang, moc.ngayLenKpiThangSau),
+    selfScoreDeadline: ngayKep(nam, thang, moc.ngayTuCham),
+    managerScoreDeadline: ngayKep(nam, thang, moc.ngayTruongCham),
+    submitDeadline: ngayKep(nam, thang, moc.ngayGuiHcns),
     parentCode: maKyQuy(nam, quyCuaThang(thang)),
   };
 }
@@ -254,7 +264,10 @@ export function kyNam(nam: number): KyCanTao {
  *
  * Trả về theo thứ tự CHA TRƯỚC CON, để tạo tuần tự là nối được parentId.
  */
-export function cacKyCanBaoDam(bayGio: Date = new Date()): KyCanTao[] {
+export function cacKyCanBaoDam(
+  bayGio: Date = new Date(),
+  moc: MocLichKy = CAI_DAT_MAC_DINH.lichKy,
+): KyCanTao[] {
   const { nam, thang } = namThangHienTai(bayGio);
   const ke = congThang(nam, thang, 1);
 
@@ -276,7 +289,7 @@ export function cacKyCanBaoDam(bayGio: Date = new Date()): KyCanTao[] {
     them(kyQuy(t.nam, quyCuaThang(t.thang)));
   }
   // Kỳ tháng thêm sau cùng để mọi kỳ cha chắc chắn đã có mặt trước
-  for (const t of thangCanCo) them(kyThang(t.nam, t.thang));
+  for (const t of thangCanCo) them(kyThang(t.nam, t.thang, moc));
 
   return ra;
 }

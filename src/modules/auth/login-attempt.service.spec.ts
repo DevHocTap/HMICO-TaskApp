@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { LoginAttemptService } from './login-attempt.service.js';
+import { settingsGia } from '../settings/settings.mock.js';
+import { CAI_DAT_MAC_DINH } from '../settings/cai-dat-mac-dinh.js';
+import type { SettingsService } from '../settings/settings.service.js';
 
 const EMAIL = 'admin@hmico.vn';
 const PHUT = 60_000;
@@ -9,7 +12,7 @@ describe('LoginAttemptService', () => {
   const t0 = Date.now();
 
   beforeEach(() => {
-    service = new LoginAttemptService();
+    service = new LoginAttemptService(settingsGia() as unknown as SettingsService);
   });
 
   it('chưa sai lần nào thì không bị khoá', () => {
@@ -64,5 +67,28 @@ describe('LoginAttemptService', () => {
     for (let i = 0; i < 11; i++) service.recordFailure(emailBia, t0);
 
     expect(service.getLockRemainingMinutes(emailBia, t0)).toBe(15);
+  });
+
+  describe('theo Cài đặt hệ thống', () => {
+    it('đổi ngưỡng 3 lần / 5 phút thì khoá ở lần thứ 4, mở sau 5 phút', () => {
+      const cauHinh = settingsGia({
+        baoMat: { ...CAI_DAT_MAC_DINH.baoMat, soLanSaiToiDa: 3, phutKhoaTam: 5 },
+      }) as unknown as SettingsService;
+      const s = new LoginAttemptService(cauHinh);
+      for (let i = 0; i < 3; i++) s.recordFailure(EMAIL, t0);
+      expect(s.getLockRemainingMinutes(EMAIL, t0)).toBe(0);
+      s.recordFailure(EMAIL, t0);
+      expect(s.getLockRemainingMinutes(EMAIL, t0)).toBe(5);
+      expect(s.getLockRemainingMinutes(EMAIL, t0 + 5 * PHUT)).toBe(0);
+    });
+
+    it('tắt khoá tạm thì sai bao nhiêu cũng không khoá', () => {
+      const cauHinh = settingsGia({
+        baoMat: { ...CAI_DAT_MAC_DINH.baoMat, khoaTamKhiSaiNhieu: false },
+      }) as unknown as SettingsService;
+      const s = new LoginAttemptService(cauHinh);
+      for (let i = 0; i < 50; i++) s.recordFailure(EMAIL, t0);
+      expect(s.getLockRemainingMinutes(EMAIL, t0)).toBe(0);
+    });
   });
 });

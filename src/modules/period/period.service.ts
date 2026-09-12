@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PeriodType, type Period } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { MUI_GIO, cacKyCanBaoDam, type KyCanTao } from './period-calendar.js';
 import type {
@@ -28,6 +29,7 @@ export class PeriodService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -45,7 +47,7 @@ export class PeriodService {
    * KHÔNG bù ngược quá khứ — xem `cacKyCanBaoDam`.
    */
   async ensurePeriodsExist(bayGio: Date = new Date()): Promise<KetQuaBaoDamKy> {
-    const canCo = cacKyCanBaoDam(bayGio);
+    const canCo = cacKyCanBaoDam(bayGio, this.settings.lay().lichKy);
     const daTao: string[] = [];
     const daCoSan: string[] = [];
 

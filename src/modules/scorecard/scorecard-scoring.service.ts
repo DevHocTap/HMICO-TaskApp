@@ -19,6 +19,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DepartmentScopeService } from '../org/department-scope.service.js';
 import { ScorecardWorkflowService } from './scorecard-workflow.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import type { ScoreInput } from './dto/scoring.dto.js';
 import {
@@ -55,6 +56,7 @@ export class ScorecardScoringService {
     private readonly prisma: PrismaService,
     private readonly departmentScope: DepartmentScopeService,
     private readonly workflow: ScorecardWorkflowService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ------------------------------------------------------------------ đọc
@@ -143,7 +145,13 @@ export class ScorecardScoringService {
           !daKhoa &&
           phieu.resultStatus !== ResultStatus.RECEIVED &&
           phieu.resultStatus !== ResultStatus.MANAGER_SCORED,
-        canReject: laNguoiCham && !daKhoa && phieu.resultStatus === ResultStatus.SELF_SCORED,
+        canReject:
+          !daKhoa &&
+          ((laNguoiCham && phieu.resultStatus === ResultStatus.SELF_SCORED) ||
+            (this.settings.lay().chamDiem.choPhepTraLaiPhieuDaChot &&
+              ((laNguoiCham && phieu.resultStatus === ResultStatus.MANAGER_SCORED) ||
+                ((laNguoiCham || user.role === Role.HR || user.role === Role.ADMIN) &&
+                  phieu.resultStatus === ResultStatus.RECEIVED)))),
         canReceive:
           (user.role === Role.HR || user.role === Role.ADMIN) &&
           phieu.resultStatus === ResultStatus.MANAGER_SCORED,
@@ -244,8 +252,34 @@ export class ScorecardScoringService {
    */
   async reject(id: string, reason: string, user: AuthenticatedUser, ipAddress?: string) {
     const phieu = await this.mustFind(id);
-    await this.assertLaNguoiCham(phieu, user);
-    this.assertGhiDiemDuoc(phieu, 'reject');
+    const choPhepTraLaiDaChot = this.settings.lay().chamDiem.choPhepTraLaiPhieuDaChot;
+
+    // Cài đặt "cho phép trả lại phiếu đã chốt" (11/09/2026): mở thêm hai cửa
+    // MANAGER_SCORED (người chấm rút lại điểm đã chốt) và RECEIVED (HCNS /
+    // ADMIN trả phiếu mình đã tiếp nhận). Vẫn kiểm kỳ khoá và phiếu chưa ký
+    // nhận như mọi cửa khác; điểm cũ không bị xoá, chỉ đổi trạng thái và ghi
+    // một dòng ScorecardEvent kèm lý do.
+    const daChot =
+      phieu.resultStatus === ResultStatus.MANAGER_SCORED ||
+      phieu.resultStatus === ResultStatus.RECEIVED;
+    const laHcnsHoacAdmin = user.role === Role.HR || user.role === Role.ADMIN;
+
+    if (daChot && choPhepTraLaiDaChot) {
+      if (phieu.resultStatus === ResultStatus.RECEIVED) {
+        if (!laHcnsHoacAdmin) await this.assertLaNguoiCham(phieu, user);
+      } else {
+        await this.assertLaNguoiCham(phieu, user);
+      }
+      this.assertPhieuMoDeSua(phieu);
+    } else {
+      if (laHcnsHoacAdmin) {
+        throw new ForbiddenException(
+          'Hành chính chỉ trả lại được phiếu đã tiếp nhận, và chỉ khi Cài đặt hệ thống cho phép.',
+        );
+      }
+      await this.assertLaNguoiCham(phieu, user);
+      this.assertGhiDiemDuoc(phieu, 'reject');
+    }
 
     await this.prisma.$transaction((tx) =>
       this.workflow.ghiNhan(
@@ -415,7 +449,8 @@ export class ScorecardScoringService {
    * người chịu trách nhiệm. Ghi đè im lặng lên điểm đã chốt là sửa căn cứ
    * tính lương mà không để lại dấu vết.
    */
-  private assertGhiDiemDuoc(phieu: PhieuDayDu, cong: 'self' | 'manager' | 'reject'): void {
+  /** Hai chốt chặn áp cho MỌI cửa ghi: phiếu đã ký nhận và kỳ chưa khoá sổ. */
+  private assertPhieuMoDeSua(phieu: PhieuDayDu): void {
     if (phieu.assignStatus !== AssignStatus.ACCEPTED) {
       throw new ConflictException(
         'Phiếu chưa được ký nhận nên chưa chấm điểm được. ' +
@@ -427,6 +462,10 @@ export class ScorecardScoringService {
     if (phieu.period.isLocked) {
       throw new ConflictException(`Kỳ ${phieu.period.name} đã khoá sổ, không chấm điểm được nữa.`);
     }
+  }
+
+  private assertGhiDiemDuoc(phieu: PhieuDayDu, cong: 'self' | 'manager' | 'reject'): void {
+    this.assertPhieuMoDeSua(phieu);
     if (phieu.resultStatus === ResultStatus.RECEIVED) {
       throw new ConflictException(
         'Phiếu đã được HCNS tiếp nhận, không sửa điểm được nữa.',
@@ -490,7 +529,7 @@ export class ScorecardScoringService {
   /** Chốt điểm qua engine, đổi lỗi nghiệp vụ sang lỗi HTTP. */
   private chot(items: ScorecardItem[], cot: CotCham) {
     try {
-      return chotDiem(this.dongCham(items), cot);
+      return chotDiem(this.dongCham(items), cot, this.settings.lay().nguongXepLoai);
     } catch (e) {
       throw this.doiLoi(e, cot);
     }
@@ -585,7 +624,7 @@ export class ScorecardScoringService {
    */
   private tinhThu(dongs: DongCham[], cot: CotCham): KetQuaCham | null {
     try {
-      return tinhDiem(dongs, cot);
+      return tinhDiem(dongs, cot, this.settings.lay().nguongXepLoai);
     } catch {
       return null;
     }
