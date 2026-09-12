@@ -6,6 +6,7 @@ import {
   Avatar,
   Button,
   Card,
+  Empty,
   Input,
   InputNumber,
   Modal,
@@ -306,10 +307,76 @@ export function ScoringPage() {
   const soCon = (chaId: string) =>
     data.items.filter((i) => i.parentId === chaId).length;
 
-  const cot: ColumnsType<DongChamDiem> = [
+  const cayHienThi = (muc: 'BSC_WORK' | 'COMPLIANCE') => {
+    const cua = data.items.filter((i) => i.section === muc);
+    const cha = cua.filter((i) => !i.parentId);
+    const ra: DongChamDiem[] = [];
+    for (const c of cha) {
+      ra.push(c);
+      ra.push(...cua.filter((i) => i.parentId === c.id));
+    }
+    return ra;
+  };
+
+  /** Một bảng cho cả hai mục: dòng "mục" là tiêu đề nhóm, còn lại là tiêu chí. */
+  type DongBang = DongChamDiem & {
+    laMuc?: boolean;
+    stt?: string;
+    tieuDeMuc?: string;
+  };
+
+  const dongBang: DongBang[] = (['BSC_WORK', 'COMPLIANCE'] as const).flatMap(
+    (muc, i) => {
+      const cua = cayHienThi(muc);
+      if (cua.length === 0) return [];
+      const tongTrongSo = cua
+        .filter((d) => !d.parentId)
+        .reduce((a, d) => a + Number(d.weight), 0);
+      const thang = cua[0]!.maxScale;
+      let soCha = 0;
+      let soCon = 0;
+      const dau: DongBang = {
+        ...cua[0]!,
+        id: `muc-${muc}`,
+        laMuc: true,
+        tieuDeMuc: `Mục ${i + 1} · ${TEN_MUC[muc]} — tổng ${tongTrongSo}% · thang ${thang} điểm`,
+      };
+      const than = cua.map((d): DongBang => {
+        if (!d.parentId) {
+          soCha += 1;
+          soCon = 0;
+          return { ...d, stt: String(soCha).padStart(2, '0') };
+        }
+        soCon += 1;
+        return { ...d, stt: `${soCha}.${soCon}` };
+      });
+      return [dau, ...than];
+    },
+  );
+  const mucRong = dongBang.length === 0;
+
+  // Ô của dòng "mục" trải hết chiều ngang; các cột khác ẩn (colSpan 0)
+  const oMuc = (dong: DongBang) => ({ colSpan: dong.laMuc ? 0 : 1 });
+
+  const cot: ColumnsType<DongBang> = [
     {
-      title: 'Tiêu chí',
+      title: 'STT',
+      dataIndex: 'stt',
+      width: 56,
+      onCell: (dong) => ({ colSpan: dong.laMuc ? 6 : 1 }),
+      render: (stt: string | undefined, dong) =>
+        dong.laMuc ? (
+          <Typography.Text strong style={{ fontSize: 15 }}>
+            {dong.tieuDeMuc}
+          </Typography.Text>
+        ) : (
+          <Typography.Text type="secondary">{stt}</Typography.Text>
+        ),
+    },
+    {
+      title: 'Mục tiêu & chỉ số đo lường',
       dataIndex: 'name',
+      onCell: oMuc,
       render: (ten: string, dong) =>
         dong.parentId ? (
           <span className="ten-va-phu" style={{ paddingInlineStart: 20 }}>
@@ -338,24 +405,34 @@ export function ScoringPage() {
     {
       title: 'Trọng số',
       dataIndex: 'weight',
-      width: 90,
-      align: 'right',
-      // Con: phần trăm TRONG NHÓM, in không kèm % để không nhầm với trọng số phiếu
-      render: (w: string, dong) =>
-        dong.parentId ? `${Number(w)}` : `${Number(w)}%`,
+      width: 100,
+      align: 'center',
+      onCell: oMuc,
+      // Con: phần trăm TRONG NHÓM — chip nhạt hơn để không nhầm với trọng số phiếu
+      render: (w: string, dong) => (
+        <span
+          className={
+            dong.parentId ? 'chip-trong-so chip-trong-so-con' : 'chip-trong-so'
+          }
+        >
+          {Number(w)}%{dong.parentId ? ' nhóm' : ''}
+        </span>
+      ),
     },
     {
       title: 'NV tự chấm',
       key: 'self',
       width: 120,
       align: 'center',
+      onCell: oMuc,
       render: (_: unknown, dong) => oDiem(dong, 'self'),
     },
     {
-      title: 'Trưởng BP',
+      title: 'Quản lý thẩm định',
       key: 'manager',
-      width: 120,
+      width: 130,
       align: 'center',
+      onCell: oMuc,
       render: (_: unknown, dong) => oDiem(dong, 'manager'),
     },
     {
@@ -363,6 +440,7 @@ export function ScoringPage() {
       key: 'dongGop',
       width: 90,
       align: 'right',
+      onCell: oMuc,
       render: (_: unknown, dong) => {
         if (dong.parentId) return null;
         // Theo cột chính đang xem; cột kia đã có ở thẻ tổng bên phải
@@ -415,17 +493,6 @@ export function ScoringPage() {
   const nguoiDaNghi = !p.ownerIsActive;
   const canLyDoNghiViec =
     cotSua === 'manager' && nguoiDaNghi && p.resultStatus !== 'SELF_SCORED';
-
-  const cayHienThi = (muc: 'BSC_WORK' | 'COMPLIANCE') => {
-    const cua = data.items.filter((i) => i.section === muc);
-    const cha = cua.filter((i) => !i.parentId);
-    const ra: DongChamDiem[] = [];
-    for (const c of cha) {
-      ra.push(c);
-      ra.push(...cua.filter((i) => i.parentId === c.id));
-    }
-    return ra;
-  };
 
   // ------------------------------------------------ dải trạng thái + hạn
   const hanTheoTrangThai: Record<
@@ -517,7 +584,9 @@ export function ScoringPage() {
           danger
           onClick={() => setMoTraLai(true)}
         >
-          Trả lại
+          {cotSua === 'manager' || quyen?.canReject
+            ? 'Yêu cầu NV chấm lại'
+            : 'Trả lại'}
         </Button>
       )}
       {cotSua && (
@@ -563,7 +632,12 @@ export function ScoringPage() {
                 })
               }
             >
-              {cotSua === 'self' ? 'Nộp phiếu tự chấm' : 'Chốt điểm'}
+              {cotSua === 'self'
+                ? 'Nộp phiếu tự chấm'
+                : 'Phê duyệt & chốt điểm'}
+              {tinhThuCot?.daChamDu
+                ? ` (${hienDiem(tinhThuCot.tongDiem).replace('.', ',')})`
+                : ''}
             </Button>
           </Tooltip>
         </>
@@ -594,16 +668,32 @@ export function ScoringPage() {
             Quay lại
           </Button>
         }
-        tieuDe={`${p.ownerName ?? 'Phiếu KPI'} — ${p.periodName}`}
-        moTa={[
-          p.jobTitleName,
-          p.departmentName,
-          chiTiet?.evaluator
-            ? `Người chấm: ${chiTiet.evaluator.fullName}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
+        tieuDe={`Phiếu đánh giá KPI ${p.periodName.toLowerCase()}`}
+        moTa={
+          <span className="tieu-de-tag-hang">
+            <Tag className={`tag-trang-thai ${lopDai}`}>
+              {dongTrangThai}
+              {han?.ngay && soNgayConLai !== null && (
+                <>
+                  {' '}
+                  · {han.nhan.toLowerCase()} {ngayVN(han.ngay)}
+                  {soNgayConLai < 0
+                    ? ` — quá hạn ${-soNgayConLai} ngày`
+                    : soNgayConLai === 0
+                      ? ' — hôm nay'
+                      : ` — còn ${soNgayConLai} ngày`}
+                </>
+              )}
+            </Tag>
+            <Typography.Text type="secondary">
+              {cotSua === 'manager'
+                ? 'Thẩm định điểm tự chấm của nhân viên, ghi nhận xét và chốt điểm cấp phòng.'
+                : cotSua === 'self'
+                  ? 'Tự đánh giá từng tiêu chí rồi nộp để trưởng bộ phận thẩm định.'
+                  : 'Phiếu đang ở chế độ chỉ đọc.'}
+            </Typography.Text>
+          </span>
+        }
         phai={nutHanhDong}
       />
 
@@ -771,64 +861,94 @@ export function ScoringPage() {
       </div>
 
       <div className="cham-diem-trai">
-        <div className={`cham-diem-dai ${lopDai}`}>
-          <Typography.Text strong>{dongTrangThai}</Typography.Text>
-          {han?.ngay && (
-            <Typography.Text strong>
-              {han.nhan}: {ngayVN(han.ngay)}
-              {soNgayConLai !== null &&
-                (soNgayConLai < 0
-                  ? ` — quá hạn ${-soNgayConLai} ngày`
-                  : soNgayConLai === 0
-                    ? ' — hôm nay'
-                    : ` — còn ${soNgayConLai} ngày`)}
-            </Typography.Text>
-          )}
-        </div>
-
-        {(['BSC_WORK', 'COMPLIANCE'] as const).map((muc, i) => {
-          const dongs = cayHienThi(muc);
-          if (dongs.length === 0) return null;
-          const tongTrongSo = dongs
-            .filter((d) => !d.parentId)
-            .reduce((a, d) => a + Number(d.weight), 0);
-          const thang = dongs[0]?.maxScale;
-          return (
-            <Card
-              key={muc}
-              styles={{ body: { padding: 0 } }}
-              title={
-                <span className="viec-tieu-de">
-                  Mục {i + 1} · {TEN_MUC[muc]}
-                  <Typography.Text
-                    type="secondary"
-                    style={{ fontSize: 13, fontWeight: 400 }}
-                  >
-                    tổng {tongTrongSo}% · thang {thang} điểm
-                  </Typography.Text>
-                </span>
+        <Card
+          styles={{ body: { padding: 0 } }}
+          title={
+            <span className="viec-tieu-de">
+              Chi tiết thẩm định chỉ số KPI
+              <Typography.Text
+                type="secondary"
+                style={{ fontSize: 13, fontWeight: 400 }}
+              >
+                {soLa} tiêu chí chấm điểm
+              </Typography.Text>
+            </span>
+          }
+        >
+          {mucRong ? (
+            <Empty
+              style={{ padding: 32 }}
+              description="Phiếu chưa có tiêu chí nào"
+            />
+          ) : (
+            <Table<DongBang>
+              rowKey="id"
+              size="middle"
+              columns={cot}
+              dataSource={dongBang}
+              pagination={false}
+              scroll={{ x: 'max-content' }}
+              rowClassName={(d) =>
+                d.laMuc ? 'dong-muc' : d.parentId ? '' : 'dong-cha'
               }
-            >
-              <Table
-                rowKey="id"
-                size="middle"
-                columns={cot}
-                dataSource={dongs}
-                pagination={false}
-                scroll={{ x: 'max-content' }}
-                rowClassName={(d) => (d.parentId ? '' : 'dong-cha')}
-                expandable={{
-                  expandedRowRender: oGhiChu,
-                  rowExpandable: (dong) => Boolean(oGhiChu(dong)),
-                  expandedRowKeys: dongs
-                    .filter((d) => oGhiChu(d))
-                    .map((d) => d.id),
-                  showExpandColumn: false,
-                }}
-              />
-            </Card>
-          );
-        })}
+              expandable={{
+                expandedRowRender: oGhiChu,
+                rowExpandable: (dong) => !dong.laMuc && Boolean(oGhiChu(dong)),
+                expandedRowKeys: dongBang
+                  .filter((d) => !d.laMuc && oGhiChu(d))
+                  .map((d) => d.id),
+                showExpandColumn: false,
+              }}
+              summary={() => (
+                <Table.Summary fixed>
+                  <Table.Summary.Row className="dong-tong-ket">
+                    <Table.Summary.Cell index={0} colSpan={2}>
+                      <Typography.Text strong style={{ fontSize: 15 }}>
+                        Tổng kết điểm đánh giá
+                      </Typography.Text>
+                      <Typography.Text
+                        type="secondary"
+                        style={{ display: 'block', fontSize: 12 }}
+                      >
+                        Xếp loại chỉ tính trên cột quản lý thẩm định
+                      </Typography.Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={2} align="center">
+                      <span className="chip-trong-so">100%</span>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={3} align="center">
+                      <Typography.Text strong style={{ fontSize: 16 }}>
+                        {cotTrong('self')
+                          ? '—'
+                          : hienDiem(tinhThu.self.tongDiem).replace('.', ',')}
+                      </Typography.Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={4} align="center">
+                      <span
+                        className="diem-chip diem-chip-ql diem-chip-cha"
+                        style={{ fontSize: 16 }}
+                      >
+                        {cotTrong('manager')
+                          ? '—'
+                          : hienDiem(tinhThu.manager.tongDiem).replace(
+                              '.',
+                              ',',
+                            )}
+                      </span>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={5} align="right">
+                      {xepLoai && tinhThu.manager.daChamDu ? (
+                        <Tag color="success">{NHAN_XEP_LOAI[xepLoai]}</Tag>
+                      ) : (
+                        <Typography.Text type="secondary">—</Typography.Text>
+                      )}
+                    </Table.Summary.Cell>
+                  </Table.Summary.Row>
+                </Table.Summary>
+              )}
+            />
+          )}
+        </Card>
 
         {canLyDoNghiViec && (
           <Card title="Lý do không có điểm tự chấm">
@@ -889,6 +1009,20 @@ export function ScoringPage() {
           )}
         </Card>
         {chiTiet && <LichSuPhieu events={chiTiet.events} />}
+      </div>
+
+      <div className="thanh-hanh-dong-day">
+        <Button
+          shape="round"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(-1)}
+        >
+          Quay lại danh sách
+        </Button>
+        <Typography.Text type="secondary" style={{ flex: 1, fontSize: 12 }}>
+          Mọi thay đổi điểm số đều ghi vào lịch sử phiếu và nhật ký hệ thống.
+        </Typography.Text>
+        {nutHanhDong}
       </div>
 
       <Modal
