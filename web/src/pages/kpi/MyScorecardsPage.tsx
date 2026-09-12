@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CayTieuChi } from '../../components/CayTieuChi';
 import { Link } from 'react-router-dom';
 import {
   Alert,
@@ -28,7 +29,6 @@ import {
   MAU_TRANG_THAI_GIAO,
   NHAN_TRANG_THAI_CHAM,
   NHAN_TRANG_THAI_GIAO,
-  type DongPhieuKpi,
   type PhieuKpi,
 } from '../../types/scorecard';
 import { TEN_MUC } from '../../types/kpi-template';
@@ -94,7 +94,11 @@ export function MyScorecardsPage() {
       title: 'Kỳ đánh giá',
       dataIndex: ['period', 'name'],
       render: (ten: string, dong) => (
-        <Button type="link" style={{ padding: 0 }} onClick={() => setIdDangXem(dong.id)}>
+        <Button
+          type="link"
+          style={{ padding: 0 }}
+          onClick={() => setIdDangXem(dong.id)}
+        >
           {ten}
         </Button>
       ),
@@ -135,46 +139,6 @@ export function MyScorecardsPage() {
       ),
     },
   ];
-
-  /**
-   * Cây tiêu chí: cấp 1 in đậm, KPI con thụt vào.
-   *
-   * Trọng số cấp 1 là TUYỆT ĐỐI (cộng lại thành 100), còn cấp 2 là TƯƠNG ĐỐI
-   * trong nhóm (cộng lại thành 100). Ghi rõ đơn vị ở nhãn cột để không ai
-   * cộng nhầm hai loại với nhau.
-   */
-  const cotItem: ColumnsType<DongPhieuKpi> = [
-    {
-      title: 'Tiêu chí',
-      dataIndex: 'name',
-      render: (ten: string, dong) =>
-        dong.parentId ? (
-          <span style={{ paddingInlineStart: 20 }}>{ten}</span>
-        ) : (
-          <Typography.Text strong>{ten}</Typography.Text>
-        ),
-    },
-    { title: 'Mục tiêu', dataIndex: 'measurementText', width: 160 },
-    { title: 'Cách đo', dataIndex: 'measureMethod', width: 260 },
-    {
-      title: 'Trọng số',
-      dataIndex: 'weight',
-      width: 100,
-      align: 'right',
-      render: (w: string, dong) => `${Number(w)}${dong.parentId ? '% nhóm' : '%'}`,
-    },
-    { title: 'Thang điểm', dataIndex: 'maxScale', width: 100, align: 'right' },
-  ];
-
-  function dungCayItem(items: DongPhieuKpi[]): DongPhieuKpi[] {
-    const cha = items.filter((i) => !i.parentId);
-    const ra: DongPhieuKpi[] = [];
-    for (const c of cha) {
-      ra.push(c);
-      ra.push(...items.filter((i) => i.parentId === c.id));
-    }
-    return ra;
-  }
 
   const choKyNhan = chiTiet?.assignStatus === 'PROPOSED';
 
@@ -252,15 +216,9 @@ export function MyScorecardsPage() {
                 return (
                   <div key={muc}>
                     <Typography.Text strong>{TEN_MUC[muc]}</Typography.Text>
-                    <Table
-                      rowKey="id"
-                      size="small"
-                      style={{ marginTop: 8 }}
-                      columns={cotItem}
-                      dataSource={dungCayItem(cua)}
-                      pagination={false}
-                      scroll={{ x: 'max-content' }}
-                    />
+                    <div style={{ marginTop: 8 }}>
+                      <CayTieuChi items={cua} />
+                    </div>
                   </div>
                 );
               })}
@@ -297,8 +255,8 @@ export function MyScorecardsPage() {
         }
       >
         <Typography.Paragraph type="secondary">
-          Nêu rõ chỗ chưa hợp lý để người giao KPI biết phải sửa gì. Phiếu sẽ quay
-          lại cho họ chỉnh, không bị huỷ.
+          Nêu rõ chỗ chưa hợp lý để người giao KPI biết phải sửa gì. Phiếu sẽ
+          quay lại cho họ chỉnh, không bị huỷ.
         </Typography.Paragraph>
         <Input.TextArea
           rows={4}

@@ -7,7 +7,6 @@ import {
   Empty,
   Modal,
   Select,
-  Space,
   Table,
   Tag,
   Typography,
@@ -27,29 +26,24 @@ import { layCayPhongBan } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import {
   MAU_TRANG_THAI_GIAO,
-  NHAN_TRANG_THAI_GIAO,
+  NHAN_TRANG_THAI_GIAO_NGUOI_GIAO,
   type DongBangGiaoKpi,
   type KetQuaHangLoat,
 } from '../../types/scorecard';
 import type { DepartmentNode } from '../../types/org';
 import { useAuth } from '../../auth/useAuth';
+import { TieuDeTrang } from '../../components/TieuDeTrang';
+import { mauNhan } from '../../config/theme';
 
 /** Cây phòng ban -> danh sách phẳng cho ô chọn, giữ thụt lề theo cấp. */
-function lamPhang(nodes: DepartmentNode[], cap = 0): Array<{ value: string; label: string }> {
+function lamPhang(
+  nodes: DepartmentNode[],
+  cap = 0,
+): Array<{ value: string; label: string }> {
   return nodes.flatMap((n) => [
     { value: n.id, label: `${'  '.repeat(cap)}${n.name}` },
     ...lamPhang(n.children, cap + 1),
   ]);
-}
-
-function ngayVN(iso: string | null): string {
-  if (!iso) return '—';
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'Asia/Ho_Chi_Minh',
-  }).format(new Date(iso));
 }
 
 export function AssignKpiPage() {
@@ -78,8 +72,11 @@ export function AssignKpiPage() {
   const kyMacDinh = useMemo(() => {
     const homNay = new Date().toISOString().slice(0, 10);
     return (
-      cacKy.find((k) => k.startDate.slice(0, 10) <= homNay && homNay <= k.endDate.slice(0, 10))
-        ?.id ?? cacKy[0]?.id
+      cacKy.find(
+        (k) =>
+          k.startDate.slice(0, 10) <= homNay &&
+          homNay <= k.endDate.slice(0, 10),
+      )?.id ?? cacKy[0]?.id
     );
   }, [cacKy]);
   const kyDangChon = idKy ?? kyMacDinh;
@@ -152,7 +149,13 @@ export function AssignKpiPage() {
    * biết mình đang tạo cái nào.
    */
   const sinhMot = useMutation({
-    mutationFn: ({ userId, phieuRong }: { userId: string; phieuRong: boolean }) =>
+    mutationFn: ({
+      userId,
+      phieuRong,
+    }: {
+      userId: string;
+      phieuRong: boolean;
+    }) =>
       sinhMotPhieu({ userId, periodId: kyDangChon!, emptyTemplate: phieuRong }),
     onSuccess: (phieu) => {
       message.success('Đã tạo phiếu. Mở ra để soạn nội dung KPI.');
@@ -185,87 +188,110 @@ export function AssignKpiPage() {
   });
 
   const cot: ColumnsType<DongBangGiaoKpi> = [
-    { title: 'Mã', dataIndex: 'employeeCode', width: 90 },
+    {
+      title: 'Mã',
+      dataIndex: 'employeeCode',
+      width: 90,
+      render: (v: string) => (
+        <Typography.Text type="secondary">{v}</Typography.Text>
+      ),
+    },
     {
       title: 'Họ tên',
       dataIndex: 'ownerName',
       render: (ten: string, d) => (
-        <Space size={6}>
-          {d.scorecardId ? (
-            <Button
-              type="link"
-              style={{ padding: 0 }}
-              onClick={() => navigate(`/kpi/scorecards/${d.scorecardId}`)}
-            >
-              {ten}
-            </Button>
-          ) : (
-            <span>{ten}</span>
-          )}
-          {d.isDepartmentManager && <Tag color="blue">Trưởng bộ phận</Tag>}
-        </Space>
+        <span className="ten-va-phu">
+          <span>
+            {d.scorecardId ? (
+              <Button
+                type="link"
+                style={{ padding: 0, height: 'auto', fontWeight: 700 }}
+                onClick={() => navigate(`/kpi/scorecards/${d.scorecardId}`)}
+              >
+                {ten}
+              </Button>
+            ) : (
+              <Typography.Text strong>{ten}</Typography.Text>
+            )}
+          </span>
+          {/* Phòng ban là dòng phụ: cùng phòng thì lặp, còn BGĐ xem trưởng bộ
+              phận toàn công ty thì đây là chỗ duy nhất phân biệt họ */}
+          <small>
+            {d.isDepartmentManager ? 'Trưởng bộ phận' : d.departmentName}
+          </small>
+        </span>
       ),
     },
     { title: 'Chức danh', dataIndex: 'jobTitleName', render: (v) => v ?? '—' },
-    { title: 'Phòng ban', dataIndex: 'departmentName' },
     {
       title: 'Trạng thái',
       dataIndex: 'assignStatus',
       width: 150,
       render: (tt: DongBangGiaoKpi['assignStatus']) =>
         tt ? (
-          <Tag color={MAU_TRANG_THAI_GIAO[tt]}>{NHAN_TRANG_THAI_GIAO[tt]}</Tag>
+          <Tag color={MAU_TRANG_THAI_GIAO[tt]} className="tag-tron">
+            {NHAN_TRANG_THAI_GIAO_NGUOI_GIAO[tt]}
+          </Tag>
         ) : (
-          <Tag color="error">Chưa có phiếu</Tag>
+          <Tag color="gold" className="tag-tron">
+            Chưa có phiếu
+          </Tag>
         ),
     },
     {
-      title: 'Tổng trọng số',
+      title: 'Trọng số',
       dataIndex: 'totalWeight',
-      width: 120,
+      width: 100,
       align: 'right',
-      render: (w: string | null) => (w === null ? '—' : `${Number(w)}%`),
+      // Dưới 100% tô hồng: phiếu chưa gửi ký được, người giao cần nhìn thấy ngay
+      render: (w: string | null) =>
+        w === null ? (
+          '—'
+        ) : (
+          <Typography.Text
+            strong
+            style={{ color: Number(w) < 100 ? mauNhan : undefined }}
+          >
+            {Number(w)}%
+          </Typography.Text>
+        ),
     },
-    { title: 'Người chấm', dataIndex: 'evaluatorName', render: (v) => v ?? '—' },
     {
-      title: 'Ngày ký nhận',
-      dataIndex: 'acceptedAt',
-      width: 120,
-      render: (v: string | null) => ngayVN(v),
+      title: 'Người chấm',
+      dataIndex: 'evaluatorName',
+      ellipsis: true,
+      render: (v) => v ?? '—',
     },
     {
       title: '',
-      width: 200,
+      width: 130,
+      align: 'right',
       render: (_, d) =>
         d.scorecardId ? (
-          <Space size="small">
-            <Button
-              size="small"
-              onClick={() => navigate(`/kpi/scorecards/${d.scorecardId}`)}
-            >
-              Mở phiếu
-            </Button>
-            {/* Chỉ hiện khi đã ký nhận: chấm điểm phiếu chưa ký sẽ bị backend
-                từ chối, bày nút ra chỉ để người dùng bấm vào rồi nhận lỗi. */}
-            {d.assignStatus === 'ACCEPTED' && (
-              <Button
-                size="small"
-                type="link"
-                style={{ padding: 0 }}
-                onClick={() => navigate(`/kpi/scorecards/${d.scorecardId}/scoring`)}
-              >
-                Chấm điểm
-              </Button>
-            )}
-          </Space>
+          // Đã ký nhận thì mở thẳng màn chấm — chấm điểm phiếu chưa ký sẽ bị
+          // backend từ chối, nên chỉ mở màn soạn.
+          <Button
+            shape="round"
+            onClick={() =>
+              navigate(
+                d.assignStatus === 'ACCEPTED'
+                  ? `/kpi/scorecards/${d.scorecardId}/scoring`
+                  : `/kpi/scorecards/${d.scorecardId}`,
+              )
+            }
+          >
+            {d.assignStatus === 'ACCEPTED' ? 'Chấm điểm' : 'Mở phiếu'}
+          </Button>
         ) : (
           <Button
-            size="small"
-            type="primary"
-            ghost
+            shape="round"
             disabled={ky?.isLocked}
-            loading={sinhMot.isPending && sinhMot.variables?.userId === d.userId}
-            onClick={() => sinhMot.mutate({ userId: d.userId, phieuRong: false })}
+            loading={
+              sinhMot.isPending && sinhMot.variables?.userId === d.userId
+            }
+            onClick={() =>
+              sinhMot.mutate({ userId: d.userId, phieuRong: false })
+            }
           >
             Tạo phiếu
           </Button>
@@ -273,72 +299,88 @@ export function AssignKpiPage() {
     },
   ];
 
+  const xemTruongBoPhan = !phongDangChon && user?.role === 'EXECUTIVE';
+
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Giao KPI
-        </Typography.Title>
-        <Space wrap>
-          <Select
-            style={{ width: 200 }}
-            placeholder="Kỳ đánh giá"
-            value={kyDangChon}
-            onChange={(v) => {
-              setIdKy(v);
-              setDangChon([]);
-              setKetQua(null);
-            }}
-            options={cacKy.map((k) => ({
-              value: k.id,
-              label: k.isLocked ? `${k.name} (đã khoá)` : k.name,
-            }))}
-          />
-          <Select
-            style={{ width: 260 }}
-            placeholder={user?.role === 'EXECUTIVE' ? 'Trưởng bộ phận toàn công ty' : 'Phòng ban'}
-            allowClear
-            value={phongDangChon}
-            onChange={(v) => {
-              setIdPhong(v);
-              setDangChon([]);
-              setKetQua(null);
-            }}
-            options={luaChonPhong}
-          />
-        </Space>
-      </Space>
+    <div>
+      <TieuDeTrang
+        tieuDe="Giao KPI"
+        moTa="Mỗi nhân viên một dòng — kể cả người chưa có phiếu. Thao tác hàng loạt làm theo phòng."
+        phai={
+          <>
+            <Select
+              className="chon-tron"
+              size="large"
+              style={{ width: 200 }}
+              placeholder="Kỳ đánh giá"
+              value={kyDangChon}
+              onChange={(v) => {
+                setIdKy(v);
+                setDangChon([]);
+                setKetQua(null);
+              }}
+              options={cacKy.map((k) => ({
+                value: k.id,
+                label: k.isLocked ? `${k.name} (đã khoá)` : k.name,
+              }))}
+            />
+            <Select
+              className="chon-tron"
+              size="large"
+              style={{ width: 260 }}
+              placeholder={
+                user?.role === 'EXECUTIVE'
+                  ? 'Trưởng bộ phận toàn công ty'
+                  : 'Phòng ban'
+              }
+              allowClear
+              value={phongDangChon}
+              onChange={(v) => {
+                setIdPhong(v);
+                setDangChon([]);
+                setKetQua(null);
+              }}
+              options={luaChonPhong}
+            />
+          </>
+        }
+      />
 
       {ky?.isLocked && (
         <Alert
           type="warning"
           showIcon
+          style={{ marginBottom: 16 }}
           message={`Kỳ ${ky.name} đã khoá sổ`}
           description="Không sinh phiếu hay gửi ký được nữa. Cần sửa thì đề nghị HCNS hoặc ban giám đốc mở lại kỳ."
         />
       )}
 
-      {!phongDangChon && user?.role === 'EXECUTIVE' && (
-        <Alert
-          type="info"
-          showIcon
-          message="Đang xem trưởng bộ phận toàn công ty"
-          description={
-            <>
-              Đây là nhóm ban giám đốc chịu trách nhiệm giao KPI. Dùng nút{' '}
-              <b>Tạo phiếu</b> trên từng dòng — các nút hàng loạt làm theo phòng
-              nên không áp dụng cho nhóm này. Chọn một phòng ban ở trên để xem
-              nhân viên của phòng đó.
-            </>
-          }
-        />
-      )}
-
-      <Card>
-        <Space wrap>
+      <div className="giao-kpi-thanh">
+        <Typography.Text strong>
+          {xemTruongBoPhan
+            ? 'Trưởng bộ phận toàn công ty — dùng nút "Tạo phiếu" trên từng dòng, các nút hàng loạt làm theo phòng.'
+            : !phongDangChon
+              ? 'Chọn một phòng ban để dùng các thao tác hàng loạt.'
+              : chuaCoPhieu.length > 0
+                ? `${chuaCoPhieu.length} người chưa có phiếu trong kỳ`
+                : 'Mọi người trong phòng đã có phiếu'}
+        </Typography.Text>
+        <div className="giao-kpi-thanh-nut">
           <Button
-            type="primary"
-            disabled={!phongDangChon || ky?.isLocked || chuaCoPhieu.length === 0}
+            shape="round"
+            size="large"
+            disabled={!phongDangChon || ky?.isLocked}
+            onClick={() => setMoChep(true)}
+          >
+            Chép từ kỳ trước
+          </Button>
+          <Button
+            shape="round"
+            size="large"
+            disabled={
+              !phongDangChon || ky?.isLocked || chuaCoPhieu.length === 0
+            }
             loading={sinhHangLoat.isPending}
             onClick={() =>
               sinhHangLoat.mutate(dangChon.length > 0 ? dangChon : undefined)
@@ -346,34 +388,27 @@ export function AssignKpiPage() {
           >
             {dangChon.length > 0
               ? `Sinh phiếu cho ${dangChon.length} người đã chọn`
-              : `Sinh phiếu cho ${chuaCoPhieu.length} người chưa có`}
+              : 'Sinh phiếu từ mẫu chức danh'}
           </Button>
           <Button
-            disabled={!phongDangChon || ky?.isLocked}
-            onClick={() => setMoChep(true)}
-          >
-            Chép từ kỳ trước
-          </Button>
-          <Button
+            type="primary"
+            shape="round"
+            size="large"
             disabled={!phongDangChon || ky?.isLocked || banNhap.length === 0}
             loading={guiKy.isPending}
             onClick={() => guiKy.mutate()}
           >
             Gửi {banNhap.length} phiếu đi ký nhận
           </Button>
-        </Space>
-        {!phongDangChon && (
-          <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
-            Chọn một phòng ban để sinh phiếu — các thao tác hàng loạt làm theo phòng.
-          </Typography.Paragraph>
-        )}
-      </Card>
+        </div>
+      </div>
 
       {ketQua && (
         <Alert
           type={ketQua.skipped > 0 ? 'warning' : 'success'}
           showIcon
           closable
+          style={{ marginBottom: 16 }}
           onClose={() => setKetQua(null)}
           message={`Tạo ${ketQua.created} phiếu, bỏ qua ${ketQua.skipped} người`}
           description={
@@ -390,9 +425,15 @@ export function AssignKpiPage() {
         />
       )}
 
-      <Card loading={isFetching && dong.length === 0}>
+      <Card
+        loading={isFetching && dong.length === 0}
+        styles={{ body: { padding: 0 } }}
+      >
         {dong.length === 0 && !isFetching ? (
-          <Empty description="Không có nhân viên nào trong phạm vi này" />
+          <Empty
+            style={{ padding: 32 }}
+            description="Không có nhân viên nào trong phạm vi này"
+          />
         ) : (
           <Table
             rowKey="userId"
@@ -412,6 +453,13 @@ export function AssignKpiPage() {
           />
         )}
       </Card>
+      <Typography.Text
+        type="secondary"
+        style={{ display: 'block', marginTop: 12, fontSize: 13 }}
+      >
+        Phiếu chỉ gửi đi ký nhận được khi tổng trọng số đủ 70% mục BSC và 30%
+        mục chấp hành nội quy.
+      </Typography.Text>
 
       <Modal
         open={moChep}
@@ -424,9 +472,9 @@ export function AssignKpiPage() {
         onOk={() => chep.mutate()}
       >
         <Typography.Paragraph type="secondary">
-          Chép nội dung KPI của phòng này từ một kỳ trước sang {ky?.name}. Phiếu mới
-          ở trạng thái đang soạn, KHÔNG mang theo điểm hay chữ ký của kỳ cũ. Người
-          đã có phiếu trong kỳ này sẽ bị bỏ qua.
+          Chép nội dung KPI của phòng này từ một kỳ trước sang {ky?.name}. Phiếu
+          mới ở trạng thái đang soạn, KHÔNG mang theo điểm hay chữ ký của kỳ cũ.
+          Người đã có phiếu trong kỳ này sẽ bị bỏ qua.
         </Typography.Paragraph>
         <Select
           style={{ width: '100%' }}
@@ -438,6 +486,6 @@ export function AssignKpiPage() {
             .map((k) => ({ value: k.id, label: k.name }))}
         />
       </Modal>
-    </Space>
+    </div>
   );
 }

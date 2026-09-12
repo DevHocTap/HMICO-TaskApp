@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Avatar,
   App,
   Button,
   Card,
-  Descriptions,
   Input,
   InputNumber,
   Modal,
   Space,
   Table,
   Tag,
-  Timeline,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -31,13 +30,18 @@ import {
 import { layThongBaoLoi } from '../../api/client';
 import {
   MAU_TRANG_THAI_GIAO,
-  NHAN_TRANG_THAI_GIAO,
+  NHAN_TRANG_THAI_GIAO_NGUOI_GIAO,
   type DongPhieuKpi,
 } from '../../types/scorecard';
 import { MAX_SCALE, TEN_MUC, TONG_TRONG_SO } from '../../types/kpi-template';
 import type { KpiSection } from '../../types/kpi-template';
 import { bang, chiaDeu, hienSo, tongTrongSo } from '../../utils/weight';
 import { useAuth } from '../../auth/useAuth';
+import { LichSuPhieu } from '../../components/LichSuPhieu';
+import { CayTieuChi } from '../../components/CayTieuChi';
+import { ngayGioVN, ngayVN } from '../../utils/format';
+import { chuVietTat } from '../../utils/period';
+import { mauChuDao, mauVang, mauXanhLa } from '../../config/theme';
 import { coTheGiaoKpi } from '../../auth/permissions';
 
 /** Dòng đang soạn trên màn hình. `key` là khoá TẠM, dòng mới chưa có id. */
@@ -49,32 +53,6 @@ interface DongSoan {
   measurementText: string;
   measureMethod: string;
   weight: string;
-}
-
-const NHAN_HANH_DONG: Record<string, string> = {
-  CREATE: 'Lập phiếu',
-  UPDATE_ITEMS: 'Sửa nội dung',
-  PROPOSE: 'Gửi đi ký nhận',
-  RE_PROPOSED_UNCHANGED: 'Gửi lại nguyên trạng',
-  ACCEPT: 'Ký nhận',
-  DISPUTE: 'Nêu ý kiến',
-  SELF_SCORE: 'Tự chấm',
-  MANAGER_SCORE: 'Trưởng phòng chấm',
-  REJECT: 'Trả lại',
-  RECEIVE: 'HCNS tiếp nhận',
-  REOPEN: 'Mở lại',
-};
-
-function ngayGioVN(iso: string | null): string {
-  if (!iso) return '—';
-  return new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'Asia/Ho_Chi_Minh',
-  }).format(new Date(iso));
 }
 
 let demKhoa = 0;
@@ -134,7 +112,9 @@ export function ScorecardDetailPage() {
   const tongTheoMuc = useMemo(() => {
     const cap1 = dong.filter((d) => !d.parentKey);
     return {
-      BSC_WORK: tongTrongSo(cap1.filter((d) => d.section === 'BSC_WORK').map((d) => d.weight)),
+      BSC_WORK: tongTrongSo(
+        cap1.filter((d) => d.section === 'BSC_WORK').map((d) => d.weight),
+      ),
       COMPLIANCE: tongTrongSo(
         cap1.filter((d) => d.section === 'COMPLIANCE').map((d) => d.weight),
       ),
@@ -230,29 +210,6 @@ export function ScorecardDetailPage() {
     );
   }
 
-  const cotXem: ColumnsType<DongPhieuKpi> = [
-    {
-      title: 'Tiêu chí',
-      dataIndex: 'name',
-      render: (ten: string, d) =>
-        d.parentId ? (
-          <span style={{ paddingInlineStart: 20 }}>{ten}</span>
-        ) : (
-          <Typography.Text strong>{ten}</Typography.Text>
-        ),
-    },
-    { title: 'Mục tiêu', dataIndex: 'measurementText', width: 150 },
-    { title: 'Cách đo', dataIndex: 'measureMethod', width: 260 },
-    {
-      title: 'Trọng số',
-      dataIndex: 'weight',
-      width: 110,
-      align: 'right',
-      render: (w: string, d) => `${Number(w)}${d.parentId ? '% nhóm' : '%'}`,
-    },
-    { title: 'Thang điểm', dataIndex: 'maxScale', width: 100, align: 'right' },
-  ];
-
   const cotSoan: ColumnsType<DongSoan> = [
     {
       title: 'Tiêu chí',
@@ -302,7 +259,9 @@ export function ScorecardDetailPage() {
           step={1}
           style={{ width: '100%' }}
           addonAfter="%"
-          onChange={(v) => doiDong(d.key, { weight: v === null ? '' : String(v) })}
+          onChange={(v) =>
+            doiDong(d.key, { weight: v === null ? '' : String(v) })
+          }
         />
       ),
     },
@@ -311,7 +270,11 @@ export function ScorecardDetailPage() {
       width: 190,
       render: (_, d) =>
         d.parentKey ? (
-          <Button size="small" icon={<DeleteOutlined />} onClick={() => xoaDong(d.key)}>
+          <Button
+            size="small"
+            icon={<DeleteOutlined />}
+            onClick={() => xoaDong(d.key)}
+          >
             Xoá
           </Button>
         ) : (
@@ -326,19 +289,30 @@ export function ScorecardDetailPage() {
             >
               Chia đều
             </Button>
-            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => xoaDong(d.key)} />
+            <Button
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => xoaDong(d.key)}
+            />
           </Space>
         ),
     },
   ];
 
   if (!phieu && !isLoading) {
-    return <Alert type="error" showIcon message="Không tìm thấy phiếu KPI này" />;
+    return (
+      <Alert type="error" showIcon message="Không tìm thấy phiếu KPI này" />
+    );
   }
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
+      <Space
+        align="center"
+        wrap
+        style={{ justifyContent: 'space-between', width: '100%' }}
+      >
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
             Quay lại
@@ -349,14 +323,16 @@ export function ScorecardDetailPage() {
           </Typography.Title>
           {phieu && (
             <Tag color={MAU_TRANG_THAI_GIAO[phieu.assignStatus]}>
-              {NHAN_TRANG_THAI_GIAO[phieu.assignStatus]}
+              {NHAN_TRANG_THAI_GIAO_NGUOI_GIAO[phieu.assignStatus]}
             </Tag>
           )}
           {/* Chấm điểm là màn khác: màn này lo NỘI DUNG KPI đầu kỳ, màn kia
               lo ĐIỂM cuối kỳ. Chỉ mở khi phiếu đã ký nhận — chưa ký thì
               backend trả 409. */}
           {phieu?.assignStatus === 'ACCEPTED' && (
-            <Button onClick={() => navigate(`/kpi/scorecards/${phieu.id}/scoring`)}>
+            <Button
+              onClick={() => navigate(`/kpi/scorecards/${phieu.id}/scoring`)}
+            >
               Chấm điểm
             </Button>
           )}
@@ -373,13 +349,20 @@ export function ScorecardDetailPage() {
                 >
                   Huỷ
                 </Button>
-                <Button type="primary" loading={luu.isPending} onClick={() => luu.mutate()}>
+                <Button
+                  type="primary"
+                  loading={luu.isPending}
+                  onClick={() => luu.mutate()}
+                >
                   Lưu nội dung
                 </Button>
               </>
             ) : (
               <>
-                <Button icon={<PlusOutlined />} onClick={() => setDangSoan(true)}>
+                <Button
+                  icon={<PlusOutlined />}
+                  onClick={() => setDangSoan(true)}
+                >
                   Sửa nội dung KPI
                 </Button>
                 <Button
@@ -391,7 +374,9 @@ export function ScorecardDetailPage() {
                       : gui.mutate(undefined)
                   }
                 >
-                  {phieu?.assignStatus === 'DISPUTED' ? 'Gửi lại' : 'Gửi đi ký nhận'}
+                  {phieu?.assignStatus === 'DISPUTED'
+                    ? 'Gửi lại'
+                    : 'Gửi đi ký nhận'}
                 </Button>
               </>
             )}
@@ -425,18 +410,75 @@ export function ScorecardDetailPage() {
       )}
 
       {phieu && (
-        <Descriptions size="small" column={3} bordered>
-          <Descriptions.Item label="Mã nhân viên">
-            {phieu.ownerUser?.employeeCode ?? '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Chức danh">{phieu.jobTitleName}</Descriptions.Item>
-          <Descriptions.Item label="Phòng ban">{phieu.departmentName}</Descriptions.Item>
-          <Descriptions.Item label="Người chấm">
-            {phieu.evaluator?.fullName ?? '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Gửi ký">{ngayGioVN(phieu.proposedAt)}</Descriptions.Item>
-          <Descriptions.Item label="Ký nhận">{ngayGioVN(phieu.acceptedAt)}</Descriptions.Item>
-        </Descriptions>
+        <div className="cham-o-luoi giao-o-luoi">
+          <div className="cham-o cham-o-nguoi">
+            <div className="cham-o-nguoi-dau">
+              <Avatar
+                size={44}
+                style={{
+                  background: '#dbe6ff',
+                  color: mauChuDao,
+                  fontWeight: 700,
+                }}
+              >
+                {chuVietTat(phieu.ownerUser?.fullName ?? '?')}
+              </Avatar>
+              <span className="ten-va-phu">
+                <Typography.Text strong>
+                  {phieu.ownerUser?.fullName ?? '—'}
+                </Typography.Text>
+                <small>
+                  {phieu.ownerUser?.employeeCode ?? '—'} · {phieu.jobTitleName}{' '}
+                  · {phieu.departmentName}
+                </small>
+              </span>
+            </div>
+            <Typography.Text
+              type="secondary"
+              style={{ fontSize: 12, marginTop: 8 }}
+            >
+              Người chấm: <strong>{phieu.evaluator?.fullName ?? '—'}</strong>
+            </Typography.Text>
+          </div>
+
+          <div className="cham-o giao-o-trong-so">
+            <span className="eyebrow">Đồng hồ trọng số</span>
+            {(['BSC_WORK', 'COMPLIANCE'] as const).map((muc) => {
+              const tong = tongTheoMuc[muc];
+              const du = bang(tong, TONG_TRONG_SO[muc]);
+              return (
+                <div key={muc}>
+                  <div className="stepper-buoc-so" style={{ marginBottom: 4 }}>
+                    <span>{TEN_MUC[muc]}</span>
+                    <strong style={{ color: du ? mauXanhLa : mauVang }}>
+                      {hienSo(tong)} / {TONG_TRONG_SO[muc]}
+                    </strong>
+                  </div>
+                  <div className="the-so-lieu-thanh">
+                    <span
+                      style={{
+                        width: `${Math.min((tong / TONG_TRONG_SO[muc]) * 100, 100)}%`,
+                        background: du ? mauXanhLa : mauVang,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="cham-o">
+            <span className="eyebrow">Hạn giao KPI</span>
+            <div className="cham-o-so">
+              {ngayVN(phieu.period.assignDeadline)}
+            </div>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Gửi ký: {ngayGioVN(phieu.proposedAt)}
+              <br />
+              Ký nhận: {ngayGioVN(phieu.acceptedAt)}
+            </Typography.Text>
+          </div>
+        </div>
       )}
 
       {dangSoan && (
@@ -465,7 +507,9 @@ export function ScorecardDetailPage() {
             nhomLech.length > 0 && (
               <div>
                 Nhóm KPI con phải cộng đúng 100% trong nhóm:{' '}
-                {nhomLech.map((n) => `"${n.ten}" đang ${hienSo(n.tong)}%`).join(', ')}
+                {nhomLech
+                  .map((n) => `"${n.ten}" đang ${hienSo(n.tong)}%`)
+                  .join(', ')}
               </div>
             )
           }
@@ -492,7 +536,11 @@ export function ScorecardDetailPage() {
             }
             extra={
               dangSoan && (
-                <Button size="small" icon={<PlusOutlined />} onClick={() => themDong(muc, null)}>
+                <Button
+                  size="small"
+                  icon={<PlusOutlined />}
+                  onClick={() => themDong(muc, null)}
+                >
                   Thêm tiêu chí lớn
                 </Button>
               )
@@ -512,38 +560,13 @@ export function ScorecardDetailPage() {
                 dataSource={cuaMuc as DongSoan[]}
               />
             ) : (
-              <Table
-                rowKey="id"
-                size="small"
-                pagination={false}
-                scroll={{ x: 'max-content' }}
-                columns={cotXem}
-                dataSource={cuaMuc as DongPhieuKpi[]}
-              />
+              <CayTieuChi items={cuaMuc as DongPhieuKpi[]} />
             )}
           </Card>
         );
       })}
 
-      {phieu && phieu.events.length > 0 && (
-        <Card size="small" title="Lịch sử phiếu">
-          <Timeline
-            items={phieu.events.map((e) => ({
-              children: (
-                <Space direction="vertical" size={0}>
-                  <Typography.Text strong>
-                    {NHAN_HANH_DONG[e.action] ?? e.action}
-                  </Typography.Text>
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {e.actor?.fullName ?? 'Hệ thống'} · {ngayGioVN(e.createdAt)}
-                  </Typography.Text>
-                  {e.comment && <Typography.Text>{e.comment}</Typography.Text>}
-                </Space>
-              ),
-            }))}
-          />
-        </Card>
-      )}
+      {phieu && <LichSuPhieu events={phieu.events} />}
 
       <Modal
         open={moGuiLai}
@@ -556,9 +579,9 @@ export function ScorecardDetailPage() {
         onOk={() => gui.mutate(ghiChu.trim())}
       >
         <Typography.Paragraph type="secondary">
-          Phiếu này đang có ý kiến của người nhận. Gửi lại thì bắt buộc ghi chú lý do —
-          ví dụ đã sửa theo góp ý, hoặc đã trao đổi trực tiếp và hai bên thống nhất giữ
-          nguyên. Ghi chú được lưu vào lịch sử phiếu.
+          Phiếu này đang có ý kiến của người nhận. Gửi lại thì bắt buộc ghi chú
+          lý do — ví dụ đã sửa theo góp ý, hoặc đã trao đổi trực tiếp và hai bên
+          thống nhất giữ nguyên. Ghi chú được lưu vào lịch sử phiếu.
         </Typography.Paragraph>
         <Input.TextArea
           rows={4}

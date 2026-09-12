@@ -3,23 +3,28 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   App,
+  Avatar,
   Button,
   Card,
-  Descriptions,
   Input,
   InputNumber,
   Modal,
-  Space,
-  Statistic,
   Table,
   Tag,
   Tooltip,
   Typography,
 } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
+import { chuVietTat } from '../../utils/period';
+import { phanTram } from '../../utils/format';
+import { mauChuDao, mauNhan, mauXanhLa } from '../../config/theme';
+import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   chotDiemQuanLy,
+  layChiTietPhieu,
+  layKyDanhGia,
   layPhieuChamDiem,
   luuDiemQuanLy,
   luuDiemTuCham,
@@ -29,24 +34,31 @@ import {
 } from '../../api/scorecard';
 import { layThongBaoLoi } from '../../api/client';
 import {
-  MAU_TRANG_THAI_CHAM,
-  MAU_XEP_LOAI,
-  NHAN_TRANG_THAI_CHAM,
   NHAN_XEP_LOAI,
+  type XepLoai,
   type DongChamDiem,
   type ODiemGuiLen,
   type PhieuChamDiem,
 } from '../../types/scorecard';
 import { TEN_MUC } from '../../types/kpi-template';
 import { hienDiem, tinhDiemPhieu, type CotCham } from '../../utils/scoring';
+import { ngayVN } from '../../utils/format';
+import { TieuDeTrang } from '../../components/TieuDeTrang';
+import { LichSuPhieu } from '../../components/LichSuPhieu';
+
+/** Màu chữ xếp loại ở ô tóm tắt — cùng bảng với dashboard. */
+const MAU_XEP_LOAI_CHU: Record<XepLoai, string> = {
+  NOT_ACHIEVED: '#d63b3b',
+  NEEDS_IMPROVEMENT: '#e0932b',
+  COMPLETED: '#1466a0',
+  EXCEEDED: '#15803d',
+};
 
 /** Ô người dùng đang sửa, chưa lưu. */
 interface ODangSua {
   score?: number | null;
   comment?: string | null;
 }
-
-const so = (v: string | null | undefined) => (v === null || v === undefined ? '—' : v);
 
 /**
  * Màn chấm điểm — DÙNG CHUNG cho nhân viên tự chấm và trưởng bộ phận chấm.
@@ -76,6 +88,19 @@ export function ScoringPage() {
     enabled: Boolean(id),
   });
 
+  // Lịch sử phiếu nằm ở endpoint chi tiết, chủ phiếu cũng đọc được.
+  const { data: chiTiet } = useQuery({
+    queryKey: ['scorecards', 'detail', id],
+    queryFn: () => layChiTietPhieu(id),
+    enabled: Boolean(id),
+  });
+  // Bốn mốc của kỳ — để in "Hạn chấm 29/10 — còn 4 ngày".
+  const { data: cacKy = [] } = useQuery({
+    queryKey: ['periods', 'MONTH'],
+    queryFn: () => layKyDanhGia('MONTH'),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const quyen = data?.permissions;
   // Cột đang sửa. Không ai vừa tự chấm vừa chấm cho mình được, nên hai quyền
   // này không bao giờ cùng bật.
@@ -85,11 +110,18 @@ export function ScoringPage() {
       ? 'manager'
       : null;
 
+  // Cột CHÍNH của màn: người tự chấm nhìn tổng của mình, mọi người khác nhìn
+  // cột trưởng bộ phận (cột quyết định xếp loại).
+  const cotChinh: CotCham = cotSua === 'self' ? 'self' : 'manager';
+
   // Đổi phiếu thì bỏ hết thay đổi chưa lưu, không mang sang phiếu khác.
   useEffect(() => setDangSua({}), [id]);
 
   function capNhat(itemId: string, thayDoi: ODangSua) {
-    setDangSua((truoc) => ({ ...truoc, [itemId]: { ...truoc[itemId], ...thayDoi } }));
+    setDangSua((truoc) => ({
+      ...truoc,
+      [itemId]: { ...truoc[itemId], ...thayDoi },
+    }));
   }
 
   /** Giá trị hiển thị: ưu tiên thứ đang gõ, chưa gõ thì lấy từ máy chủ. */
@@ -118,14 +150,19 @@ export function ScoringPage() {
       parentId: it.parentId,
       maxScale: it.maxScale,
       weight: it.weight,
-      selfScore: dangSua[it.id]?.score !== undefined && cotSua === 'self'
-        ? dangSua[it.id].score ?? null
-        : it.selfScore,
-      managerScore: dangSua[it.id]?.score !== undefined && cotSua === 'manager'
-        ? dangSua[it.id].score ?? null
-        : it.managerScore,
+      selfScore:
+        dangSua[it.id]?.score !== undefined && cotSua === 'self'
+          ? (dangSua[it.id].score ?? null)
+          : it.selfScore,
+      managerScore:
+        dangSua[it.id]?.score !== undefined && cotSua === 'manager'
+          ? (dangSua[it.id].score ?? null)
+          : it.managerScore,
     }));
-    return { self: tinhDiemPhieu(dongs, 'self'), manager: tinhDiemPhieu(dongs, 'manager') };
+    return {
+      self: tinhDiemPhieu(dongs, 'self'),
+      manager: tinhDiemPhieu(dongs, 'manager'),
+    };
   }, [data?.items, dangSua, cotSua]);
 
   const oThayDoi: ODiemGuiLen[] = useMemo(
@@ -147,7 +184,9 @@ export function ScoringPage() {
 
   const luuNhap = useMutation({
     mutationFn: () =>
-      cotSua === 'self' ? luuDiemTuCham(id, oThayDoi) : luuDiemQuanLy(id, oThayDoi),
+      cotSua === 'self'
+        ? luuDiemTuCham(id, oThayDoi)
+        : luuDiemQuanLy(id, oThayDoi),
     onSuccess: (moi) => sauKhiGhi(moi, 'Đã lưu nháp'),
     onError: (e) => message.error(layThongBaoLoi(e)),
   });
@@ -158,7 +197,10 @@ export function ScoringPage() {
         ? nopDiemTuCham(id)
         : chotDiemQuanLy(id, lyDoKhongTuCham.trim() || undefined),
     onSuccess: (moi) =>
-      sauKhiGhi(moi, cotSua === 'self' ? 'Đã nộp phiếu tự chấm' : 'Đã chốt điểm'),
+      sauKhiGhi(
+        moi,
+        cotSua === 'self' ? 'Đã nộp phiếu tự chấm' : 'Đã chốt điểm',
+      ),
     onError: (e) => message.error(layThongBaoLoi(e)),
   });
 
@@ -179,55 +221,90 @@ export function ScoringPage() {
   });
 
   if (isError) {
-    return <Alert type="error" showIcon message="Không mở được phiếu" description={layThongBaoLoi(error)} />;
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message="Không mở được phiếu"
+        description={layThongBaoLoi(error)}
+      />
+    );
   }
   if (!data) return <Card loading />;
 
   const p = data.scorecard;
-  const coCon = new Set(data.items.map((i) => i.parentId).filter(Boolean) as string[]);
+  const coCon = new Set(
+    data.items.map((i) => i.parentId).filter(Boolean) as string[],
+  );
+  const ky = cacKy.find((k) => k.id === p.periodId);
 
-  /** Ô nhập điểm của một dòng lá. */
-  function oNhapDiem(dong: DongChamDiem, cot: CotCham) {
-    const suaDuoc = cotSua === cot && !coCon.has(dong.id);
+  /** Ô điểm của một dòng, một cột. */
+  function oDiem(dong: DongChamDiem, cot: CotCham) {
+    const laCha = coCon.has(dong.id);
+    const suaDuoc = cotSua === cot && !laCha;
     const diem = diemHienTai(dong, cot);
     const tran = Number(dong.tranDiem);
     const vuotThang = diem !== null && diem > dong.maxScale;
 
-    if (!suaDuoc) {
-      const tinh = cot === 'self' ? dong.selfComputed : dong.managerComputed;
-      const hien = coCon.has(dong.id) ? tinh.diem : (cot === 'self' ? dong.selfScore : dong.managerScore);
+    if (suaDuoc) {
       return (
-        <span style={{ fontWeight: coCon.has(dong.id) ? 600 : 400 }}>
-          {hien === null ? '—' : hienDiem(Number(hien))}
-          {vuotThang && <Tag color="purple" style={{ marginInlineStart: 6 }}>vượt</Tag>}
-        </span>
+        <InputNumber
+          value={diem}
+          onChange={(v) => capNhat(dong.id, { score: v ?? null })}
+          min={0}
+          max={tran}
+          step={0.5}
+          precision={2}
+          size="large"
+          className="o-nhap-diem"
+          status={vuotThang ? 'warning' : undefined}
+          placeholder={`0–${hienDiem(tran)}`}
+        />
       );
     }
 
-    return (
-      <InputNumber
-        value={diem}
-        onChange={(v) => capNhat(dong.id, { score: v ?? null })}
-        min={0}
-        max={tran}
-        step={0.5}
-        precision={2}
-        style={{ width: 90 }}
-        status={vuotThang ? 'warning' : undefined}
-        placeholder={`0–${hienDiem(tran)}`}
-      />
+    const tinh = cot === 'self' ? dong.selfComputed : dong.managerComputed;
+    const hien = laCha
+      ? tinh.diem
+      : cot === 'self'
+        ? dong.selfScore
+        : dong.managerScore;
+    if (hien === null)
+      return <span className="diem-chip diem-chip-trong">—</span>;
+
+    // Cột trưởng BP tô màu khi lệch với tự chấm (thay cho cột "Chênh lệch" cũ)
+    let lop = cot === 'manager' ? 'diem-chip diem-chip-ql' : 'diem-chip';
+    let goiY: string | undefined;
+    if (cot === 'manager' && !laCha) {
+      const tu = diemHienTai(dong, 'self');
+      if (tu !== null) {
+        const lech = Math.round((Number(hien) - tu) * 100) / 100;
+        if (lech < 0) {
+          lop += ' diem-chip-thap';
+          goiY = `Thấp hơn tự chấm ${hienDiem(-lech)}`;
+        } else if (lech > 0) {
+          lop += ' diem-chip-cao';
+          goiY = `Cao hơn tự chấm ${hienDiem(lech)}`;
+        }
+      }
+    }
+    if (laCha) lop += ' diem-chip-cha';
+
+    const chip = (
+      <span className={lop}>
+        {hienDiem(Number(hien))}
+        {vuotThang && (
+          <Tag color="purple" style={{ marginInlineStart: 6 }}>
+            vượt
+          </Tag>
+        )}
+      </span>
     );
+    return goiY ? <Tooltip title={goiY}>{chip}</Tooltip> : chip;
   }
 
-  function cotDiem(cot: CotCham, tieuDe: string): ColumnsType<DongChamDiem>[number] {
-    return {
-      title: tieuDe,
-      key: cot,
-      width: 130,
-      align: 'center',
-      render: (_: unknown, dong) => oNhapDiem(dong, cot),
-    };
-  }
+  const soCon = (chaId: string) =>
+    data.items.filter((i) => i.parentId === chaId).length;
 
   const cot: ColumnsType<DongChamDiem> = [
     {
@@ -235,62 +312,62 @@ export function ScoringPage() {
       dataIndex: 'name',
       render: (ten: string, dong) =>
         dong.parentId ? (
-          <span style={{ paddingInlineStart: 20 }}>{ten}</span>
+          <span className="ten-va-phu" style={{ paddingInlineStart: 20 }}>
+            <span>{ten}</span>
+            {(dong.measurementText || dong.measureMethod) && (
+              <small>
+                {[dong.measurementText, dong.measureMethod]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </small>
+            )}
+          </span>
         ) : (
-          <Typography.Text strong>{ten}</Typography.Text>
+          <span className="ten-va-phu">
+            <Typography.Text strong>{ten}</Typography.Text>
+            <small>
+              Trọng số nhóm {Number(dong.weight)}%
+              {soCon(dong.id) > 0 ? ` · ${soCon(dong.id)} KPI con` : ''}
+              {dong.measurementText && soCon(dong.id) === 0
+                ? ` · ${dong.measurementText}`
+                : ''}
+            </small>
+          </span>
         ),
     },
-    { title: 'Mục tiêu', dataIndex: 'measurementText', width: 140 },
     {
       title: 'Trọng số',
       dataIndex: 'weight',
       width: 90,
       align: 'right',
-      render: (w: string, dong) => `${Number(w)}${dong.parentId ? '% nhóm' : '%'}`,
+      // Con: phần trăm TRONG NHÓM, in không kèm % để không nhầm với trọng số phiếu
+      render: (w: string, dong) =>
+        dong.parentId ? `${Number(w)}` : `${Number(w)}%`,
     },
-    { title: 'Thang', dataIndex: 'maxScale', width: 70, align: 'right' },
-    cotDiem('self', 'NLĐ tự đánh giá'),
-    cotDiem('manager', 'QL đánh giá'),
     {
-      title: 'Chênh lệch',
-      key: 'chenh',
-      width: 100,
-      align: 'right',
-      render: (_: unknown, dong) => {
-        if (coCon.has(dong.id)) return null;
-        const tu = diemHienTai(dong, 'self');
-        const ql = diemHienTai(dong, 'manager');
-        if (tu === null || ql === null) return <Typography.Text type="secondary">—</Typography.Text>;
-        const lech = Math.round((ql - tu) * 100) / 100;
-        if (lech === 0) return <Typography.Text type="secondary">0</Typography.Text>;
-        return (
-          <Typography.Text type={lech < 0 ? 'danger' : 'success'}>
-            {lech > 0 ? '+' : ''}
-            {hienDiem(lech)}
-          </Typography.Text>
-        );
-      },
+      title: 'NV tự chấm',
+      key: 'self',
+      width: 120,
+      align: 'center',
+      render: (_: unknown, dong) => oDiem(dong, 'self'),
+    },
+    {
+      title: 'Trưởng BP',
+      key: 'manager',
+      width: 120,
+      align: 'center',
+      render: (_: unknown, dong) => oDiem(dong, 'manager'),
     },
     {
       title: 'Đóng góp',
       key: 'dongGop',
-      width: 100,
+      width: 90,
       align: 'right',
       render: (_: unknown, dong) => {
         if (dong.parentId) return null;
-        const dg = tinhThu.manager.theoDong.get(dong.id)?.dongGop;
-        const dgTu = tinhThu.self.theoDong.get(dong.id)?.dongGop;
-        return (
-          <Tooltip title="Trên: theo cột QL đánh giá. Dưới: theo cột tự đánh giá.">
-            <div>
-              <Typography.Text strong>{hienDiem(dg ?? null)}</Typography.Text>
-              <br />
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {hienDiem(dgTu ?? null)}
-              </Typography.Text>
-            </div>
-          </Tooltip>
-        );
+        // Theo cột chính đang xem; cột kia đã có ở thẻ tổng bên phải
+        const dg = tinhThu[cotChinh].theoDong.get(dong.id)?.dongGop;
+        return <Typography.Text strong>{hienDiem(dg ?? null)}</Typography.Text>;
       },
     },
   ];
@@ -329,7 +406,9 @@ export function ScoringPage() {
   const thieuGhiChu = data.items.some((it) => {
     if (!cotSua || coCon.has(it.id)) return false;
     const diem = diemHienTai(it, cotSua);
-    return diem !== null && diem > it.maxScale && !ghiChuHienTai(it, cotSua).trim();
+    return (
+      diem !== null && diem > it.maxScale && !ghiChuHienTai(it, cotSua).trim()
+    );
   });
 
   const tinhThuCot = cotSua ? tinhThu[cotSua] : null;
@@ -348,19 +427,191 @@ export function ScoringPage() {
     return ra;
   };
 
+  // ------------------------------------------------ dải trạng thái + hạn
+  const hanTheoTrangThai: Record<
+    string,
+    { nhan: string; ngay: string | null } | null
+  > = {
+    PENDING: { nhan: 'Hạn tự chấm', ngay: ky?.selfScoreDeadline ?? null },
+    REJECTED: { nhan: 'Hạn tự chấm', ngay: ky?.selfScoreDeadline ?? null },
+    SELF_SCORED: { nhan: 'Hạn chấm', ngay: ky?.managerScoreDeadline ?? null },
+    MANAGER_SCORED: { nhan: 'Hạn tiếp nhận', ngay: ky?.submitDeadline ?? null },
+    RECEIVED: null,
+  };
+  const han = hanTheoTrangThai[p.resultStatus];
+  const soNgayConLai = han?.ngay
+    ? dayjs(han.ngay).startOf('day').diff(dayjs().startOf('day'), 'day')
+    : null;
+
+  // Màu dải: đỏ khi bị trả lại hoặc quá hạn, vàng khi đang chờ CHÍNH người
+  // xem, xanh lá khi đã tiếp nhận, còn lại xanh nhạt (chờ người khác).
+  const choToi = cotSua !== null || quyen?.canReceive === true;
+  const lopDai =
+    p.resultStatus === 'REJECTED' || (soNgayConLai !== null && soNgayConLai < 0)
+      ? 'cham-diem-dai-do'
+      : p.resultStatus === 'RECEIVED'
+        ? 'cham-diem-dai-xanh-la'
+        : choToi
+          ? 'cham-diem-dai-vang'
+          : '';
+
+  const dongTrangThai = (() => {
+    switch (p.resultStatus) {
+      case 'PENDING':
+        return cotSua === 'self'
+          ? 'Bạn đang tự chấm — nộp trước hạn để trưởng bộ phận kịp chấm'
+          : 'Chờ nhân viên tự chấm';
+      case 'SELF_SCORED':
+        return `Nhân viên đã tự chấm ${ngayVN(p.selfScoredAt)} · ${cotSua === 'manager' ? 'chờ bạn chốt điểm' : 'chờ trưởng bộ phận chốt điểm'}`;
+      case 'MANAGER_SCORED':
+        return `Đã chốt điểm ${ngayVN(p.managerScoredAt)} · ${quyen?.canReceive ? 'chờ bạn tiếp nhận' : 'chờ HCNS tiếp nhận'}`;
+      case 'REJECTED':
+        return `Bị trả lại ${ngayVN(p.rejectedAt)} — cần tự chấm lại`;
+      default:
+        return `HCNS đã tiếp nhận ${ngayVN(p.receivedAt)}`;
+    }
+  })();
+
+  // ------------------------------------------------------- ô tóm tắt
+  const coCaHai = tinhThu.self.daChamDu && tinhThu.manager.daChamDu;
+  const lechTong = coCaHai
+    ? Math.round((tinhThu.manager.tongDiem - tinhThu.self.tongDiem) * 100) / 100
+    : null;
+  const xepLoai = p.grade ?? data.managerPreview?.xepLoai ?? null;
+
+  const cacLa = data.items.filter((it) => !coCon.has(it.id));
+  const soLa = cacLa.length;
+  const soLaDaCham = cacLa.filter(
+    (it) => diemHienTai(it, cotChinh) !== null,
+  ).length;
+  const cotTrong = (cot: CotCham) =>
+    !cacLa.some((it) => diemHienTai(it, cot) !== null);
+  const ghiChuTuCham = cacLa
+    .filter((it) => (it.selfComment ?? '').trim())
+    .map((it) => ({ id: it.id, ten: it.name, noiDung: it.selfComment! }));
+  const ghiChuQuanLy = cacLa
+    .filter((it) => ghiChuHienTai(it, 'manager').trim())
+    .map((it) => ({
+      id: it.id,
+      ten: it.name,
+      noiDung: ghiChuHienTai(it, 'manager'),
+    }));
+  const tieuDeGhiChu = (ten: string, so: number) => (
+    <span className="viec-tieu-de">
+      {ten}
+      <Typography.Text
+        type="secondary"
+        style={{ fontSize: 13, fontWeight: 400 }}
+      >
+        {so} ghi chú
+      </Typography.Text>
+    </span>
+  );
+
+  const nutHanhDong = (
+    <>
+      {quyen?.canReject && (
+        <Button
+          shape="round"
+          size="large"
+          danger
+          onClick={() => setMoTraLai(true)}
+        >
+          Trả lại
+        </Button>
+      )}
+      {cotSua && (
+        <>
+          <Button
+            shape="round"
+            size="large"
+            loading={luuNhap.isPending}
+            disabled={oThayDoi.length === 0 || thieuGhiChu}
+            onClick={() => luuNhap.mutate()}
+          >
+            Lưu nháp{oThayDoi.length > 0 ? ` (${oThayDoi.length})` : ''}
+          </Button>
+          <Tooltip
+            title={
+              oThayDoi.length > 0
+                ? 'Lưu nháp trước khi gửi, nếu không phần vừa gõ sẽ không được tính.'
+                : undefined
+            }
+          >
+            <Button
+              type="primary"
+              shape="round"
+              size="large"
+              loading={gui.isPending}
+              disabled={
+                oThayDoi.length > 0 ||
+                thieuGhiChu ||
+                !tinhThuCot?.daChamDu ||
+                (canLyDoNghiViec && lyDoKhongTuCham.trim().length < 5)
+              }
+              onClick={() =>
+                modal.confirm({
+                  title:
+                    cotSua === 'self' ? 'Nộp phiếu tự chấm?' : 'Chốt điểm?',
+                  content:
+                    cotSua === 'self'
+                      ? 'Nộp xong bạn không sửa được nữa. Muốn sửa thì phải nhờ trưởng bộ phận trả phiếu lại.'
+                      : 'Chốt xong điểm không sửa được nữa. Muốn chấm lại thì phải trả phiếu về cho nhân viên.',
+                  okText: 'Đồng ý',
+                  cancelText: 'Huỷ',
+                  onOk: () => gui.mutate(),
+                })
+              }
+            >
+              {cotSua === 'self' ? 'Nộp phiếu tự chấm' : 'Chốt điểm'}
+            </Button>
+          </Tooltip>
+        </>
+      )}
+      {quyen?.canReceive && (
+        <Button
+          type="primary"
+          shape="round"
+          size="large"
+          loading={tiepNhan.isPending}
+          onClick={() => tiepNhan.mutate()}
+        >
+          Tiếp nhận
+        </Button>
+      )}
+    </>
+  );
+
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Chấm điểm KPI — {p.periodName}
-        </Typography.Title>
-        <Button onClick={() => navigate(-1)}>Quay lại</Button>
-      </Space>
+    <div>
+      <TieuDeTrang
+        truoc={
+          <Button
+            shape="round"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate(-1)}
+          >
+            Quay lại
+          </Button>
+        }
+        tieuDe={`${p.ownerName ?? 'Phiếu KPI'} — ${p.periodName}`}
+        moTa={[
+          p.jobTitleName,
+          p.departmentName,
+          chiTiet?.evaluator
+            ? `Người chấm: ${chiTiet.evaluator.fullName}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+        phai={nutHanhDong}
+      />
 
       {p.periodIsLocked && (
         <Alert
           type="warning"
           showIcon
+          style={{ marginBottom: 16 }}
           message="Kỳ này đã chốt sổ"
           description="Không ghi điểm được nữa. Muốn sửa thì HCNS hoặc ban giám đốc phải mở lại kỳ."
         />
@@ -369,6 +620,7 @@ export function ScoringPage() {
         <Alert
           type="info"
           showIcon
+          style={{ marginBottom: 16 }}
           message="Phiếu chưa được ký nhận"
           description="Nhân viên phải ký nhận KPI đầu kỳ thì mới bắt đầu chấm điểm được."
         />
@@ -377,7 +629,8 @@ export function ScoringPage() {
         <Alert
           type="warning"
           showIcon
-          message="Phiếu bị trả lại, cần tự chấm lại"
+          style={{ marginBottom: 16 }}
+          message="Lý do trả lại"
           description={p.rejectReason}
         />
       )}
@@ -385,6 +638,7 @@ export function ScoringPage() {
         <Alert
           type="info"
           showIcon
+          style={{ marginBottom: 16 }}
           message={`${p.ownerName ?? 'Nhân viên'} đã nghỉ việc`}
           description={
             p.noSelfScoreReason
@@ -394,156 +648,248 @@ export function ScoringPage() {
         />
       )}
 
-      <Card size="small">
-        <Descriptions size="small" column={3} bordered>
-          <Descriptions.Item label="Nhân viên">{p.ownerName ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="Chức danh">{p.jobTitleName}</Descriptions.Item>
-          <Descriptions.Item label="Phòng ban">{p.departmentName}</Descriptions.Item>
-          <Descriptions.Item label="Trạng thái chấm">
-            <Tag color={MAU_TRANG_THAI_CHAM[p.resultStatus]}>
-              {NHAN_TRANG_THAI_CHAM[p.resultStatus]}
-            </Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="Tổng điểm đã chốt — tự chấm">
-            {so(p.selfTotalScore)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Tổng điểm đã chốt — QL đánh giá">
-            {so(p.managerTotalScore)}
-            {p.grade && (
-              <Tag color={MAU_XEP_LOAI[p.grade]} style={{ marginInlineStart: 8 }}>
-                {NHAN_XEP_LOAI[p.grade]}
-              </Tag>
-            )}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
-
-      <Card size="small">
-        <Space size="large" wrap>
-          <Statistic
-            title="Tổng điểm — NLĐ tự đánh giá"
-            value={hienDiem(tinhThu.self.tongDiem)}
-            suffix="%"
-          />
-          <Statistic
-            title="Tổng điểm — QL đánh giá"
-            value={hienDiem(tinhThu.manager.tongDiem)}
-            suffix="%"
-            valueStyle={{ color: '#1677ff' }}
-          />
-          {tinhThuCot && !tinhThuCot.daChamDu && (
-            <Typography.Text type="warning">
-              Còn {tinhThuCot.thieuDiem.length} tiêu chí chưa chấm — điểm trên chỉ là
-              tạm tính, chưa gửi được.
-            </Typography.Text>
-          )}
-        </Space>
-      </Card>
-
-      {(['BSC_WORK', 'COMPLIANCE'] as const).map((muc) => {
-        const dongs = cayHienThi(muc);
-        if (dongs.length === 0) return null;
-        return (
-          <Card key={muc} size="small" title={TEN_MUC[muc]}>
-            <Table
-              rowKey="id"
-              size="small"
-              columns={cot}
-              dataSource={dongs}
-              pagination={false}
-              scroll={{ x: 'max-content' }}
-              expandable={{
-                expandedRowRender: oGhiChu,
-                rowExpandable: (dong) => Boolean(oGhiChu(dong)),
-                expandedRowKeys: dongs.filter((d) => oGhiChu(d)).map((d) => d.id),
-                showExpandColumn: false,
+      {/* ---------------------------------------------- 5 ô tóm tắt (bộ mẫu 12/09) */}
+      <div className="cham-o-luoi">
+        <div className="cham-o cham-o-nguoi">
+          <div className="cham-o-nguoi-dau">
+            <Avatar
+              size={44}
+              style={{
+                background: '#dbe6ff',
+                color: mauChuDao,
+                fontWeight: 700,
+              }}
+            >
+              {chuVietTat(p.ownerName ?? '?')}
+            </Avatar>
+            <span className="ten-va-phu">
+              <Typography.Text strong>{p.ownerName ?? '—'}</Typography.Text>
+              <small>
+                {p.jobTitleName} · {p.departmentName}
+              </small>
+            </span>
+          </div>
+          <div className="stepper-buoc-so" style={{ marginTop: 10 }}>
+            <span>Tiến trình chấm</span>
+            <strong>
+              {soLaDaCham}/{soLa} tiêu chí
+            </strong>
+          </div>
+          <div className="the-so-lieu-thanh">
+            <span
+              style={{
+                width: `${phanTram(soLaDaCham, soLa)}%`,
+                background: mauChuDao,
               }}
             />
-          </Card>
-        );
-      })}
+          </div>
+          <Typography.Text
+            type="secondary"
+            style={{ fontSize: 12, display: 'block', marginTop: 8 }}
+          >
+            Người chấm: <strong>{chiTiet?.evaluator?.fullName ?? '—'}</strong>
+          </Typography.Text>
+        </div>
 
-      {canLyDoNghiViec && (
-        <Card size="small" title="Lý do không có điểm tự chấm">
-          <Input.TextArea
-            rows={2}
-            maxLength={2000}
-            value={lyDoKhongTuCham}
-            onChange={(e) => setLyDoKhongTuCham(e.target.value)}
-            placeholder="Ví dụ: nhân viên đã nghỉ việc từ 15/08, không tự chấm được."
-          />
-        </Card>
-      )}
+        <div className="cham-o">
+          <span className="eyebrow">NV tự chấm</span>
+          <div className="cham-o-so">
+            {tinhThu.self.daChamDu || !cotTrong('self')
+              ? hienDiem(tinhThu.self.tongDiem).replace('.', ',')
+              : '—'}
+            <small>/ 100</small>
+          </div>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {p.selfScoredAt
+              ? `Đã nộp ${ngayVN(p.selfScoredAt)}`
+              : cotSua === 'self'
+                ? 'Đang chấm — tự tính khi gõ'
+                : 'Chưa nộp'}
+          </Typography.Text>
+        </div>
 
-      <Card size="small">
-        <Space wrap>
-          {cotSua && (
-            <>
-              <Button
-                loading={luuNhap.isPending}
-                disabled={oThayDoi.length === 0 || thieuGhiChu}
-                onClick={() => luuNhap.mutate()}
-              >
-                Lưu nháp{oThayDoi.length > 0 ? ` (${oThayDoi.length})` : ''}
-              </Button>
-              <Tooltip
-                title={
-                  oThayDoi.length > 0
-                    ? 'Lưu nháp trước khi gửi, nếu không phần vừa gõ sẽ không được tính.'
-                    : undefined
-                }
-              >
-                <Button
-                  type="primary"
-                  loading={gui.isPending}
-                  disabled={
-                    oThayDoi.length > 0 ||
-                    thieuGhiChu ||
-                    !tinhThuCot?.daChamDu ||
-                    (canLyDoNghiViec && lyDoKhongTuCham.trim().length < 5)
-                  }
-                  onClick={() =>
-                    modal.confirm({
-                      title: cotSua === 'self' ? 'Nộp phiếu tự chấm?' : 'Chốt điểm?',
-                      content:
-                        cotSua === 'self'
-                          ? 'Nộp xong bạn không sửa được nữa. Muốn sửa thì phải nhờ trưởng bộ phận trả phiếu lại.'
-                          : 'Chốt xong điểm không sửa được nữa. Muốn chấm lại thì phải trả phiếu về cho nhân viên.',
-                      okText: 'Đồng ý',
-                      cancelText: 'Huỷ',
-                      onOk: () => gui.mutate(),
-                    })
-                  }
-                >
-                  {cotSua === 'self' ? 'Nộp phiếu tự chấm' : 'Chốt điểm'}
-                </Button>
-              </Tooltip>
-            </>
-          )}
+        <div className="cham-o">
+          <span className="eyebrow">Trưởng BP chấm</span>
+          <div className="cham-o-so" style={{ color: mauChuDao }}>
+            {cotTrong('manager')
+              ? '—'
+              : hienDiem(tinhThu.manager.tongDiem).replace('.', ',')}
+            <small>/ 100</small>
+          </div>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {p.managerScoredAt
+              ? `Chốt ${ngayVN(p.managerScoredAt)}`
+              : cotSua === 'manager'
+                ? 'Cập nhật trực tiếp theo bảng'
+                : 'Chưa chấm'}
+          </Typography.Text>
+        </div>
 
-          {quyen?.canReject && (
-            <Button danger onClick={() => setMoTraLai(true)}>
-              Trả lại cho nhân viên
-            </Button>
-          )}
+        <div className="cham-o">
+          <span className="eyebrow">Độ lệch điểm</span>
+          <div
+            className="cham-o-so"
+            style={{
+              color:
+                lechTong === null
+                  ? undefined
+                  : lechTong < 0
+                    ? mauNhan
+                    : lechTong > 0
+                      ? mauXanhLa
+                      : undefined,
+            }}
+          >
+            {lechTong === null
+              ? '—'
+              : `${lechTong > 0 ? '+' : lechTong < 0 ? '−' : ''}${hienDiem(Math.abs(lechTong)).replace('.', ',')}`}
+            <small>điểm</small>
+          </div>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {lechTong === null
+              ? 'Cần đủ cả hai cột'
+              : 'Trưởng BP so với tự chấm'}
+          </Typography.Text>
+        </div>
 
-          {quyen?.canReceive && (
-            <Button
-              type="primary"
-              loading={tiepNhan.isPending}
-              onClick={() => tiepNhan.mutate()}
-            >
-              Tiếp nhận
-            </Button>
-          )}
+        <div className="cham-o">
+          <span className="eyebrow">
+            {p.grade ? 'Xếp loại' : 'Dự kiến xếp loại'}
+          </span>
+          <div
+            className="cham-o-so"
+            style={{ color: xepLoai ? MAU_XEP_LOAI_CHU[xepLoai] : undefined }}
+          >
+            {xepLoai && tinhThu.manager.daChamDu ? NHAN_XEP_LOAI[xepLoai] : '—'}
+          </div>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {tinhThuCot && !tinhThuCot.daChamDu
+              ? `Còn ${tinhThuCot.thieuDiem.length} tiêu chí chưa chấm`
+              : 'Chỉ tính trên cột trưởng bộ phận'}
+          </Typography.Text>
+        </div>
+      </div>
 
-          {!cotSua && !quyen?.canReject && !quyen?.canReceive && (
-            <Typography.Text type="secondary">
-              Bạn đang xem phiếu ở chế độ chỉ đọc.
+      <div className="cham-diem-trai">
+        <div className={`cham-diem-dai ${lopDai}`}>
+          <Typography.Text strong>{dongTrangThai}</Typography.Text>
+          {han?.ngay && (
+            <Typography.Text strong>
+              {han.nhan}: {ngayVN(han.ngay)}
+              {soNgayConLai !== null &&
+                (soNgayConLai < 0
+                  ? ` — quá hạn ${-soNgayConLai} ngày`
+                  : soNgayConLai === 0
+                    ? ' — hôm nay'
+                    : ` — còn ${soNgayConLai} ngày`)}
             </Typography.Text>
           )}
-        </Space>
-      </Card>
+        </div>
+
+        {(['BSC_WORK', 'COMPLIANCE'] as const).map((muc, i) => {
+          const dongs = cayHienThi(muc);
+          if (dongs.length === 0) return null;
+          const tongTrongSo = dongs
+            .filter((d) => !d.parentId)
+            .reduce((a, d) => a + Number(d.weight), 0);
+          const thang = dongs[0]?.maxScale;
+          return (
+            <Card
+              key={muc}
+              styles={{ body: { padding: 0 } }}
+              title={
+                <span className="viec-tieu-de">
+                  Mục {i + 1} · {TEN_MUC[muc]}
+                  <Typography.Text
+                    type="secondary"
+                    style={{ fontSize: 13, fontWeight: 400 }}
+                  >
+                    tổng {tongTrongSo}% · thang {thang} điểm
+                  </Typography.Text>
+                </span>
+              }
+            >
+              <Table
+                rowKey="id"
+                size="middle"
+                columns={cot}
+                dataSource={dongs}
+                pagination={false}
+                scroll={{ x: 'max-content' }}
+                rowClassName={(d) => (d.parentId ? '' : 'dong-cha')}
+                expandable={{
+                  expandedRowRender: oGhiChu,
+                  rowExpandable: (dong) => Boolean(oGhiChu(dong)),
+                  expandedRowKeys: dongs
+                    .filter((d) => oGhiChu(d))
+                    .map((d) => d.id),
+                  showExpandColumn: false,
+                }}
+              />
+            </Card>
+          );
+        })}
+
+        {canLyDoNghiViec && (
+          <Card title="Lý do không có điểm tự chấm">
+            <Input.TextArea
+              rows={2}
+              maxLength={2000}
+              value={lyDoKhongTuCham}
+              onChange={(e) => setLyDoKhongTuCham(e.target.value)}
+              placeholder="Ví dụ: nhân viên đã nghỉ việc từ 15/08, không tự chấm được."
+            />
+          </Card>
+        )}
+
+        {!cotSua && !quyen?.canReject && !quyen?.canReceive && (
+          <Typography.Text type="secondary">
+            Bạn đang xem phiếu ở chế độ chỉ đọc.
+          </Typography.Text>
+        )}
+      </div>
+
+      <div className="cham-duoi-luoi">
+        <Card
+          title={tieuDeGhiChu(
+            'Ý kiến & giải trình của nhân viên',
+            ghiChuTuCham.length,
+          )}
+        >
+          {ghiChuTuCham.length === 0 ? (
+            <Typography.Text type="secondary">
+              Nhân viên không ghi chú tiêu chí nào.
+            </Typography.Text>
+          ) : (
+            ghiChuTuCham.map((g) => (
+              <blockquote key={g.id} className="ghi-chu-khoi">
+                <Typography.Text strong>{g.ten}</Typography.Text>
+                <div>{g.noiDung}</div>
+              </blockquote>
+            ))
+          )}
+        </Card>
+        <Card
+          title={tieuDeGhiChu(
+            'Nhận xét của trưởng bộ phận',
+            ghiChuQuanLy.length,
+          )}
+        >
+          {ghiChuQuanLy.length === 0 ? (
+            <Typography.Text type="secondary">
+              Trưởng bộ phận chưa ghi nhận xét nào.
+            </Typography.Text>
+          ) : (
+            ghiChuQuanLy.map((g) => (
+              <blockquote key={g.id} className="ghi-chu-khoi ghi-chu-khoi-ql">
+                <Typography.Text strong>{g.ten}</Typography.Text>
+                <div>{g.noiDung}</div>
+              </blockquote>
+            ))
+          )}
+        </Card>
+        {chiTiet && <LichSuPhieu events={chiTiet.events} />}
+      </div>
 
       <Modal
         open={moTraLai}
@@ -570,6 +916,6 @@ export function ScoringPage() {
       </Modal>
 
       {isLoading && <Card loading />}
-    </Space>
+    </div>
   );
 }
