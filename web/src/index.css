@@ -1460,3 +1460,11 @@ a.ten-nhan-vien:hover {
   color: var(--mau-chu-dao);
   text-decoration: underline;
 }
+
+/* Bảng chấm điểm: cột số có lề, không dính mép phải */
+.bang-cham .ant-table-cell:last-child {
+  padding-inline-end: 28px !important;
+}
+.bang-cham .ant-table-thead > tr > th {
+  white-space: nowrap;
+}

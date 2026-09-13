@@ -376,6 +376,9 @@ export function ScoringPage() {
     {
       title: 'Mục tiêu & chỉ số đo lường',
       dataIndex: 'name',
+      // Không đặt width thì cột này nuốt hết chỗ trống và đẩy bốn cột số ra
+      // sát mép phải (phản hồi 13/09). Chiếm ~55%, phần còn lại chia cho số.
+      width: '55%',
       onCell: oMuc,
       render: (ten: string, dong) =>
         dong.parentId ? (
@@ -405,7 +408,7 @@ export function ScoringPage() {
     {
       title: 'Trọng số',
       dataIndex: 'weight',
-      width: 100,
+      width: 120,
       align: 'center',
       onCell: oMuc,
       // Con: phần trăm TRONG NHÓM — chip nhạt hơn để không nhầm với trọng số phiếu
@@ -422,7 +425,7 @@ export function ScoringPage() {
     {
       title: 'NV tự chấm',
       key: 'self',
-      width: 120,
+      width: 140,
       align: 'center',
       onCell: oMuc,
       render: (_: unknown, dong) => oDiem(dong, 'self'),
@@ -430,7 +433,7 @@ export function ScoringPage() {
     {
       title: 'Quản lý thẩm định',
       key: 'manager',
-      width: 130,
+      width: 170,
       align: 'center',
       onCell: oMuc,
       render: (_: unknown, dong) => oDiem(dong, 'manager'),
@@ -438,8 +441,8 @@ export function ScoringPage() {
     {
       title: 'Đóng góp',
       key: 'dongGop',
-      width: 90,
-      align: 'right',
+      width: 130,
+      align: 'center',
       onCell: oMuc,
       render: (_: unknown, dong) => {
         if (dong.parentId) return null;
@@ -884,10 +887,11 @@ export function ScoringPage() {
             <Table<DongBang>
               rowKey="id"
               size="middle"
+              className="bang-cham"
               columns={cot}
               dataSource={dongBang}
               pagination={false}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: 900 }}
               rowClassName={(d) =>
                 d.laMuc ? 'dong-muc' : d.parentId ? '' : 'dong-cha'
               }
@@ -936,7 +940,7 @@ export function ScoringPage() {
                             )}
                       </span>
                     </Table.Summary.Cell>
-                    <Table.Summary.Cell index={5} align="right">
+                    <Table.Summary.Cell index={5} align="center">
                       {xepLoai && tinhThu.manager.daChamDu ? (
                         <Tag color="success">{NHAN_XEP_LOAI[xepLoai]}</Tag>
                       ) : (
