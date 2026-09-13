@@ -270,7 +270,10 @@
 .pt-table tbody tr:hover { background: rgba(248, 250, 252, 0.7); }
 .pt-dong-ky-nay:hover { background: rgba(239, 246, 255, 0.3) !important; }
 .pt-dong-chon td { background: rgba(239, 246, 255, 0.5); }
-.pt-td-dau { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #0f172a; }
+.pt-td-dau { font-weight: 600; color: #0f172a; }
+.pt-ky-o { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.pt-table-ky { table-layout: fixed; min-width: 960px; }
+.pt-table-ky td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pt-link {
   background: none;
   border: 0;
@@ -400,8 +403,10 @@
   padding: 8px 16px;
 }
 .pt-dong-con td { background: rgba(248, 250, 252, 0.35); }
+.pt-table-ke { table-layout: fixed; min-width: 900px; }
 .pt-ma {
   display: inline-block;
+  white-space: nowrap;
   background: #d0e2ff;
   color: #002d9c;
   padding: 2px 6px;
@@ -424,7 +429,9 @@
   color: #334155;
 }
 .pt-trong-so-dam { background: rgba(226, 232, 240, 0.7); color: #0f172a; font-weight: 700; }
-.pt-ke-muc-tieu { font-size: 11px; color: #475569; line-height: 1.5; }
+.pt-ke-muc-tieu { font-size: 11px; color: #475569; line-height: 1.5; word-break: break-word; }
+.pt-table-ke tbody td { vertical-align: middle; }
+.pt-diem-o { white-space: nowrap; }
 .pt-diem-o { font-size: 14px; color: #0f172a; }
 .pt-table-ke tfoot tr { background: rgba(248, 250, 252, 0.9); border-top: 2px solid #e2e8f0; }
 .pt-table-ke tfoot td { padding: 10px 16px; font-size: 12px; font-weight: 600; color: #0f172a; border-bottom: 0; }

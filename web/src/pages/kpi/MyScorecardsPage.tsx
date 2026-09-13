@@ -236,7 +236,7 @@ export function MyScorecardsPage() {
         <div>
           <div className="pt-dau-ten">
             <h1>Phiếu đánh giá của tôi</h1>
-            {user && <span className="pt-ma-nv">{user.employeeCode}</span>}
+            {user?.employeeCode && <span className="pt-ma-nv">{user.employeeCode}</span>}
           </div>
           <p className="pt-mo-ta">Ký nhận KPI đầu kỳ, theo dõi hạn tự chấm và kết quả chốt điểm phòng ban.</p>
         </div>
@@ -364,11 +364,21 @@ export function MyScorecardsPage() {
             </div>
           </div>
           <span className="pt-nho">
-            Phiếu cá nhân: <strong>{user?.fullName} ({user?.employeeCode})</strong>
+            Phiếu cá nhân: <strong>{user?.fullName}{user?.employeeCode ? ` (${user.employeeCode})` : ''}</strong>
           </span>
         </div>
         <div className="pt-cuon">
-          <table className="pt-table">
+          <table className="pt-table pt-table-ky">
+            <colgroup>
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '10%' }} />
+              <col />
+            </colgroup>
             <thead>
               <tr>
                 <th className="pt-th-dau">Kỳ đánh giá</th>
@@ -397,10 +407,12 @@ export function MyScorecardsPage() {
                   return (
                     <tr key={p.id} className={`${laKyNay ? 'pt-dong-ky-nay' : ''}${phieuChon?.id === p.id ? ' pt-dong-chon' : ''}`}>
                       <td className="pt-td-dau">
-                        <button type="button" className={`pt-link${laKyNay ? ' pt-link-dam' : ''}`} onClick={() => setIdChon(p.id)}>
-                          {nhanKy(p)}
-                        </button>
-                        {laKyNay && <span className="pt-huy-hieu-xanh">Kỳ hiện tại</span>}
+                        <div className="pt-ky-o">
+                          <button type="button" className={`pt-link${laKyNay ? ' pt-link-dam' : ''}`} onClick={() => setIdChon(p.id)}>
+                            {nhanKy(p)}
+                          </button>
+                          {laKyNay && <span className="pt-huy-hieu-xanh">Kỳ hiện tại</span>}
+                        </div>
                       </td>
                       <td>{p.jobTitleName}</td>
                       <td className="pt-mo">{p.departmentName}</td>
@@ -503,15 +515,24 @@ export function MyScorecardsPage() {
           </div>
           <div className="pt-cuon pt-ke-khung">
             <table className="pt-table pt-table-ke">
+              <colgroup>
+                <col style={{ width: 96 }} />
+                <col style={{ width: '32%' }} />
+                <col style={{ width: 96 }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: 120 }} />
+                <col style={{ width: 96 }} />
+              </colgroup>
               <thead>
                 <tr>
-                  <th style={{ width: 72 }}>Mã</th>
+                  <th>Mã</th>
                   <th>Tiêu chí đánh giá</th>
-                  <th style={{ width: 90, textAlign: 'center' }}>Trọng số</th>
+                  <th style={{ textAlign: 'center' }}>Trọng số</th>
                   <th>Mục tiêu (Target)</th>
                   <th>Ghi chú tự chấm</th>
-                  <th style={{ width: 110, textAlign: 'center' }}>Điểm tự chấm</th>
-                  <th style={{ width: 90, textAlign: 'right' }}>Điểm TS</th>
+                  <th style={{ textAlign: 'center' }}>Điểm tự chấm</th>
+                  <th style={{ textAlign: 'right' }}>Điểm TS</th>
                 </tr>
               </thead>
               <tbody>
