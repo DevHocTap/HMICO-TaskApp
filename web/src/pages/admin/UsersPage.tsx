@@ -356,7 +356,6 @@ export function UsersPage() {
               onKeyDown={(e) => e.key === 'Enter' && setBoLoc((cu) => ({ ...cu, search: oTimKiem || undefined, page: 1 }))}
               onBlur={() => setBoLoc((cu) => ({ ...cu, search: oTimKiem || undefined, page: 1 }))}
             />
-            <kbd>↵</kbd>
           </span>
           <TreeSelect
             allowClear
@@ -602,7 +601,7 @@ export function UsersPage() {
               <button type="button" disabled={trangHienTai <= 1} onClick={() => setBoLoc((cu) => ({ ...cu, page: trangHienTai - 1 }))}>
                 <LeftOutlined />
               </button>
-              <span>{trangHienTai}</span>
+              <span className="qn-trang-so">{trangHienTai}</span>
               <button type="button" disabled={trangHienTai >= soTrang} onClick={() => setBoLoc((cu) => ({ ...cu, page: trangHienTai + 1 }))}>
                 <RightOutlined />
               </button>

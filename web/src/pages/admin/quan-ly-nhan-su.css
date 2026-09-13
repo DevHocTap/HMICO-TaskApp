@@ -19,12 +19,11 @@
 .qn-tim { position: relative; display: inline-flex; align-items: center; min-width: 280px; }
 .qn-tim .anticon { position: absolute; left: 12px; color: #94a3b8; font-size: 14px; }
 .qn-tim input {
-  width: 100%; padding: 8px 40px 8px 34px; font-size: 13px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+  width: 100%; padding: 8px 14px 8px 34px; font-size: 13px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
   color: #1e293b; font-family: inherit; outline: none; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.02);
 }
 .qn-tim input::placeholder { color: #94a3b8; }
 .qn-tim input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35); }
-.qn-tim kbd { position: absolute; right: 10px; padding: 1px 6px; font-size: 10px; font-weight: 600; color: #94a3b8; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; font-family: inherit; }
 .qn-chon-phong { min-width: 180px; }
 .qn-chon-phong .ant-select-selector { border-radius: 8px !important; font-size: 13px !important; font-weight: 500; height: 38px !important; }
 .qn-nut { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer; font-family: inherit; }
@@ -113,7 +112,8 @@
 .qn-bang-chan strong { font-weight: 600; color: #334155; }
 .qn-trang { display: flex; align-items: center; gap: 12px; }
 .qn-trang-nut { display: flex; align-items: center; gap: 4px; }
-.qn-trang-nut button { padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; background: #fff; color: #475569; cursor: pointer; display: inline-flex; font-size: 11px; }
+.qn-trang-nut button { width: 28px; height: 28px; padding: 0; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; color: #475569; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
+.qn-trang-nut button:hover:not(:disabled) { background: #f8fafc; border-color: #cbd5e1; color: #1e293b; }
 .qn-trang-nut button:disabled { color: #cbd5e1; cursor: not-allowed; }
-.qn-trang-nut span { width: 28px; height: 28px; border-radius: 4px; background: #2563eb; color: #fff; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
-.qn-select-nho { background: #fff; border: 1px solid #e2e8f0; font-size: 12px; border-radius: 4px; padding: 4px 8px; color: #475569; font-family: inherit; }
+.qn-trang-so { width: 28px; height: 28px; border-radius: 6px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.qn-select-nho { background: #fff; border: 1px solid #e2e8f0; font-size: 12px; border-radius: 6px; padding: 5px 8px; color: #475569; font-family: inherit; height: 28px; }
