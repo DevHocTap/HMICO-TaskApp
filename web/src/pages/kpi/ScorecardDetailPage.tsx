@@ -1,26 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Avatar,
-  App,
-  Button,
-  Card,
-  Input,
-  InputNumber,
-  Modal,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import { Alert, App, Input, Modal } from 'antd';
 import {
   ArrowLeftOutlined,
+  ClockCircleOutlined,
   DeleteOutlined,
+  InfoCircleOutlined,
   PlusOutlined,
+  SendOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import dayjs from 'dayjs';
 import {
   guiPhieuDiKy,
   layChiTietPhieu,
@@ -29,21 +20,19 @@ import {
 } from '../../api/scorecard';
 import { layThongBaoLoi } from '../../api/client';
 import {
-  MAU_TRANG_THAI_GIAO,
+  NHAN_HANH_DONG,
   NHAN_TRANG_THAI_GIAO_NGUOI_GIAO,
+  type AssignStatus,
   type DongPhieuKpi,
 } from '../../types/scorecard';
-import { MAX_SCALE, TEN_MUC } from '../../types/kpi-template';
+import { MAX_SCALE, TEN_MUC, type KpiSection } from '../../types/kpi-template';
 import { useTrongSo } from '../../auth/useTrongSo';
-import type { KpiSection } from '../../types/kpi-template';
 import { bang, chiaDeu, hienSo, tongTrongSo } from '../../utils/weight';
 import { useAuth } from '../../auth/useAuth';
-import { LichSuPhieu } from '../../components/LichSuPhieu';
-import { CayTieuChi } from '../../components/CayTieuChi';
 import { ngayGioVN, ngayVN } from '../../utils/format';
 import { chuVietTat } from '../../utils/period';
-import { mauChuDao, mauVang, mauXanhLa } from '../../config/theme';
 import { coTheGiaoKpi } from '../../auth/permissions';
+import './lap-phieu.css';
 
 /** Dòng đang soạn trên màn hình. `key` là khoá TẠM, dòng mới chưa có id. */
 interface DongSoan {
@@ -81,6 +70,19 @@ function xepCay(dong: DongSoan[]): DongSoan[] {
   return ra;
 }
 
+const LOP_TRANG_THAI: Record<AssignStatus, string> = {
+  DRAFT: 'lp-tt-cam',
+  PROPOSED: 'lp-tt-xanh',
+  ACCEPTED: 'lp-tt-xanh-la',
+  DISPUTED: 'lp-tt-do',
+};
+
+/**
+ * Lập / xem phiếu KPI đầu kỳ — dựng theo mã HTML mẫu 13/09: thanh hành động,
+ * ba thẻ (nhân sự · đồng hồ trọng số · hạn), cảnh báo hợp lệ, hai mục soạn
+ * ngay trong bảng, lịch sử phiếu. Phiếu sửa được (DRAFT / DISPUTED, kỳ chưa
+ * khoá) thì ô nhập luôn mở; phiếu đã gửi ký thì cùng bố cục nhưng chỉ đọc.
+ */
 export function ScorecardDetailPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
@@ -88,8 +90,8 @@ export function ScorecardDetailPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const [dangSoan, setDangSoan] = useState(false);
   const [dong, setDong] = useState<DongSoan[]>([]);
+  const [coThayDoi, setCoThayDoi] = useState(false);
   const [moGuiLai, setMoGuiLai] = useState(false);
   const [ghiChu, setGhiChu] = useState('');
 
@@ -101,8 +103,8 @@ export function ScorecardDetailPage() {
 
   // Nạp lại bản nháp mỗi khi phiếu đổi, nhưng KHÔNG đè lên thứ đang gõ dở.
   useEffect(() => {
-    if (phieu && !dangSoan) setDong(tuPhieu(phieu.items));
-  }, [phieu, dangSoan]);
+    if (phieu && !coThayDoi) setDong(tuPhieu(phieu.items));
+  }, [phieu, coThayDoi]);
 
   const TONG_TRONG_SO = useTrongSo();
   const laNguoiGiao = coTheGiaoKpi(user?.role);
@@ -114,12 +116,8 @@ export function ScorecardDetailPage() {
   const tongTheoMuc = useMemo(() => {
     const cap1 = dong.filter((d) => !d.parentKey);
     return {
-      BSC_WORK: tongTrongSo(
-        cap1.filter((d) => d.section === 'BSC_WORK').map((d) => d.weight),
-      ),
-      COMPLIANCE: tongTrongSo(
-        cap1.filter((d) => d.section === 'COMPLIANCE').map((d) => d.weight),
-      ),
+      BSC_WORK: tongTrongSo(cap1.filter((d) => d.section === 'BSC_WORK').map((d) => d.weight)),
+      COMPLIANCE: tongTrongSo(cap1.filter((d) => d.section === 'COMPLIANCE').map((d) => d.weight)),
     };
   }, [dong]);
 
@@ -132,11 +130,15 @@ export function ScorecardDetailPage() {
           const con = dong.filter((c) => c.parentKey === cha.key);
           if (con.length === 0) return null;
           const tong = tongTrongSo(con.map((c) => c.weight));
-          return bang(tong, 100) ? null : { ten: cha.name, tong };
+          return bang(tong, 100) ? null : { ten: cha.name || '(chưa đặt tên)', tong };
         })
         .filter((x): x is { ten: string; tong: number } => x !== null),
     [dong],
   );
+  const duMuc1 = bang(tongTheoMuc.BSC_WORK, TONG_TRONG_SO.BSC_WORK);
+  const duMuc2 = bang(tongTheoMuc.COMPLIANCE, TONG_TRONG_SO.COMPLIANCE);
+  const hopLe = duMuc1 && duMuc2 && nhomLech.length === 0;
+  const tongPhieu = tongTheoMuc.BSC_WORK + tongTheoMuc.COMPLIANCE;
 
   function lamMoi() {
     void queryClient.invalidateQueries({ queryKey: ['scorecards'] });
@@ -158,8 +160,7 @@ export function ScorecardDetailPage() {
       return luuItemPhieu(id, goi);
     },
     onSuccess: () => {
-      message.success('Đã lưu nội dung phiếu');
-      setDangSoan(false);
+      setCoThayDoi(false);
       lamMoi();
     },
     onError: (e) => message.error(layThongBaoLoi(e)),
@@ -176,415 +177,415 @@ export function ScorecardDetailPage() {
     onError: (e) => message.error(layThongBaoLoi(e)),
   });
 
-  function themDong(section: KpiSection, parentKey: string | null) {
-    setDong((cu) => [
-      ...cu,
-      {
-        key: khoaMoi(),
-        parentKey,
-        name: '',
-        section,
-        measurementText: '',
-        measureMethod: '',
-        weight: '',
-      },
-    ]);
-  }
-
-  /** Xoá một dòng, kèm mọi KPI con của nó — không để con mồ côi. */
-  function xoaDong(key: string) {
-    setDong((cu) => cu.filter((d) => d.key !== key && d.parentKey !== key));
+  /** "Lưu & Giao KPI": lưu nội dung (nếu có sửa) rồi gửi ký — hai bước, bước nào lỗi dừng ở đó. */
+  async function luuVaGui(note?: string) {
+    try {
+      if (coThayDoi) await luu.mutateAsync();
+    } catch {
+      return; // đã báo lỗi ở onError
+    }
+    gui.mutate(note);
   }
 
   function doiDong(key: string, thayDoi: Partial<DongSoan>) {
+    setCoThayDoi(true);
     setDong((cu) => cu.map((d) => (d.key === key ? { ...d, ...thayDoi } : d)));
   }
-
+  function themDong(section: KpiSection, parentKey: string | null) {
+    setCoThayDoi(true);
+    setDong((cu) => [
+      ...cu,
+      { key: khoaMoi(), parentKey, name: '', section, measurementText: '', measureMethod: '', weight: '' },
+    ]);
+  }
+  /** Xoá một dòng, kèm mọi KPI con của nó — không để con mồ côi. */
+  function xoaDong(key: string) {
+    setCoThayDoi(true);
+    setDong((cu) => cu.filter((d) => d.key !== key && d.parentKey !== key));
+  }
   /** Chia đều trọng số cho các con của một tiêu chí, phần dư dồn lên đầu. */
   function chiaDeuCon(chaKey: string) {
     const con = dong.filter((d) => d.parentKey === chaKey);
+    if (con.length === 0) return;
     const phan = chiaDeu(100, con.length);
+    setCoThayDoi(true);
     setDong((cu) =>
       cu.map((d) => {
         const i = con.findIndex((c) => c.key === d.key);
-        return i >= 0 ? { ...d, weight: hienSo(phan[i]) } : d;
+        return i >= 0 ? { ...d, weight: hienSo(phan[i]!) } : d;
       }),
     );
   }
 
-  const cotSoan: ColumnsType<DongSoan> = [
-    {
-      title: 'Tiêu chí',
-      dataIndex: 'name',
-      render: (_, d) => (
-        <Input
-          value={d.name}
-          placeholder={d.parentKey ? 'Tên KPI con' : 'Tên tiêu chí lớn'}
-          style={{ marginInlineStart: d.parentKey ? 20 : 0 }}
-          onChange={(e) => doiDong(d.key, { name: e.target.value })}
-        />
-      ),
-    },
-    {
-      title: 'Mục tiêu',
-      dataIndex: 'measurementText',
-      width: 150,
-      render: (_, d) => (
-        <Input
-          value={d.measurementText}
-          placeholder="≥ 95%"
-          onChange={(e) => doiDong(d.key, { measurementText: e.target.value })}
-        />
-      ),
-    },
-    {
-      title: 'Cách đo',
-      dataIndex: 'measureMethod',
-      width: 260,
-      render: (_, d) => (
-        <Input
-          value={d.measureMethod}
-          placeholder="Cách tính điểm tiêu chí này"
-          onChange={(e) => doiDong(d.key, { measureMethod: e.target.value })}
-        />
-      ),
-    },
-    {
-      title: 'Trọng số',
-      dataIndex: 'weight',
-      width: 110,
-      render: (_, d) => (
-        <InputNumber
-          value={d.weight === '' ? null : Number(d.weight)}
-          min={0}
-          max={100}
-          step={1}
-          style={{ width: '100%' }}
-          addonAfter="%"
-          onChange={(v) =>
-            doiDong(d.key, { weight: v === null ? '' : String(v) })
-          }
-        />
-      ),
-    },
-    {
-      title: '',
-      width: 190,
-      render: (_, d) =>
-        d.parentKey ? (
-          <Button
-            size="small"
-            icon={<DeleteOutlined />}
-            onClick={() => xoaDong(d.key)}
-          >
-            Xoá
-          </Button>
-        ) : (
-          <Space size={4}>
-            <Button size="small" onClick={() => themDong(d.section, d.key)}>
-              + KPI con
-            </Button>
-            <Button
-              size="small"
-              disabled={dong.filter((c) => c.parentKey === d.key).length === 0}
-              onClick={() => chiaDeuCon(d.key)}
-            >
-              Chia đều
-            </Button>
-            <Button
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => xoaDong(d.key)}
-            />
-          </Space>
-        ),
-    },
-  ];
-
   if (!phieu && !isLoading) {
-    return (
-      <Alert type="error" showIcon message="Không tìm thấy phiếu KPI này" />
-    );
+    return <Alert type="error" showIcon message="Không tìm thấy phiếu KPI này" />;
   }
+  if (!phieu) return null;
+
+  const han = phieu.period.assignDeadline ? dayjs(phieu.period.assignDeadline) : null;
+  const conNgay = han ? han.diff(dayjs(), 'day') : null;
+  const daGui = phieu.assignStatus !== 'DRAFT' && phieu.assignStatus !== 'DISPUTED';
+  const nhanHan =
+    daGui ? null : conNgay === null ? null : conNgay < 0 ? { ten: `Quá hạn ${-conNgay} ngày`, lop: 'lp-tt-do' } : conNgay <= 5 ? { ten: 'Sắp đến hạn', lop: 'lp-tt-cam' } : { ten: `Còn ${conNgay} ngày`, lop: 'lp-tt-xanh' };
+  const tenNhanVien = phieu.ownerUser?.fullName ?? 'Phiếu KPI';
+  const dangBan = luu.isPending || gui.isPending;
+
+  const mucInfo: Record<KpiSection, { so: number; ten: string; lop: string; cotTen: string; cotDo: string }> = {
+    BSC_WORK: { so: 1, ten: TEN_MUC.BSC_WORK, lop: 'lp-so-xanh', cotTen: 'Tiêu chí / Chỉ số KPI', cotDo: 'Cách đo / Công thức' },
+    COMPLIANCE: { so: 2, ten: 'Chấp hành nội quy & Văn hoá doanh nghiệp', lop: 'lp-so-xanh-la', cotTen: 'Tiêu chí / Quy định', cotDo: 'Cách đo / Nguồn dữ liệu' },
+  };
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space
-        align="center"
-        wrap
-        style={{ justifyContent: 'space-between', width: '100%' }}
-      >
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
-            Quay lại
-          </Button>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            {phieu?.ownerUser?.fullName ?? 'Phiếu KPI'}
-            {phieu && ` — ${phieu.period.name}`}
-          </Typography.Title>
-          {phieu && (
-            <Tag color={MAU_TRANG_THAI_GIAO[phieu.assignStatus]}>
-              {NHAN_TRANG_THAI_GIAO_NGUOI_GIAO[phieu.assignStatus]}
-            </Tag>
-          )}
-          {/* Chấm điểm là màn khác: màn này lo NỘI DUNG KPI đầu kỳ, màn kia
-              lo ĐIỂM cuối kỳ. Chỉ mở khi phiếu đã ký nhận — chưa ký thì
-              backend trả 409. */}
-          {phieu?.assignStatus === 'ACCEPTED' && (
-            <Button
-              onClick={() => navigate(`/kpi/scorecards/${phieu.id}/scoring`)}
-            >
+    <div className="lp">
+      {/* ===== thanh hành động */}
+      <div className="lp-thanh">
+        <div className="lp-thanh-trai">
+          <button type="button" className="lp-nut lp-nut-trang" onClick={() => navigate(-1)}>
+            <ArrowLeftOutlined /> Quay lại
+          </button>
+          <div className="lp-tieu-de">
+            <h1>
+              {tenNhanVien} — {phieu.period.name}
+            </h1>
+            <span className={`lp-tt ${LOP_TRANG_THAI[phieu.assignStatus]}`}>
+              {phieu.assignStatus === 'DRAFT' ? 'Đang soạn thảo' : NHAN_TRANG_THAI_GIAO_NGUOI_GIAO[phieu.assignStatus]}
+            </span>
+          </div>
+        </div>
+        <div className="lp-thanh-phai">
+          {phieu.assignStatus === 'ACCEPTED' && (
+            <Link to={`/kpi/scorecards/${phieu.id}/scoring`} className="lp-nut lp-nut-xanh">
               Chấm điểm
-            </Button>
+            </Link>
           )}
-        </Space>
-        {suaDuoc && (
-          <Space>
-            {dangSoan ? (
-              <>
-                <Button
-                  onClick={() => {
-                    setDangSoan(false);
-                    if (phieu) setDong(tuPhieu(phieu.items));
-                  }}
-                >
-                  Huỷ
-                </Button>
-                <Button
-                  type="primary"
-                  loading={luu.isPending}
-                  onClick={() => luu.mutate()}
-                >
-                  Lưu nội dung
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  icon={<PlusOutlined />}
-                  onClick={() => setDangSoan(true)}
-                >
-                  Sửa nội dung KPI
-                </Button>
-                <Button
-                  type="primary"
-                  loading={gui.isPending}
-                  onClick={() =>
-                    phieu?.assignStatus === 'DISPUTED'
-                      ? setMoGuiLai(true)
-                      : gui.mutate(undefined)
-                  }
-                >
-                  {phieu?.assignStatus === 'DISPUTED'
-                    ? 'Gửi lại'
-                    : 'Gửi đi ký nhận'}
-                </Button>
-              </>
-            )}
-          </Space>
-        )}
-      </Space>
-
-      {phieu?.assignStatus === 'DISPUTED' && phieu.disputeReason && (
-        <Alert
-          type="warning"
-          showIcon
-          message={`${phieu.ownerUser?.fullName ?? 'Nhân viên'} đã nêu ý kiến`}
-          description={
+          {suaDuoc && (
             <>
-              <div>{phieu.disputeReason}</div>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {ngayGioVN(phieu.disputedAt)}
-              </Typography.Text>
-            </>
-          }
-        />
-      )}
-
-      {phieu?.period.isLocked && (
-        <Alert
-          type="warning"
-          showIcon
-          message={`Kỳ ${phieu.period.name} đã khoá sổ`}
-          description="Không sửa được nội dung phiếu. Cần sửa thì đề nghị HCNS hoặc ban giám đốc mở lại kỳ."
-        />
-      )}
-
-      {phieu && (
-        <div className="cham-o-luoi giao-o-luoi">
-          <div className="cham-o cham-o-nguoi">
-            <div className="cham-o-nguoi-dau">
-              <Avatar
-                size={44}
-                style={{
-                  background: '#dbe6ff',
-                  color: mauChuDao,
-                  fontWeight: 700,
+              <button
+                type="button"
+                className="lp-nut lp-nut-trang"
+                disabled={!coThayDoi || dangBan}
+                onClick={() => {
+                  setDong(tuPhieu(phieu.items));
+                  setCoThayDoi(false);
                 }}
               >
-                {chuVietTat(phieu.ownerUser?.fullName ?? '?')}
-              </Avatar>
-              <span className="ten-va-phu">
-                <Typography.Text strong>
-                  {phieu.ownerUser?.fullName ?? '—'}
-                </Typography.Text>
-                <small>
-                  {phieu.ownerUser?.employeeCode ?? '—'} · {phieu.jobTitleName}{' '}
-                  · {phieu.departmentName}
-                </small>
-              </span>
-            </div>
-            <Typography.Text
-              type="secondary"
-              style={{ fontSize: 12, marginTop: 8 }}
-            >
-              Người chấm: <strong>{phieu.evaluator?.fullName ?? '—'}</strong>
-            </Typography.Text>
-          </div>
+                Huỷ
+              </button>
+              <button
+                type="button"
+                className="lp-nut lp-nut-trang lp-nut-dam"
+                disabled={!coThayDoi || dangBan}
+                onClick={() => luu.mutate(undefined, { onSuccess: () => message.success('Đã lưu nháp') })}
+              >
+                Lưu nháp
+              </button>
+              <button
+                type="button"
+                className="lp-nut lp-nut-xanh"
+                disabled={dangBan}
+                onClick={() => (phieu.assignStatus === 'DISPUTED' ? setMoGuiLai(true) : void luuVaGui())}
+              >
+                <SendOutlined /> {phieu.assignStatus === 'DISPUTED' ? 'Lưu & Gửi lại' : 'Lưu & Giao KPI'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
 
-          <div className="cham-o giao-o-trong-so">
-            <span className="eyebrow">Đồng hồ trọng số</span>
+      {/* ===== ba thẻ */}
+      <div className="lp-12">
+        <div className="lp-the lp-span-4">
+          <div className="lp-nv">
+            <div className="lp-avatar">{chuVietTat(tenNhanVien)}</div>
+            <div>
+              <div className="lp-nv-ten">{tenNhanVien}</div>
+              <div className="lp-nv-phu">
+                {phieu.ownerUser?.employeeCode ?? '—'} · {phieu.jobTitleName}
+              </div>
+              <div className="lp-nv-phong">
+                <i /> Phòng ban: <strong>{phieu.departmentName}</strong>
+              </div>
+            </div>
+          </div>
+          <div className="lp-the-chan">
+            <span>Người đánh giá chính:</span>
+            <strong>{phieu.evaluator?.fullName ?? '—'}</strong>
+          </div>
+        </div>
+
+        <div className="lp-the lp-span-5">
+          <div className="lp-hang" style={{ marginBottom: 8 }}>
+            <span className="lp-nhan-dam">Đồng hồ trọng số nhóm</span>
+            <span className="lp-tong">
+              <b className={hopLe ? 'lp-chu-xanh-la' : 'lp-chu-do'}>{hienSo(tongPhieu)}%</b> <span>/ 100%</span>
+            </span>
+          </div>
+          <div className="lp-gauge">
             {(['BSC_WORK', 'COMPLIANCE'] as const).map((muc) => {
               const tong = tongTheoMuc[muc];
               const du = bang(tong, TONG_TRONG_SO[muc]);
               return (
                 <div key={muc}>
-                  <div className="stepper-buoc-so" style={{ marginBottom: 4 }}>
-                    <span>{TEN_MUC[muc]}</span>
-                    <strong style={{ color: du ? mauXanhLa : mauVang }}>
-                      {hienSo(tong)} / {TONG_TRONG_SO[muc]}
-                    </strong>
+                  <div className="lp-hang lp-gauge-nhan">
+                    <span>
+                      {mucInfo[muc].so}. {TEN_MUC[muc]} (chuẩn {TONG_TRONG_SO[muc]}%)
+                    </span>
+                    <b className={du ? 'lp-chu-xanh-la' : 'lp-chu-do'}>
+                      {hienSo(tong)} / {TONG_TRONG_SO[muc]}%
+                    </b>
                   </div>
-                  <div className="the-so-lieu-thanh">
+                  <div className="lp-thanh-do">
                     <span
-                      style={{
-                        width: `${Math.min((tong / TONG_TRONG_SO[muc]) * 100, 100)}%`,
-                        background: du ? mauXanhLa : mauVang,
-                      }}
+                      className={du ? 'lp-thanh-xanh-la' : 'lp-thanh-do-mau'}
+                      style={{ width: `${Math.min((tong / TONG_TRONG_SO[muc]) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
               );
             })}
           </div>
+          <div className="lp-ghi-chu">
+            <InfoCircleOutlined /> Tổng trọng số các mục KPI phải đạt chính xác 100%.
+          </div>
+        </div>
 
-          <div className="cham-o">
-            <span className="eyebrow">Hạn giao KPI</span>
-            <div className="cham-o-so">
-              {ngayVN(phieu.period.assignDeadline)}
+        <div className="lp-the lp-span-3">
+          <div>
+            <div className="lp-nhan">Hạn giao &amp; duyệt KPI</div>
+            <div className="lp-han">
+              <span>{ngayVN(phieu.period.assignDeadline)}</span>
+              {nhanHan && <span className={`lp-tt ${nhanHan.lop}`}>{nhanHan.ten}</span>}
             </div>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Gửi ký: {ngayGioVN(phieu.proposedAt)}
-              <br />
-              Ký nhận: {ngayGioVN(phieu.acceptedAt)}
-            </Typography.Text>
+          </div>
+          <div className="lp-the-chan lp-the-chan-cot">
+            <div className="lp-hang">
+              <span>Gửi ký:</span>
+              <strong>{phieu.proposedAt ? ngayGioVN(phieu.proposedAt) : '— Chưa gửi'}</strong>
+            </div>
+            <div className="lp-hang">
+              <span>Ký nhận:</span>
+              <strong>{phieu.acceptedAt ? ngayGioVN(phieu.acceptedAt) : '— Chưa ký'}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== cảnh báo */}
+      {phieu.assignStatus === 'DISPUTED' && phieu.disputeReason && (
+        <div className="lp-canh-bao lp-canh-bao-do">
+          <span className="lp-canh-bao-icon">
+            <WarningOutlined />
+          </span>
+          <div>
+            <div className="lp-canh-bao-dau">
+              <h3>{tenNhanVien} đã nêu ý kiến</h3>
+              <span>{ngayGioVN(phieu.disputedAt)}</span>
+            </div>
+            <p>{phieu.disputeReason}</p>
+          </div>
+        </div>
+      )}
+      {phieu.period.isLocked && (
+        <div className="lp-canh-bao lp-canh-bao-xam">
+          <span className="lp-canh-bao-icon">
+            <WarningOutlined />
+          </span>
+          <div>
+            <div className="lp-canh-bao-dau">
+              <h3>Kỳ {phieu.period.name} đã khoá sổ</h3>
+            </div>
+            <p>Không sửa được nội dung phiếu. Cần sửa thì đề nghị HCNS hoặc ban giám đốc mở lại kỳ.</p>
+          </div>
+        </div>
+      )}
+      {suaDuoc && (
+        <div className={`lp-canh-bao ${hopLe ? 'lp-canh-bao-xanh-la' : 'lp-canh-bao-cam'}`}>
+          <span className="lp-canh-bao-icon">{hopLe ? <InfoCircleOutlined /> : <WarningOutlined />}</span>
+          <div>
+            <div className="lp-canh-bao-dau">
+              <h3>{hopLe ? 'Trọng số hợp lệ' : 'Cảnh báo tính hợp lệ của trọng số'}</h3>
+              <span className="lp-canh-bao-tag">{hopLe ? 'Sẵn sàng giao' : 'Cần bổ sung'}</span>
+            </div>
+            <p>
+              BSC công việc: <strong className={duMuc1 ? 'lp-chu-xanh-la' : 'lp-chu-do'}>{hienSo(tongTheoMuc.BSC_WORK)} / {TONG_TRONG_SO.BSC_WORK}%</strong> · Chấp hành nội quy:{' '}
+              <strong className={duMuc2 ? 'lp-chu-xanh-la' : 'lp-chu-do'}>{hienSo(tongTheoMuc.COMPLIANCE)} / {TONG_TRONG_SO.COMPLIANCE}%</strong>.
+              {!duMuc1 && ` Mục BSC công việc đang ${tongTheoMuc.BSC_WORK < TONG_TRONG_SO.BSC_WORK ? 'thiếu' : 'thừa'} ${hienSo(Math.abs(TONG_TRONG_SO.BSC_WORK - tongTheoMuc.BSC_WORK))}% trọng số.`}
+              {!duMuc2 && ` Mục nội quy đang ${tongTheoMuc.COMPLIANCE < TONG_TRONG_SO.COMPLIANCE ? 'thiếu' : 'thừa'} ${hienSo(Math.abs(TONG_TRONG_SO.COMPLIANCE - tongTheoMuc.COMPLIANCE))}%.`}
+              {nhomLech.length > 0 &&
+                ` Nhóm KPI con phải cộng đúng 100% trong nhóm: ${nhomLech.map((n) => `“${n.ten}” đang ${hienSo(n.tong)}%`).join(', ')}.`}
+              {hopLe && ' Bấm “Lưu & Giao KPI” để gửi nhân viên ký nhận.'}
+            </p>
           </div>
         </div>
       )}
 
-      {dangSoan && (
-        <Alert
-          type={
-            bang(tongTheoMuc.BSC_WORK, TONG_TRONG_SO.BSC_WORK) &&
-            bang(tongTheoMuc.COMPLIANCE, TONG_TRONG_SO.COMPLIANCE) &&
-            nhomLech.length === 0
-              ? 'success'
-              : 'warning'
-          }
-          showIcon
-          message={
-            <Space split="·" wrap>
-              <span>
-                {TEN_MUC.BSC_WORK}: <b>{hienSo(tongTheoMuc.BSC_WORK)}</b> /{' '}
-                {TONG_TRONG_SO.BSC_WORK}
-              </span>
-              <span>
-                {TEN_MUC.COMPLIANCE}: <b>{hienSo(tongTheoMuc.COMPLIANCE)}</b> /{' '}
-                {TONG_TRONG_SO.COMPLIANCE}
-              </span>
-            </Space>
-          }
-          description={
-            nhomLech.length > 0 && (
-              <div>
-                Nhóm KPI con phải cộng đúng 100% trong nhóm:{' '}
-                {nhomLech
-                  .map((n) => `"${n.ten}" đang ${hienSo(n.tong)}%`)
-                  .join(', ')}
-              </div>
-            )
-          }
-        />
-      )}
-
+      {/* ===== hai mục */}
       {(['BSC_WORK', 'COMPLIANCE'] as const).map((muc) => {
-        const cuaMuc = dangSoan
-          ? xepCay(dong.filter((d) => d.section === muc))
-          : (phieu?.items.filter((i) => i.section === muc) ?? []);
-        if (!dangSoan && cuaMuc.length === 0) return null;
+        const cuaMuc = xepCay(dong.filter((d) => d.section === muc));
+        const info = mucInfo[muc];
         return (
-          <Card
-            key={muc}
-            size="small"
-            loading={isLoading}
-            title={
-              <Space>
-                <span>{TEN_MUC[muc]}</span>
-                <Typography.Text type="secondary" style={{ fontWeight: 400 }}>
-                  tổng {TONG_TRONG_SO[muc]}% · thang {MAX_SCALE[muc]} điểm
-                </Typography.Text>
-              </Space>
-            }
-            extra={
-              dangSoan && (
-                <Button
-                  size="small"
-                  icon={<PlusOutlined />}
-                  onClick={() => themDong(muc, null)}
-                >
-                  Thêm tiêu chí lớn
-                </Button>
-              )
-            }
-          >
-            {cuaMuc.length === 0 ? (
-              <Typography.Text type="secondary">
-                Chưa có tiêu chí nào. Bấm "Thêm tiêu chí lớn" để bắt đầu.
-              </Typography.Text>
-            ) : dangSoan ? (
-              <Table
-                rowKey="key"
-                size="small"
-                pagination={false}
-                scroll={{ x: 'max-content' }}
-                columns={cotSoan}
-                dataSource={cuaMuc as DongSoan[]}
-              />
-            ) : (
-              <CayTieuChi items={cuaMuc as DongPhieuKpi[]} />
-            )}
-          </Card>
+          <section key={muc} className="lp-muc">
+            <div className="lp-muc-dau">
+              <div className="lp-muc-ten">
+                <span className={`lp-so ${info.lop}`}>{info.so}</span>
+                <div>
+                  <h2>{info.ten}</h2>
+                  <p>
+                    Tổng {TONG_TRONG_SO[muc]}% trọng số toàn phiếu · Thang {MAX_SCALE[muc]} điểm
+                  </p>
+                </div>
+              </div>
+              {suaDuoc && (
+                <button type="button" className="lp-nut lp-nut-trang" onClick={() => themDong(muc, null)}>
+                  <PlusOutlined /> Thêm tiêu chí lớn
+                </button>
+              )}
+            </div>
+            <div className="lp-cuon">
+              <table className="lp-table">
+                <colgroup>
+                  <col style={{ width: '40%' }} />
+                  <col style={{ width: '17%' }} />
+                  <col style={{ width: '23%' }} />
+                  <col style={{ width: 110 }} />
+                  {suaDuoc && <col style={{ width: 210 }} />}
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>{info.cotTen}</th>
+                    <th>Mục tiêu (Target)</th>
+                    <th>{info.cotDo}</th>
+                    <th style={{ textAlign: 'center' }}>Trọng số</th>
+                    {suaDuoc && <th style={{ textAlign: 'right' }}>Thao tác</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {cuaMuc.length === 0 ? (
+                    <tr>
+                      <td colSpan={suaDuoc ? 5 : 4} className="lp-rong">
+                        {suaDuoc ? 'Chưa có tiêu chí nào. Bấm “Thêm tiêu chí lớn” để bắt đầu.' : 'Mục này chưa có tiêu chí.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    cuaMuc.map((d) => {
+                      const laCon = Boolean(d.parentKey);
+                      const soCon = dong.filter((c) => c.parentKey === d.key).length;
+                      return (
+                        <tr key={d.key} className={laCon ? 'lp-dong-con' : 'lp-dong-cha'}>
+                          <td className={laCon ? 'lp-td-con' : ''}>
+                            {laCon && <span className="lp-nhanh" />}
+                            {suaDuoc ? (
+                              <input
+                                className={`lp-input${laCon ? '' : ' lp-input-dam'}`}
+                                value={d.name}
+                                placeholder={laCon ? 'Tên KPI con (vd: Hoàn thành cấu hình Server và Switch tại cơ quan đối tác)…' : 'Nhập tên tiêu chí lớn (vd: Tiến độ & Chất lượng Triển khai hạ tầng)…'}
+                                onChange={(e) => doiDong(d.key, { name: e.target.value })}
+                              />
+                            ) : (
+                              <span className={laCon ? 'lp-chu' : 'lp-chu lp-chu-dam'}>{d.name || '—'}</span>
+                            )}
+                          </td>
+                          <td>
+                            {suaDuoc ? (
+                              <input className="lp-input" value={d.measurementText} placeholder={muc === 'BSC_WORK' ? '≥ 95%' : '0 lần'} onChange={(e) => doiDong(d.key, { measurementText: e.target.value })} />
+                            ) : (
+                              <span className="lp-chu">{d.measurementText || '—'}</span>
+                            )}
+                          </td>
+                          <td>
+                            {suaDuoc ? (
+                              <input className="lp-input" value={d.measureMethod} placeholder="Cách tính điểm tiêu chí này…" onChange={(e) => doiDong(d.key, { measureMethod: e.target.value })} />
+                            ) : (
+                              <span className="lp-chu">{d.measureMethod || '—'}</span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {suaDuoc ? (
+                              <span className="lp-trong-so-o">
+                                <input
+                                  className="lp-input lp-input-so"
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  step={1}
+                                  value={d.weight}
+                                  placeholder="0"
+                                  onChange={(e) => doiDong(d.key, { weight: e.target.value })}
+                                />
+                                <i>%</i>
+                              </span>
+                            ) : (
+                              <span className="lp-trong-so">{d.weight || 0}%</span>
+                            )}
+                          </td>
+                          {suaDuoc && (
+                            <td style={{ textAlign: 'right' }}>
+                              {laCon ? (
+                                <button type="button" className="lp-nut-nho lp-nut-nho-do" title="Xoá KPI con" onClick={() => xoaDong(d.key)}>
+                                  <DeleteOutlined /> Xoá
+                                </button>
+                              ) : (
+                                <span className="lp-thao-tac">
+                                  <button type="button" className="lp-nut-nho" title="Thêm KPI con" onClick={() => themDong(muc, d.key)}>
+                                    + KPI con
+                                  </button>
+                                  <button type="button" className="lp-nut-nho" title="Chia đều trọng số cho KPI con" disabled={soCon === 0} onClick={() => chiaDeuCon(d.key)}>
+                                    Chia đều
+                                  </button>
+                                  <button type="button" className="lp-nut-xoa" title="Xoá tiêu chí" onClick={() => xoaDong(d.key)}>
+                                    <DeleteOutlined />
+                                  </button>
+                                </span>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         );
       })}
 
-      {phieu && <LichSuPhieu events={phieu.events} />}
+      {/* ===== lịch sử */}
+      {phieu.events.length > 0 && (
+        <section className="lp-the lp-lich-su">
+          <h3>
+            <ClockCircleOutlined /> Lịch sử phiếu &amp; hoạt động
+          </h3>
+          <div className="lp-timeline">
+            {phieu.events.map((e) => (
+              <div key={e.id} className="lp-su-kien">
+                <span className={`lp-su-kien-cham${e.action === 'REJECT' || e.action === 'DISPUTE' ? ' lp-cham-do' : e.action === 'CREATE' ? ' lp-cham-xam' : ''}`} />
+                <div className="lp-su-kien-dau">
+                  <b>{NHAN_HANH_DONG[e.action] ?? e.action}</b>
+                  <span>·</span>
+                  <span className="lp-su-kien-ai">{e.actor?.fullName ?? 'Hệ thống'}</span>
+                  <span>· {ngayGioVN(e.createdAt)}</span>
+                </div>
+                {e.comment && <p>{e.comment}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Modal
         open={moGuiLai}
         title="Gửi lại phiếu đang có ý kiến"
-        okText="Gửi lại"
+        okText="Lưu & Gửi lại"
         cancelText="Huỷ"
-        confirmLoading={gui.isPending}
+        confirmLoading={dangBan}
         okButtonProps={{ disabled: ghiChu.trim().length === 0 }}
         onCancel={() => setMoGuiLai(false)}
-        onOk={() => gui.mutate(ghiChu.trim())}
+        onOk={() => void luuVaGui(ghiChu.trim())}
       >
-        <Typography.Paragraph type="secondary">
-          Phiếu này đang có ý kiến của người nhận. Gửi lại thì bắt buộc ghi chú
-          lý do — ví dụ đã sửa theo góp ý, hoặc đã trao đổi trực tiếp và hai bên
-          thống nhất giữ nguyên. Ghi chú được lưu vào lịch sử phiếu.
-        </Typography.Paragraph>
+        <p className="lp-ghi-chu" style={{ marginBottom: 8 }}>
+          Phiếu này đang có ý kiến của người nhận. Gửi lại thì bắt buộc ghi chú lý do — ví dụ đã sửa theo góp ý, hoặc đã trao đổi trực tiếp và hai bên thống nhất giữ nguyên. Ghi chú được lưu vào lịch sử phiếu.
+        </p>
         <Input.TextArea
           rows={4}
           maxLength={2000}
@@ -594,6 +595,6 @@ export function ScorecardDetailPage() {
           placeholder="Ví dụ: đã giảm trọng số tiêu chí 2 từ 30% xuống 20% theo góp ý."
         />
       </Modal>
-    </Space>
+    </div>
   );
 }

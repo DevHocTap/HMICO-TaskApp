@@ -496,6 +496,18 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   này" (chưa có bản in từng phiếu); cột "Tệp / Minh chứng" → "Ghi chú tự
   chấm" (hệ thống không có đính kèm); bỏ "Bổ sung tài liệu đính kèm".
 
+- **Lập phiếu KPI (`/kpi/scorecards/:id`) — dựng lại theo mã HTML mẫu
+  (13/09):** `ScorecardDetailPage.tsx` + `lap-phieu.css`. Thanh hành động
+  (Quay lại · tên — kỳ · badge trạng thái · Huỷ / Lưu nháp / **Lưu & Giao
+  KPI** = lưu rồi gửi ký, DISPUTED thành "Lưu & Gửi lại" kèm ghi chú bắt
+  buộc); ba thẻ 4/5/3 (nhân sự + người đánh giá · đồng hồ trọng số hai mục
+  đỏ/xanh lá · hạn giao kèm "Sắp đến hạn / Quá hạn", gửi ký / ký nhận);
+  banner cảnh báo hợp lệ vàng (thiếu/thừa bao nhiêu, nhóm con lệch) hoặc
+  xanh lá khi sẵn sàng; hai mục soạn **ngay trong bảng** (ô nhập luôn mở khi
+  DRAFT/DISPUTED, KPI con thụt vào có nhánh cây, "+ KPI con · Chia đều ·
+  xoá"); phiếu đã gửi ký cùng bố cục nhưng chỉ đọc; lịch sử phiếu dạng dòng
+  thời gian. Bỏ chế độ "Sửa nội dung KPI" hai bước và `CayTieuChi`.
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 
