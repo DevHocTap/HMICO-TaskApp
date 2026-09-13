@@ -55,6 +55,8 @@ interface DongKe {
   maxScale: number;
   ghiChu: string | null;
   diem: string | null;
+  /** Điểm tiêu chí cha tính từ KPI con (backend tính) — hiện thay chữ "tính từ KPI con". */
+  diemTinh: string | null;
   dongGop: string | null;
   section: 'BSC_WORK' | 'COMPLIANCE';
 }
@@ -173,6 +175,7 @@ export function MyScorecardsPage() {
             maxScale: i.maxScale,
             ghiChu: 'selfComment' in i ? i.selfComment : null,
             diem: 'selfScore' in i ? i.selfScore : null,
+            diemTinh: 'selfComputed' in i ? i.selfComputed.diem : null,
             dongGop: 'selfComputed' in i ? i.selfComputed.dongGop : null,
             section: muc,
           });
@@ -593,8 +596,11 @@ export function MyScorecardsPage() {
                                 <b className="pt-diem-o">{diemTomTat(d.diem)}</b>
                                 <small className="pt-mo"> / {d.maxScale}</small>
                               </>
-                            ) : d.cap1 && dongKe.some((x) => !x.cap1 && x.section === d.section && x.ma.startsWith(`${d.ma}.`)) ? (
-                              <small className="pt-mo">tính từ KPI con</small>
+                            ) : d.cap1 && d.diemTinh !== null ? (
+                              <>
+                                <b className="pt-diem-o">{diemTomTat(d.diemTinh)}</b>
+                                <small className="pt-mo"> / {d.maxScale}</small>
+                              </>
                             ) : (
                               <span className="pt-mo">—</span>
                             )}

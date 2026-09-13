@@ -509,3 +509,5 @@
 .pt-table-ke td:nth-child(4) .pt-mo, .pt-table-ke td:nth-child(5) .pt-mo { padding-left: 2px; }
 .pt-table-ke tfoot .pt-tong-lon { font-size: 18px; }
 .pt-table-ke tfoot .pt-trong-so-dam { min-width: 48px; }
+/* Điểm TS căn giữa như cột Điểm tự chấm (13/09) */
+.pt-table-ke th:nth-child(7), .pt-table-ke td:nth-child(7) { text-align: center; padding-right: 14px; }
