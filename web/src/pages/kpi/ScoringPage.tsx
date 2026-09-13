@@ -82,6 +82,10 @@ export function ScoringPage() {
   const [moTraLai, setMoTraLai] = useState(false);
   const [lyDoTraLai, setLyDoTraLai] = useState('');
   const [lyDoKhongTuCham, setLyDoKhongTuCham] = useState('');
+  // Tiêu chí cấp 1 đang MỞ KPI con. `null` = chưa đụng tới → mặc định theo
+  // quyền: đang chấm thì mở hết (phải nhập từng KPI con), chỉ xem thì gập hết
+  // (phản hồi 13/09: xem điểm chỉ cần nhìn tiêu chí lớn).
+  const [moCon, setMoCon] = useState<Set<string> | null>(null);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['scorecards', 'scoring', id],
@@ -307,13 +311,25 @@ export function ScoringPage() {
   const soCon = (chaId: string) =>
     data.items.filter((i) => i.parentId === chaId).length;
 
+  const idCha = data.items.filter((i) => !i.parentId && soCon(i.id) > 0).map((i) => i.id);
+  const dangMoCon: Set<string> = moCon ?? new Set(cotSua ? idCha : []);
+  const doiMoCon = (id: string) =>
+    setMoCon(() => {
+      const moi = new Set(dangMoCon);
+      if (moi.has(id)) moi.delete(id);
+      else moi.add(id);
+      return moi;
+    });
+  const moHetCon = dangMoCon.size >= idCha.length;
+
   const cayHienThi = (muc: 'BSC_WORK' | 'COMPLIANCE') => {
     const cua = data.items.filter((i) => i.section === muc);
     const cha = cua.filter((i) => !i.parentId);
     const ra: DongChamDiem[] = [];
     for (const c of cha) {
       ra.push(c);
-      ra.push(...cua.filter((i) => i.parentId === c.id));
+      // KPI con chỉ hiện khi tiêu chí cha đang mở
+      if (dangMoCon.has(c.id)) ra.push(...cua.filter((i) => i.parentId === c.id));
     }
     return ra;
   };
@@ -394,10 +410,15 @@ export function ScoringPage() {
           </span>
         ) : (
           <span className="ten-va-phu">
-            <Typography.Text strong>{ten}</Typography.Text>
+            <Typography.Text strong>
+              {soCon(dong.id) > 0 && (
+                <span className={`cham-mui-ten${dangMoCon.has(dong.id) ? ' cham-mui-ten-mo' : ''}`}>▸</span>
+              )}
+              {ten}
+            </Typography.Text>
             <small>
               Trọng số nhóm {Number(dong.weight)}%
-              {soCon(dong.id) > 0 ? ` · ${soCon(dong.id)} KPI con` : ''}
+              {soCon(dong.id) > 0 ? ` · ${soCon(dong.id)} KPI con${dangMoCon.has(dong.id) ? '' : ' · bấm để xem'}` : ''}
               {dong.measurementText && soCon(dong.id) === 0
                 ? ` · ${dong.measurementText}`
                 : ''}
@@ -877,6 +898,13 @@ export function ScoringPage() {
               </Typography.Text>
             </span>
           }
+          extra={
+            idCha.length > 0 && (
+              <Button size="small" onClick={() => setMoCon(new Set(moHetCon ? [] : idCha))}>
+                {moHetCon ? 'Gập tất cả' : 'Mở tất cả'}
+              </Button>
+            )
+          }
         >
           {mucRong ? (
             <Empty
@@ -893,8 +921,13 @@ export function ScoringPage() {
               pagination={false}
               scroll={{ x: 900 }}
               rowClassName={(d) =>
-                d.laMuc ? 'dong-muc' : d.parentId ? '' : 'dong-cha'
+                d.laMuc ? 'dong-muc' : d.parentId ? '' : `dong-cha${soCon(d.id) > 0 ? ' dong-cha-bam' : ''}`
               }
+              onRow={(d) => ({
+                onClick: () => {
+                  if (!d.laMuc && !d.parentId && soCon(d.id) > 0) doiMoCon(d.id);
+                },
+              })}
               expandable={{
                 expandedRowRender: oGhiChu,
                 rowExpandable: (dong) => !dong.laMuc && Boolean(oGhiChu(dong)),

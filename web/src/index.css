@@ -1652,3 +1652,9 @@ a.ten-nhan-vien:hover {
 @media (max-width: 900px) {
   .chip-tham-dinh { display: none; }
 }
+
+/* Bảng chấm điểm: tiêu chí cha có KPI con bấm để sổ / gập */
+.bang-cham .dong-cha-bam { cursor: pointer; }
+.bang-cham .dong-cha-bam:hover > td { background: #f1f5f9 !important; }
+.cham-mui-ten { display: inline-block; width: 14px; color: #64748b; font-size: 12px; transition: transform 0.15s; }
+.cham-mui-ten-mo { transform: rotate(90deg); }
