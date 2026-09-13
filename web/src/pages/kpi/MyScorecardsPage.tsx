@@ -78,6 +78,15 @@ export function MyScorecardsPage() {
   const [moHuongDan, setMoHuongDan] = useState(false);
   const [moNeuYKien, setMoNeuYKien] = useState(false);
   const [lyDo, setLyDo] = useState('');
+  /** Tiêu chí cấp 1 đang mở KPI con — mặc định gập hết, bấm vào dòng để sổ. */
+  const [dangMo, setDangMo] = useState<Set<string>>(new Set());
+  const doiMo = (id: string) =>
+    setDangMo((cu) => {
+      const moi = new Set(cu);
+      if (moi.has(id)) moi.delete(id);
+      else moi.add(id);
+      return moi;
+    });
 
   const { data: danhSach = [], isLoading } = useQuery({
     queryKey: ['scorecards', 'my'],
@@ -550,13 +559,27 @@ export function MyScorecardsPage() {
                           {muc === 'BSC_WORK' ? 'Mục 1' : 'Mục 2'}. {TEN_MUC[muc]} · {trongSo[muc]}% · thang {MAX_SCALE[muc]}
                         </td>
                       </tr>,
-                      ...cua.map((d) => (
-                        <tr key={d.id} className={d.cap1 ? 'pt-dong-cap1' : 'pt-dong-con'}>
+                      ...cua.map((d) => {
+                        const chaId = d.cap1 ? d.id : (cua.find((x) => x.cap1 && d.ma.startsWith(`${x.ma}.`))?.id ?? '');
+                        const soCon = d.cap1 ? cua.filter((x) => !x.cap1 && x.ma.startsWith(`${d.ma}.`)).length : 0;
+                        const mo = dangMo.has(chaId);
+                        // KPI con chỉ hiện khi tiêu chí cha đang mở
+                        if (!d.cap1 && !mo) return null;
+                        return (
+                        <tr
+                          key={d.id}
+                          className={`${d.cap1 ? 'pt-dong-cap1' : 'pt-dong-con'}${soCon > 0 ? ' pt-dong-bam' : ''}${d.cap1 && mo ? ' pt-dong-mo' : ''}`}
+                          onClick={soCon > 0 ? () => doiMo(d.id) : undefined}
+                        >
                           <td style={{ textAlign: 'center' }}>
                             <span className={d.cap1 ? 'pt-stt' : 'pt-stt pt-stt-con'}>{d.ma}</span>
                           </td>
                           <td>
-                            <div className={d.cap1 ? 'pt-ke-ten' : 'pt-ke-ten pt-ke-ten-con'}>{d.ten}</div>
+                            <div className={d.cap1 ? 'pt-ke-ten' : 'pt-ke-ten pt-ke-ten-con'}>
+                              {soCon > 0 && <span className={`pt-mui-ten${mo ? ' pt-mui-ten-mo' : ''}`}>▸</span>}
+                              {d.ten}
+                              {soCon > 0 && <span className="pt-so-con">{soCon} KPI con{mo ? '' : ' · bấm để xem'}</span>}
+                            </div>
                             {d.phu && <div className="pt-ke-phu">{d.phu}</div>}
                           </td>
                           <td style={{ textAlign: 'center' }}>
@@ -580,7 +603,8 @@ export function MyScorecardsPage() {
                             {d.dongGop !== null ? <b className="pt-chu-xanh">{diemTomTat(d.dongGop)}</b> : <span className="pt-mo">—</span>}
                           </td>
                         </tr>
-                      )),
+                        );
+                      }),
                     ];
                   })
                 )}

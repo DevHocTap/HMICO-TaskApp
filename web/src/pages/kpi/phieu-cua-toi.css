@@ -419,10 +419,15 @@
 .pt-table-ke tfoot .pt-chu-xanh { color: #93c5fd; }
 .pt-table-ke tfoot .pt-tong-lon { color: #93c5fd !important; }
 .pt-ke-ten { font-weight: 600; color: #0f172a; line-height: 1.35; }
-.pt-ke-ten-con { font-weight: 500; color: #334155; padding-left: 14px; position: relative; }
-.pt-ke-ten-con::before { content: '↳'; position: absolute; left: 0; color: #94a3b8; }
+.pt-ke-ten-con { font-weight: 500; color: #334155; padding-left: 14px; }
 .pt-ke-phu { font-size: 11px; color: #64748b; margin-top: 2px; }
 .pt-dong-con .pt-ke-phu { padding-left: 14px; }
+.pt-dong-bam { cursor: pointer; }
+.pt-dong-bam:hover td { background: #f1f5f9; }
+.pt-dong-mo td { background: #f8fafc; }
+.pt-mui-ten { display: inline-block; width: 14px; color: #64748b; font-size: 12px; transition: transform 0.15s; margin-right: 2px; }
+.pt-mui-ten-mo { transform: rotate(90deg); }
+.pt-so-con { margin-left: 8px; font-size: 11px; font-weight: 500; color: #0043ce; background: #edf5ff; padding: 1px 6px; border-radius: 4px; }
 .pt-trong-so {
   background: #f1f5f9;
   padding: 2px 8px;
