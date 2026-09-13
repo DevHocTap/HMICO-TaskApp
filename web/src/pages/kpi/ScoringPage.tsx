@@ -274,30 +274,29 @@ export function ScoringPage() {
       : cot === 'self'
         ? dong.selfScore
         : dong.managerScore;
-    if (hien === null)
-      return <span className="diem-chip diem-chip-trong">—</span>;
+    if (hien === null) return <span className="cham-o-trong">—</span>;
 
-    // Cột trưởng BP tô màu khi lệch với tự chấm (thay cho cột "Chênh lệch" cũ)
-    let lop = cot === 'manager' ? 'diem-chip diem-chip-ql' : 'diem-chip';
+    // Cột trưởng BP đổi màu số khi lệch với tự chấm (thay cho cột "Chênh lệch" cũ)
+    let lop = 'cham-o-diem';
     let goiY: string | undefined;
     if (cot === 'manager' && !laCha) {
       const tu = diemHienTai(dong, 'self');
       if (tu !== null) {
         const lech = Math.round((Number(hien) - tu) * 100) / 100;
         if (lech < 0) {
-          lop += ' diem-chip-thap';
+          lop += ' cham-o-diem-thap';
           goiY = `Thấp hơn tự chấm ${hienDiem(-lech)}`;
         } else if (lech > 0) {
-          lop += ' diem-chip-cao';
+          lop += ' cham-o-diem-cao';
           goiY = `Cao hơn tự chấm ${hienDiem(lech)}`;
         }
       }
     }
-    if (laCha) lop += ' diem-chip-cha';
 
     const chip = (
       <span className={lop}>
-        {hienDiem(Number(hien))}
+        <b>{hienDiem(Number(hien)).replace('.', ',')}</b>
+        <small> / {dong.maxScale}</small>
         {vuotThang && (
           <Tag color="purple" style={{ marginInlineStart: 6 }}>
             vượt
@@ -378,68 +377,69 @@ export function ScoringPage() {
     {
       title: 'STT',
       dataIndex: 'stt',
-      width: 56,
-      onCell: (dong) => ({ colSpan: dong.laMuc ? 6 : 1 }),
+      width: 64,
+      align: 'center',
+      onCell: (dong) => ({ colSpan: dong.laMuc ? 7 : 1 }),
       render: (stt: string | undefined, dong) =>
         dong.laMuc ? (
-          <Typography.Text strong style={{ fontSize: 15 }}>
-            {dong.tieuDeMuc}
-          </Typography.Text>
+          <span className="cham-muc-ten">{dong.tieuDeMuc}</span>
+        ) : dong.parentId ? (
+          <span className="pt-stt pt-stt-con">{stt}</span>
         ) : (
-          <Typography.Text type="secondary">{stt}</Typography.Text>
+          <span className="pt-stt">{stt?.replace(/^0/, '')}</span>
         ),
     },
     {
-      title: 'Mục tiêu & chỉ số đo lường',
+      title: 'Tiêu chí đánh giá',
       dataIndex: 'name',
-      // Không đặt width thì cột này nuốt hết chỗ trống và đẩy bốn cột số ra
-      // sát mép phải (phản hồi 13/09). Chiếm ~55%, phần còn lại chia cho số.
-      width: '55%',
+      // Không đặt width thì cột này nuốt hết chỗ trống và đẩy các cột số ra
+      // sát mép phải (phản hồi 13/09).
+      width: '34%',
       onCell: oMuc,
       render: (ten: string, dong) =>
         dong.parentId ? (
-          <span className="ten-va-phu" style={{ paddingInlineStart: 20 }}>
-            <span>{ten}</span>
-            {(dong.measurementText || dong.measureMethod) && (
-              <small>
-                {[dong.measurementText, dong.measureMethod]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </small>
-            )}
+          <span className="ten-va-phu" style={{ paddingInlineStart: 14 }}>
+            <span className="pt-ke-ten pt-ke-ten-con" style={{ paddingLeft: 0 }}>{ten}</span>
+            {dong.measureMethod && <small>{dong.measureMethod}</small>}
           </span>
         ) : (
           <span className="ten-va-phu">
-            <Typography.Text strong>
+            <span className="pt-ke-ten">
               {soCon(dong.id) > 0 && (
                 <span className={`cham-mui-ten${dangMoCon.has(dong.id) ? ' cham-mui-ten-mo' : ''}`}>▸</span>
               )}
               {ten}
-            </Typography.Text>
-            <small>
-              Trọng số nhóm {Number(dong.weight)}%
-              {soCon(dong.id) > 0 ? ` · ${soCon(dong.id)} KPI con${dangMoCon.has(dong.id) ? '' : ' · bấm để xem'}` : ''}
-              {dong.measurementText && soCon(dong.id) === 0
-                ? ` · ${dong.measurementText}`
-                : ''}
-            </small>
+              {soCon(dong.id) > 0 && (
+                <span className="pt-so-con">
+                  {soCon(dong.id)} KPI con{dangMoCon.has(dong.id) ? '' : ' · bấm để xem'}
+                </span>
+              )}
+            </span>
+            {dong.description && <small>{dong.description}</small>}
           </span>
         ),
     },
     {
+      title: 'Mục tiêu (Target)',
+      dataIndex: 'measurementText',
+      width: '14%',
+      onCell: oMuc,
+      render: (v: string | null) =>
+        v ? <span className="pt-ke-muc-tieu">{v}</span> : <span className="cham-o-trong">—</span>,
+    },
+    {
       title: 'Trọng số',
       dataIndex: 'weight',
-      width: 120,
+      width: 110,
       align: 'center',
       onCell: oMuc,
-      // Con: phần trăm TRONG NHÓM — chip nhạt hơn để không nhầm với trọng số phiếu
+      // Con: phần trăm TRONG NHÓM — nhạt hơn để không nhầm với trọng số phiếu
       render: (w: string, dong) => (
         <span
-          className={
-            dong.parentId ? 'chip-trong-so chip-trong-so-con' : 'chip-trong-so'
-          }
+          className={dong.parentId ? 'pt-trong-so pt-trong-so-con' : 'pt-trong-so'}
+          title={dong.parentId ? 'Trọng số trong nhóm' : 'Trọng số trên toàn phiếu'}
         >
-          {Number(w)}%{dong.parentId ? ' nhóm' : ''}
+          {Number(w)}%
         </span>
       ),
     },
@@ -460,16 +460,20 @@ export function ScoringPage() {
       render: (_: unknown, dong) => oDiem(dong, 'manager'),
     },
     {
-      title: 'Đóng góp',
+      title: 'Trọng số tháng (%)',
       key: 'dongGop',
-      width: 130,
+      width: 150,
       align: 'center',
       onCell: oMuc,
       render: (_: unknown, dong) => {
         if (dong.parentId) return null;
         // Theo cột chính đang xem; cột kia đã có ở thẻ tổng bên phải
         const dg = tinhThu[cotChinh].theoDong.get(dong.id)?.dongGop;
-        return <Typography.Text strong>{hienDiem(dg ?? null)}</Typography.Text>;
+        return dg === null || dg === undefined ? (
+          <span className="cham-o-trong">—</span>
+        ) : (
+          <b className="pt-chu-xanh">{hienDiem(dg).replace('.', ',')}%</b>
+        );
       },
     },
   ];
@@ -939,45 +943,33 @@ export function ScoringPage() {
               summary={() => (
                 <Table.Summary fixed>
                   <Table.Summary.Row className="dong-tong-ket">
-                    <Table.Summary.Cell index={0} colSpan={2}>
-                      <Typography.Text strong style={{ fontSize: 15 }}>
-                        Tổng kết điểm đánh giá
-                      </Typography.Text>
-                      <Typography.Text
-                        type="secondary"
-                        style={{ display: 'block', fontSize: 12 }}
-                      >
-                        Xếp loại chỉ tính trên cột quản lý thẩm định
-                      </Typography.Text>
+                    <Table.Summary.Cell index={0} colSpan={2} align="right">
+                      <span className="cham-tong-nhan">Tổng cộng</span>
                     </Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} align="center">
-                      <span className="chip-trong-so">100%</span>
+                    <Table.Summary.Cell index={2}>
+                      <span className="cham-tong-mo">Xếp loại chỉ tính trên cột quản lý thẩm định</span>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={3} align="center">
-                      <Typography.Text strong style={{ fontSize: 16 }}>
-                        {cotTrong('self')
-                          ? '—'
-                          : hienDiem(tinhThu.self.tongDiem).replace('.', ',')}
-                      </Typography.Text>
+                      <span className="pt-trong-so pt-trong-so-dam">100%</span>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={4} align="center">
-                      <span
-                        className="diem-chip diem-chip-ql diem-chip-cha"
-                        style={{ fontSize: 16 }}
-                      >
-                        {cotTrong('manager')
-                          ? '—'
-                          : hienDiem(tinhThu.manager.tongDiem).replace(
-                              '.',
-                              ',',
-                            )}
+                      <span className="cham-tong-so">
+                        {cotTrong('self') ? '—' : hienDiem(tinhThu.self.tongDiem).replace('.', ',')}
+                        <small> / 100</small>
                       </span>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={5} align="center">
-                      {xepLoai && tinhThu.manager.daChamDu ? (
-                        <Tag color="success">{NHAN_XEP_LOAI[xepLoai]}</Tag>
-                      ) : (
-                        <Typography.Text type="secondary">—</Typography.Text>
+                      <span className="cham-tong-so">
+                        {cotTrong('manager') ? '—' : hienDiem(tinhThu.manager.tongDiem).replace('.', ',')}
+                        <small> / 100</small>
+                      </span>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={6} align="center">
+                      <span className="cham-tong-lon">
+                        {cotTrong(cotChinh) ? '—' : `${hienDiem(tinhThu[cotChinh].tongDiem).replace('.', ',')}%`}
+                      </span>
+                      {xepLoai && tinhThu.manager.daChamDu && (
+                        <Tag color="success" style={{ marginInlineStart: 8 }}>{NHAN_XEP_LOAI[xepLoai]}</Tag>
                       )}
                     </Table.Summary.Cell>
                   </Table.Summary.Row>

@@ -1712,3 +1712,21 @@ a.ten-nhan-vien:hover {
 /* Giao KPI và các bảng antd khác: kẻ ngang đậm hơn một nấc */
 .ant-table-wrapper .ant-table-tbody > tr > td { border-bottom-color: #e2e8f0; }
 .ant-table-wrapper .ant-table-thead > tr > th { border-bottom-color: #cbd5e1; }
+
+/* Bảng chấm điểm: cùng ngôn ngữ với bảng kê ở Phiếu đánh giá (13/09) */
+.bang-cham .cham-muc-ten { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #334155; }
+.bang-cham .cham-o-trong { color: #94a3b8; }
+.bang-cham .cham-o-diem { white-space: nowrap; }
+.bang-cham .cham-o-diem b { font-size: 15px; color: #0f172a; }
+.bang-cham .cham-o-diem small { font-size: 12px; color: #94a3b8; }
+.bang-cham .cham-o-diem-thap b { color: #e11d48; }
+.bang-cham .cham-o-diem-cao b { color: #059669; }
+.bang-cham .pt-trong-so-con { background: #f8fafc; color: #64748b; font-weight: 500; }
+.bang-cham .dong-cha .ant-table-cell { vertical-align: middle; }
+.bang-cham .ten-va-phu small { line-height: 1.4; margin-top: 3px; }
+.bang-cham .cham-tong-nhan { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #1e3a8a; padding-right: 8px; }
+.bang-cham .cham-tong-mo { font-size: 12px; font-weight: 500; color: #1e40af; }
+.bang-cham .cham-tong-so { font-size: 14px; font-weight: 700; color: #1e3a8a; white-space: nowrap; }
+.bang-cham .cham-tong-so small { font-size: 12px; font-weight: 500; color: #1e40af; }
+.bang-cham .cham-tong-lon { font-size: 18px; font-weight: 800; color: #1d4ed8; }
+.bang-cham .ant-table-summary > tr > td { vertical-align: middle; padding-top: 12px !important; padding-bottom: 12px !important; }
