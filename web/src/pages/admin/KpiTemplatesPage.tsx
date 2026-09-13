@@ -17,9 +17,9 @@ import {
 } from 'antd';
 import {
   CopyOutlined,
+  DeleteOutlined,
   MoreOutlined,
   PlusOutlined,
-  StopOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -167,7 +167,7 @@ export function KpiTemplatesPage() {
   const voHieuHoa = useMutation({
     mutationFn: voHieuHoaMau,
     onSuccess: () => {
-      message.success('Đã vô hiệu hoá mẫu');
+      message.success('Đã xoá mẫu khỏi danh sách');
       lamMoi();
     },
     onError: (e) => message.error(layThongBaoLoi(e)),
@@ -217,13 +217,17 @@ export function KpiTemplatesPage() {
     setModalMo(true);
   }
 
+  // "Xoá" với mọi vai là NGỪNG SỬ DỤNG: mẫu biến mất khỏi danh sách và
+  // không sinh phiếu mới; chỉ ADMIN xem lại và khôi phục được (chốt 13/09).
+  // Không xoá hẳn vì phiếu đã tạo còn trỏ về mẫu để truy vết.
+  const laAdmin = user?.role === 'ADMIN';
   function xacNhanVoHieuHoa(mau: KpiTemplate) {
     modal.confirm({
-      title: `Vô hiệu hoá mẫu "${mau.name}"?`,
-      content:
-        'Mẫu sẽ không còn hiện khi giao KPI cho nhân viên mới. ' +
-        'Phiếu KPI đã tạo từ mẫu này vẫn giữ nguyên nội dung.',
-      okText: 'Vô hiệu hoá',
+      title: `Xoá mẫu "${mau.name}"?`,
+      content: laAdmin
+        ? 'Mẫu chuyển sang trạng thái ngừng sử dụng và ẩn khỏi danh sách; xem lại bằng công tắc "Cả mẫu đã ngừng", khôi phục bằng "Kích hoạt lại". Phiếu KPI đã tạo từ mẫu này giữ nguyên nội dung.'
+        : 'Mẫu sẽ biến mất khỏi danh sách và không dùng để giao KPI nữa. Phiếu KPI đã tạo từ mẫu này giữ nguyên nội dung. Cần khôi phục thì đề nghị quản trị viên.',
+      okText: 'Xoá mẫu',
       okButtonProps: { danger: true },
       cancelText: 'Huỷ',
       onOk: () => voHieuHoa.mutateAsync(mau.id),
@@ -262,7 +266,7 @@ export function KpiTemplatesPage() {
                 { value: 'PUBLISHED', label: 'Đã xuất bản' },
               ]}
             />
-            {coQuyenGhi && (
+            {laAdmin && (
               <Switch
                 checked={hienDaNgung}
                 onChange={setHienDaNgung}
@@ -377,7 +381,7 @@ export function KpiTemplatesPage() {
                     >
                       {nhanSua}
                     </Button>
-                    {coQuyenGhi && !mau.isActive && (
+                    {laAdmin && !mau.isActive && (
                       <Button
                         type="primary"
                         shape="round"
@@ -410,8 +414,8 @@ export function KpiTemplatesPage() {
                               : [
                                   {
                                     key: 'vo-hieu',
-                                    icon: <StopOutlined />,
-                                    label: 'Vô hiệu hoá',
+                                    icon: <DeleteOutlined />,
+                                    label: 'Xoá mẫu',
                                     danger: true,
                                     onClick: () => xacNhanVoHieuHoa(mau),
                                   },

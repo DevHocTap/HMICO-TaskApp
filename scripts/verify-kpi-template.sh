@@ -183,8 +183,10 @@ echo "$KQ" | grep -q 'TPL-KT-SD' \
 MA=$(ma -H "Authorization: Bearer $AT_RND" "$API/kpi-templates/$ID_SD")
 [ "$MA" = "403" ] && pass "MANAGER R&D xem mẫu chức danh phòng Kỹ thuật -> 403" \
   || fail "MANAGER R&D xem mẫu phòng khác -> $MA (mong đợi 403)"
-MA=$(ma -H "Authorization: Bearer $AT_KT" "$API/kpi-templates/$ID_SD")
-[ "$MA" = "200" ] && pass "đối chứng: MANAGER phòng Kỹ thuật xem được -> 200" \
+# Đối chứng trên mẫu script vừa tạo (ZTEST-KT-OK) chứ không phải TPL-KT-SD:
+# máy dev có thể đã ngừng mẫu thật, mà mẫu đã ngừng thì MANAGER thấy 404.
+MA=$(ma -H "Authorization: Bearer $AT_KT" "$API/kpi-templates/${ID_KT_OK:-$ID_SD}")
+[ "$MA" = "200" ] && pass "đối chứng: MANAGER phòng Kỹ thuật xem được mẫu phòng mình -> 200" \
   || fail "MANAGER Kỹ thuật -> $MA (mong đợi 200)"
 
 # --------------------------------------------------------- MẪU HỆ THỐNG
@@ -363,6 +365,19 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_KH/
 [ "$MA" = "400" ] && pass "kích hoạt mẫu đang dùng -> 400" || fail "activate lần hai -> $MA"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_SYS/activate")
 [ "$MA" = "403" ] || [ "$MA" = "400" ] && pass "mẫu hệ thống không qua activate (HTTP $MA)" || fail "activate mẫu hệ thống -> $MA"
+
+# Chốt 13/09: "xoá" với vai khác ADMIN = ngừng sử dụng và ẨN HẲN; chỉ ADMIN
+# xem lại và khôi phục. Dùng mẫu ZTEST-KH (đã kích hoạt lại ở trên) rồi ngừng lần nữa.
+MA=$(ma -X DELETE -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_KH")
+[ "$MA" = "200" ] && pass "ngừng lại mẫu thử để kiểm ẩn -> 200" || fail "DELETE lần hai -> $MA"
+SO=$(curl -s -H "Authorization: Bearer $AT_KT" "$API/kpi-templates?includeInactive=true" | json "sum(1 for t in d if t['id']=='$ID_KH')")
+[ "$SO" = "0" ] && pass "trưởng phòng gọi includeInactive=true vẫn KHÔNG thấy mẫu đã xoá" || fail "MANAGER thấy mẫu đã ngừng"
+MA=$(ma -H "Authorization: Bearer $AT_KT" "$API/kpi-templates/$ID_KH")
+[ "$MA" = "404" ] && pass "trưởng phòng mở mẫu đã xoá -> 404 (như không tồn tại)" || fail "MANAGER GET mẫu đã ngừng -> $MA"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_KT" "$API/kpi-templates/$ID_KH/activate")
+[ "$MA" = "403" ] && pass "trưởng phòng khôi phục mẫu đã xoá -> 403 (chỉ ADMIN)" || fail "MANAGER activate -> $MA"
+SO=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates?includeInactive=true" | json "sum(1 for t in d if t['id']=='$ID_KH')")
+[ "$SO" = "1" ] && pass "ADMIN với includeInactive=true vẫn thấy để khôi phục" || fail "ADMIN không thấy mẫu đã ngừng"
 
 # ===================================================== MẪU NỘI QUY THEO PHÒNG
 # Chốt 13/09/2026: trưởng bộ phận chép mẫu nội quy dùng chung về phòng mình,

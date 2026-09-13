@@ -72,9 +72,12 @@ export class KpiTemplateService {
     query: ListTemplatesQuery,
     user: AuthenticatedUser,
   ): Promise<TemplateResponse[]> {
+    // Mẫu đã ngừng chỉ ADMIN thấy (chốt 13/09): với vai khác, "xoá" mẫu
+    // thực chất là ngừng sử dụng và biến mất khỏi mọi danh sách.
+    const xemDaNgung = query.includeInactive && user.role === Role.ADMIN;
     const rows = await this.prisma.kpiTemplate.findMany({
       where: {
-        ...(query.includeInactive ? {} : { isActive: true }),
+        ...(xemDaNgung ? {} : { isActive: true }),
         jobTitleId: query.jobTitleId,
         status: query.status,
       },
@@ -128,6 +131,10 @@ export class KpiTemplateService {
   async getById(id: string, user: AuthenticatedUser): Promise<TemplateDetailResponse> {
     const template = await this.mustFind(id);
     await this.assertCoTheXem(template, user);
+    // Mẫu đã ngừng ẩn hẳn với vai khác ADMIN — trả 404 như không tồn tại
+    if (!template.isActive && user.role !== Role.ADMIN) {
+      throw new NotFoundException('Không tìm thấy mẫu KPI');
+    }
 
     const items = await this.prisma.kpiTemplateItem.findMany({
       where: { templateId: id },
@@ -462,6 +469,11 @@ export class KpiTemplateService {
     actor: AuthenticatedUser,
     ipAddress?: string,
   ): Promise<TemplateResponse> {
+    // Chỉ ADMIN khôi phục: vai khác không thấy mẫu đã ngừng nên cũng không
+    // có gì để kích hoạt lại (chốt 13/09).
+    if (actor.role !== Role.ADMIN) {
+      throw new ForbiddenException('Chỉ quản trị viên mới khôi phục được mẫu đã xoá');
+    }
     const before = await this.mustFind(id);
     await this.assertCoTheGhi(before, actor);
     this.assertKhongPhaiMauHeThong(before);

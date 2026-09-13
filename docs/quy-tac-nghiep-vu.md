@@ -712,6 +712,13 @@ còn — đó chính là lúc cần tra cứu nhất.
 > nội quy của phòng mình** (sao chép từ mẫu chung, xem mục 2). HCNS và ban
 > giám đốc xem toàn bộ mẫu và nội dung phiếu đã giao, không sửa.
 >
+> **"Xoá mẫu" = ngừng sử dụng, không xoá hẳn — chốt 13/09/2026.** Phiếu
+> đã sinh còn trỏ về mẫu (`templateId`, `templateVersion`) để truy vết nên
+> không xoá bản ghi. Mẫu đã ngừng **ẩn hẳn** với mọi vai trừ ADMIN: danh
+> sách không trả (kể cả `includeInactive=true`), mở trực tiếp trả 404,
+> `activate` trả 403. Chỉ ADMIN xem lại (công tắc "Cả mẫu đã ngừng") và
+> khôi phục. Mẫu nội quy dùng chung không xoá được.
+>
 > **Về `EXECUTIVE`:** ban giám đốc phải xem được cơ cấu tổ chức, chức danh
 > và danh sách nhân sự toàn công ty — giấu những màn hình đó đi thì họ đăng
 > nhập vào chỉ thấy trang trống. Backend vốn đã cho họ đọc toàn công ty;

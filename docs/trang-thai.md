@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 63 + 71 + 82 + 159 + 96 + 76 + 42 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 63 + 76 + 82 + 159 + 96 + 76 + 42 kiểm tra curl.**
 
 ## Đang làm
 
@@ -534,6 +534,12 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   có kênh thông báo); "Trạng thái KPI kỳ" ở bộ lọc → không có (API nhân sự
   không lọc theo phiếu). Modal thêm/sửa, đặt lại mật khẩu, vô hiệu hoá giữ
   nguyên.
+
+- **"Xoá mẫu" = ngừng sử dụng, ẩn hẳn với vai khác ADMIN (13/09):** menu ⋯
+  đổi thành "Xoá mẫu"; backend `list` bỏ qua `includeInactive` với vai khác
+  ADMIN, `getById` mẫu đã ngừng trả 404, `activate` chỉ ADMIN; công tắc "Cả
+  mẫu đã ngừng" và nút "Kích hoạt lại" chỉ ADMIN thấy. `verify-kpi-template.sh`
+  **76**. Ghi ở quy-tac mục 7.
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
