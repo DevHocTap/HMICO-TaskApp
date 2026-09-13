@@ -1730,3 +1730,78 @@ a.ten-nhan-vien:hover {
 .bang-cham .cham-tong-so small { font-size: 12px; font-weight: 500; color: #1e40af; }
 .bang-cham .cham-tong-lon { font-size: 18px; font-weight: 800; color: #1d4ed8; }
 .bang-cham .ant-table-summary > tr > td { vertical-align: middle; padding-top: 12px !important; padding-bottom: 12px !important; }
+
+/* ---------- Chấm điểm: thanh tiêu đề + 5 thẻ (13/09) ---------- */
+.cd-thanh {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.cd-thanh-trai { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.cd-thanh-phai { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cd-quay-lai {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px;
+  background: #fff; border: 1px solid #cbd5e1; color: #334155; font-size: 12px; font-weight: 500;
+  cursor: pointer; font-family: inherit; white-space: nowrap; flex: none;
+}
+.cd-quay-lai:hover { background: #f8fafc; color: #1d4ed8; }
+.cd-tieu-de { min-width: 0; }
+.cd-tieu-de-hang { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cd-tieu-de h1 { margin: 0; font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; }
+.cd-tag { font-size: 11px; font-weight: 600; }
+.cd-mo-ta { margin: 3px 0 0; font-size: 12px; color: #64748b; }
+
+.cd-luoi {
+  display: grid;
+  grid-template-columns: 1.7fr repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+@media (max-width: 1200px) { .cd-luoi { grid-template-columns: repeat(2, 1fr); } .cd-the-nguoi { grid-column: span 2; } }
+@media (max-width: 640px) { .cd-luoi { grid-template-columns: 1fr; } .cd-the-nguoi { grid-column: span 1; } }
+.cd-the {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.15s;
+}
+.cd-the:hover { border-color: #cbd5e1; }
+.cd-the-xep-loai { border-left: 4px solid #e2e8f0; }
+.cd-the-dau { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cd-nhan { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
+.cd-icon { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; background: #f1f5f9; color: #64748b; flex: none; }
+.cd-icon-xam { background: #f1f5f9; color: #64748b; }
+.cd-icon-xanh { background: #eff6ff; color: #2563eb; }
+.cd-icon-do { background: #fff1f2; color: #e11d48; }
+.cd-icon-xanh-la { background: #ecfdf5; color: #059669; }
+.cd-so { font-size: 26px; font-weight: 800; line-height: 1.1; color: #0f172a; display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
+.cd-so small { font-size: 12px; font-weight: 500; color: #94a3b8; }
+.cd-so-xanh { color: #1d4ed8; }
+.cd-so-do { color: #e11d48; }
+.cd-so-xanh-la { color: #059669; }
+.cd-phu { font-size: 12px; color: #64748b; }
+
+.cd-nguoi { display: flex; align-items: center; gap: 12px; }
+.cd-avatar { width: 44px; height: 44px; border-radius: 12px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.cd-nguoi-ten { font-size: 14px; font-weight: 700; color: #0f172a; }
+.cd-nguoi-phu { font-size: 12px; color: #64748b; margin-top: 1px; }
+.cd-tien-trinh { margin-top: 6px; }
+.cd-tien-trinh-dau { display: flex; justify-content: space-between; font-size: 12px; color: #64748b; margin-bottom: 6px; }
+.cd-tien-trinh-dau b { color: #0f172a; font-weight: 700; }
+.cd-thanh-do { height: 6px; border-radius: 999px; background: #f1f5f9; overflow: hidden; }
+.cd-thanh-do > span { display: block; height: 100%; border-radius: 999px; background: #2563eb; }
+.cd-the-chan { margin-top: auto; padding-top: 10px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; font-size: 12px; color: #64748b; }
+.cd-the-chan b { color: #1e293b; font-weight: 600; }

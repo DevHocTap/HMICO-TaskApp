@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   App,
-  Avatar,
   Button,
   Card,
   Empty,
@@ -15,10 +14,9 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SafetyCertificateOutlined, SwapOutlined, TrophyOutlined, UserOutlined } from '@ant-design/icons';
 import { chuVietTat } from '../../utils/period';
 import { phanTram } from '../../utils/format';
-import { mauChuDao, mauNhan, mauXanhLa } from '../../config/theme';
 import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -44,7 +42,6 @@ import {
 import { TEN_MUC } from '../../types/kpi-template';
 import { hienDiem, tinhDiemPhieu, type CotCham } from '../../utils/scoring';
 import { ngayVN } from '../../utils/format';
-import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { LichSuPhieu } from '../../components/LichSuPhieu';
 
 /** Màu chữ xếp loại ở ô tóm tắt — cùng bảng với dashboard. */
@@ -690,44 +687,36 @@ export function ScoringPage() {
 
   return (
     <div>
-      <TieuDeTrang
-        truoc={
-          <Button
-            shape="round"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate(-1)}
-          >
-            Quay lại
-          </Button>
-        }
-        tieuDe={`Phiếu đánh giá KPI ${p.periodName.toLowerCase()}`}
-        moTa={
-          <span className="tieu-de-tag-hang">
-            <Tag className={`tag-trang-thai ${lopDai}`}>
-              {dongTrangThai}
-              {han?.ngay && soNgayConLai !== null && (
-                <>
-                  {' '}
-                  · {han.nhan.toLowerCase()} {ngayVN(han.ngay)}
-                  {soNgayConLai < 0
-                    ? ` — quá hạn ${-soNgayConLai} ngày`
-                    : soNgayConLai === 0
-                      ? ' — hôm nay'
-                      : ` — còn ${soNgayConLai} ngày`}
-                </>
-              )}
-            </Tag>
-            <Typography.Text type="secondary">
+      {/* ---------------------------------------------- thanh tiêu đề (13/09) */}
+      <div className="cd-thanh">
+        <div className="cd-thanh-trai">
+          <button type="button" className="cd-quay-lai" onClick={() => navigate(-1)}>
+            <ArrowLeftOutlined /> Quay lại
+          </button>
+          <div className="cd-tieu-de">
+            <div className="cd-tieu-de-hang">
+              <h1>Phiếu đánh giá KPI {p.periodName.toLowerCase()}</h1>
+              <span className={`tag-trang-thai cd-tag ${lopDai}`}>
+                {dongTrangThai}
+                {han?.ngay && soNgayConLai !== null && (
+                  <>
+                    {' '}· {han.nhan.toLowerCase()} {ngayVN(han.ngay)}
+                    {soNgayConLai < 0 ? ` — quá hạn ${-soNgayConLai} ngày` : soNgayConLai === 0 ? ' — hôm nay' : ` — còn ${soNgayConLai} ngày`}
+                  </>
+                )}
+              </span>
+            </div>
+            <p className="cd-mo-ta">
               {cotSua === 'manager'
                 ? 'Thẩm định điểm tự chấm của nhân viên, ghi nhận xét và chốt điểm cấp phòng.'
                 : cotSua === 'self'
                   ? 'Tự đánh giá từng tiêu chí rồi nộp để trưởng bộ phận thẩm định.'
                   : 'Phiếu đang ở chế độ chỉ đọc.'}
-            </Typography.Text>
-          </span>
-        }
-        phai={nutHanhDong}
-      />
+            </p>
+          </div>
+        </div>
+        <div className="cd-thanh-phai">{nutHanhDong}</div>
+      </div>
 
       {p.periodIsLocked && (
         <Alert
@@ -770,125 +759,93 @@ export function ScoringPage() {
         />
       )}
 
-      {/* ---------------------------------------------- 5 ô tóm tắt (bộ mẫu 12/09) */}
-      <div className="cham-o-luoi">
-        <div className="cham-o cham-o-nguoi">
-          <div className="cham-o-nguoi-dau">
-            <Avatar
-              size={44}
-              style={{
-                background: '#dbe6ff',
-                color: mauChuDao,
-                fontWeight: 700,
-              }}
-            >
-              {chuVietTat(p.ownerName ?? '?')}
-            </Avatar>
-            <span className="ten-va-phu">
-              <Typography.Text strong>{p.ownerName ?? '—'}</Typography.Text>
-              <small>
+      {/* ---------------------------------------------- 5 thẻ tóm tắt (13/09) */}
+      <div className="cd-luoi">
+        <div className="cd-the cd-the-nguoi">
+          <div className="cd-nguoi">
+            <span className="cd-avatar">{chuVietTat(p.ownerName ?? '?')}</span>
+            <div>
+              <div className="cd-nguoi-ten">{p.ownerName ?? '—'}</div>
+              <div className="cd-nguoi-phu">
                 {p.jobTitleName} · {p.departmentName}
-              </small>
+              </div>
+            </div>
+          </div>
+          <div className="cd-tien-trinh">
+            <div className="cd-tien-trinh-dau">
+              <span>Tiến trình chấm</span>
+              <b>
+                {soLaDaCham}/{soLa} tiêu chí
+              </b>
+            </div>
+            <div className="cd-thanh-do">
+              <span style={{ width: `${phanTram(soLaDaCham, soLa)}%` }} />
+            </div>
+          </div>
+          <div className="cd-the-chan">
+            <span>Người chấm</span>
+            <b>{chiTiet?.evaluator?.fullName ?? '—'}</b>
+          </div>
+        </div>
+
+        <div className="cd-the">
+          <div className="cd-the-dau">
+            <span className="cd-nhan">NV tự chấm</span>
+            <span className="cd-icon cd-icon-xam"><UserOutlined /></span>
+          </div>
+          <div className="cd-so">
+            {tinhThu.self.daChamDu || !cotTrong('self') ? hienDiem(tinhThu.self.tongDiem).replace('.', ',') : '—'}
+            <small>/ 100</small>
+          </div>
+          <div className="cd-phu">
+            {p.selfScoredAt ? `Đã nộp ${ngayVN(p.selfScoredAt)}` : cotSua === 'self' ? 'Đang chấm — tự tính khi gõ' : 'Chưa nộp'}
+          </div>
+        </div>
+
+        <div className="cd-the">
+          <div className="cd-the-dau">
+            <span className="cd-nhan">Trưởng BP chấm</span>
+            <span className="cd-icon cd-icon-xanh"><SafetyCertificateOutlined /></span>
+          </div>
+          <div className="cd-so cd-so-xanh">
+            {cotTrong('manager') ? '—' : hienDiem(tinhThu.manager.tongDiem).replace('.', ',')}
+            <small>/ 100</small>
+          </div>
+          <div className="cd-phu">
+            {p.managerScoredAt ? `Chốt ${ngayVN(p.managerScoredAt)}` : cotSua === 'manager' ? 'Cập nhật trực tiếp theo bảng' : 'Chưa chấm'}
+          </div>
+        </div>
+
+        <div className="cd-the">
+          <div className="cd-the-dau">
+            <span className="cd-nhan">Độ lệch điểm</span>
+            <span className={`cd-icon ${lechTong === null ? 'cd-icon-xam' : lechTong < 0 ? 'cd-icon-do' : lechTong > 0 ? 'cd-icon-xanh-la' : 'cd-icon-xam'}`}>
+              <SwapOutlined />
             </span>
           </div>
-          <div className="stepper-buoc-so" style={{ marginTop: 10 }}>
-            <span>Tiến trình chấm</span>
-            <strong>
-              {soLaDaCham}/{soLa} tiêu chí
-            </strong>
-          </div>
-          <div className="the-so-lieu-thanh">
-            <span
-              style={{
-                width: `${phanTram(soLaDaCham, soLa)}%`,
-                background: mauChuDao,
-              }}
-            />
-          </div>
-          <Typography.Text
-            type="secondary"
-            style={{ fontSize: 12, display: 'block', marginTop: 8 }}
-          >
-            Người chấm: <strong>{chiTiet?.evaluator?.fullName ?? '—'}</strong>
-          </Typography.Text>
-        </div>
-
-        <div className="cham-o">
-          <span className="eyebrow">NV tự chấm</span>
-          <div className="cham-o-so">
-            {tinhThu.self.daChamDu || !cotTrong('self')
-              ? hienDiem(tinhThu.self.tongDiem).replace('.', ',')
-              : '—'}
-            <small>/ 100</small>
-          </div>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {p.selfScoredAt
-              ? `Đã nộp ${ngayVN(p.selfScoredAt)}`
-              : cotSua === 'self'
-                ? 'Đang chấm — tự tính khi gõ'
-                : 'Chưa nộp'}
-          </Typography.Text>
-        </div>
-
-        <div className="cham-o">
-          <span className="eyebrow">Trưởng BP chấm</span>
-          <div className="cham-o-so" style={{ color: mauChuDao }}>
-            {cotTrong('manager')
-              ? '—'
-              : hienDiem(tinhThu.manager.tongDiem).replace('.', ',')}
-            <small>/ 100</small>
-          </div>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {p.managerScoredAt
-              ? `Chốt ${ngayVN(p.managerScoredAt)}`
-              : cotSua === 'manager'
-                ? 'Cập nhật trực tiếp theo bảng'
-                : 'Chưa chấm'}
-          </Typography.Text>
-        </div>
-
-        <div className="cham-o">
-          <span className="eyebrow">Độ lệch điểm</span>
-          <div
-            className="cham-o-so"
-            style={{
-              color:
-                lechTong === null
-                  ? undefined
-                  : lechTong < 0
-                    ? mauNhan
-                    : lechTong > 0
-                      ? mauXanhLa
-                      : undefined,
-            }}
-          >
-            {lechTong === null
-              ? '—'
-              : `${lechTong > 0 ? '+' : lechTong < 0 ? '−' : ''}${hienDiem(Math.abs(lechTong)).replace('.', ',')}`}
+          <div className={`cd-so ${lechTong === null ? '' : lechTong < 0 ? 'cd-so-do' : lechTong > 0 ? 'cd-so-xanh-la' : ''}`}>
+            {lechTong === null ? '—' : `${lechTong > 0 ? '+' : lechTong < 0 ? '−' : ''}${hienDiem(Math.abs(lechTong)).replace('.', ',')}`}
             <small>điểm</small>
           </div>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {lechTong === null
-              ? 'Cần đủ cả hai cột'
-              : 'Trưởng BP so với tự chấm'}
-          </Typography.Text>
+          <div className="cd-phu">{lechTong === null ? 'Cần đủ cả hai cột' : 'Trưởng BP so với tự chấm'}</div>
         </div>
 
-        <div className="cham-o">
-          <span className="eyebrow">
-            {p.grade ? 'Xếp loại' : 'Dự kiến xếp loại'}
-          </span>
-          <div
-            className="cham-o-so"
-            style={{ color: xepLoai ? MAU_XEP_LOAI_CHU[xepLoai] : undefined }}
-          >
+        <div
+          className="cd-the cd-the-xep-loai"
+          style={xepLoai && tinhThu.manager.daChamDu ? { borderLeftColor: MAU_XEP_LOAI_CHU[xepLoai], background: `${MAU_XEP_LOAI_CHU[xepLoai]}0d` } : undefined}
+        >
+          <div className="cd-the-dau">
+            <span className="cd-nhan">{p.grade ? 'Xếp loại' : 'Dự kiến xếp loại'}</span>
+            <span className="cd-icon" style={xepLoai && tinhThu.manager.daChamDu ? { color: MAU_XEP_LOAI_CHU[xepLoai], background: `${MAU_XEP_LOAI_CHU[xepLoai]}1a` } : undefined}>
+              <TrophyOutlined />
+            </span>
+          </div>
+          <div className="cd-so" style={{ color: xepLoai && tinhThu.manager.daChamDu ? MAU_XEP_LOAI_CHU[xepLoai] : undefined }}>
             {xepLoai && tinhThu.manager.daChamDu ? NHAN_XEP_LOAI[xepLoai] : '—'}
           </div>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {tinhThuCot && !tinhThuCot.daChamDu
-              ? `Còn ${tinhThuCot.thieuDiem.length} tiêu chí chưa chấm`
-              : 'Chỉ tính trên cột trưởng bộ phận'}
-          </Typography.Text>
+          <div className="cd-phu">
+            {tinhThuCot && !tinhThuCot.daChamDu ? `Còn ${tinhThuCot.thieuDiem.length} tiêu chí chưa chấm` : 'Chỉ tính trên cột trưởng bộ phận'}
+          </div>
         </div>
       </div>
 
