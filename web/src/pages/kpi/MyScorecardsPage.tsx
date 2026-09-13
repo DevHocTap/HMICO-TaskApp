@@ -534,7 +534,7 @@ export function MyScorecardsPage() {
                 <col style={{ width: '15%' }} />
                 <col style={{ width: '15%' }} />
                 <col style={{ width: 140 }} />
-                <col style={{ width: 120 }} />
+                <col style={{ width: 150 }} />
               </colgroup>
               <thead>
                 <tr>
@@ -544,7 +544,7 @@ export function MyScorecardsPage() {
                   <th>Mục tiêu (Target)</th>
                   <th>Ghi chú tự chấm</th>
                   <th style={{ textAlign: 'center' }}>Điểm tự chấm</th>
-                  <th style={{ textAlign: 'right' }}>Điểm TS</th>
+                  <th style={{ textAlign: 'center' }}>Trọng số tháng (%)</th>
                 </tr>
               </thead>
               <tbody>
@@ -605,8 +605,8 @@ export function MyScorecardsPage() {
                               <span className="pt-mo">—</span>
                             )}
                           </td>
-                          <td style={{ textAlign: 'right' }}>
-                            {d.dongGop !== null ? <b className="pt-chu-xanh">{diemTomTat(d.dongGop)}</b> : <span className="pt-mo">—</span>}
+                          <td style={{ textAlign: 'center' }}>
+                            {d.dongGop !== null ? <b className="pt-chu-xanh">{diemTomTat(d.dongGop)}%</b> : <span className="pt-mo">—</span>}
                           </td>
                         </tr>
                         );
@@ -628,8 +628,8 @@ export function MyScorecardsPage() {
                     <td style={{ textAlign: 'center' }} className="pt-chu-xanh">
                       {tongTuCham ? `${diemTomTat(tongTuCham)} / 100` : '—'}
                     </td>
-                    <td style={{ textAlign: 'right' }} className="pt-tong-lon">
-                      {tongTuCham ? diemTomTat(tongTuCham) : '—'}
+                    <td style={{ textAlign: 'center' }} className="pt-tong-lon">
+                      {tongTuCham ? `${diemTomTat(tongTuCham)}%` : '—'}
                     </td>
                   </tr>
                 </tfoot>
