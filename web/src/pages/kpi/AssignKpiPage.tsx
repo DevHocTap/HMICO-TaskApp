@@ -33,7 +33,7 @@ import {
 import type { DepartmentNode } from '../../types/org';
 import { useAuth } from '../../auth/useAuth';
 import { TieuDeTrang } from '../../components/TieuDeTrang';
-import { mauNhan } from '../../config/theme';
+import { mauChuDao, mauNhan } from '../../config/theme';
 import { diemTomTat } from '../../utils/format';
 
 /** Cây phòng ban -> danh sách phẳng cho ô chọn, giữ thụt lề theo cấp. */
@@ -202,19 +202,16 @@ export function AssignKpiPage() {
       dataIndex: 'ownerName',
       render: (ten: string, d) => (
         <span className="ten-va-phu">
-          <span>
-            {d.scorecardId ? (
-              <Button
-                type="link"
-                style={{ padding: 0, height: 'auto', fontWeight: 700 }}
-                onClick={() => navigate(`/kpi/scorecards/${d.scorecardId}`)}
-              >
-                {ten}
-              </Button>
-            ) : (
-              <Typography.Text strong>{ten}</Typography.Text>
-            )}
-          </span>
+          {d.scorecardId ? (
+            <a
+              className="ten-nhan-vien"
+              onClick={() => navigate(`/kpi/scorecards/${d.scorecardId}`)}
+            >
+              {ten}
+            </a>
+          ) : (
+            <Typography.Text strong>{ten}</Typography.Text>
+          )}
           {/* Phòng ban là dòng phụ: cùng phòng thì lặp, còn BGĐ xem trưởng bộ
               phận toàn công ty thì đây là chỗ duy nhất phân biệt họ */}
           <small>
@@ -234,7 +231,7 @@ export function AssignKpiPage() {
             {NHAN_TRANG_THAI_GIAO_NGUOI_GIAO[tt]}
           </Tag>
         ) : (
-          <Tag color="gold" className="tag-tron">
+          <Tag color="error" className="tag-tron">
             Chưa có phiếu
           </Tag>
         ),
@@ -242,9 +239,9 @@ export function AssignKpiPage() {
     {
       title: 'Chấm điểm',
       key: 'chamDiem',
-      width: 210,
-      // Ai đã được chấm, ai chưa — phản hồi 12/09: bảng chỉ có trạng thái ký nhận
-      // nên người chấm không phân biệt được phiếu nào còn phải làm.
+      width: 190,
+      // Ai đã được chấm, ai chưa — phản hồi 12/09. Màu theo nghĩa: đỏ = đang
+      // chờ CHÍNH người xem, vàng = chờ người khác, xanh lá = xong, xám = chưa.
       render: (_: unknown, d) => {
         if (
           !d.scorecardId ||
@@ -254,40 +251,67 @@ export function AssignKpiPage() {
           return <Typography.Text type="secondary">—</Typography.Text>;
         }
         const laToiCham = d.evaluatorId === user?.id;
-        const diem = (v: string | null) => (v === null ? '—' : diemTomTat(v));
         switch (d.resultStatus) {
           case 'PENDING':
-            return <Tag>Chưa tự chấm</Tag>;
+            return <Tag className="tag-tron">Chưa tự chấm</Tag>;
           case 'REJECTED':
-            return <Tag color="error">Bị trả lại · chờ chấm lại</Tag>;
-          case 'SELF_SCORED':
             return (
-              <span className="ten-va-phu">
-                <Tag color="gold" style={{ width: 'fit-content' }}>
-                  {laToiCham ? 'Chờ bạn chấm' : 'Chờ trưởng BP chấm'}
-                </Tag>
-                <small>Tự chấm {diem(d.selfTotalScore)}</small>
-              </span>
+              <Tag color="error" className="tag-tron">
+                Bị trả lại
+              </Tag>
+            );
+          case 'SELF_SCORED':
+            return laToiCham ? (
+              <Tag color="error" className="tag-tron">
+                Chờ bạn chấm
+              </Tag>
+            ) : (
+              <Tag color="gold" className="tag-tron">
+                Chờ trưởng BP chấm
+              </Tag>
             );
           case 'MANAGER_SCORED':
             return (
-              <span className="ten-va-phu">
-                <Tag color="success" style={{ width: 'fit-content' }}>
-                  Đã chốt {diem(d.managerTotalScore)}
-                </Tag>
-                <small>Tự chấm {diem(d.selfTotalScore)} · chờ HCNS</small>
-              </span>
+              <Tag color="success" className="tag-tron">
+                Đã chốt · chờ HCNS
+              </Tag>
             );
           default:
             return (
-              <span className="ten-va-phu">
-                <Tag color="green" style={{ width: 'fit-content' }}>
-                  HCNS đã nhận · {diem(d.managerTotalScore)}
-                </Tag>
-                <small>Tự chấm {diem(d.selfTotalScore)}</small>
-              </span>
+              <Tag color="success" className="tag-tron">
+                HCNS đã nhận
+              </Tag>
             );
         }
+      },
+    },
+    {
+      title: 'Điểm NV / QL',
+      key: 'diem',
+      width: 130,
+      align: 'right',
+      render: (_: unknown, d) => {
+        if (!d.scorecardId || d.assignStatus !== 'ACCEPTED') {
+          return <Typography.Text type="secondary">—</Typography.Text>;
+        }
+        const tu =
+          d.selfTotalScore === null ? '—' : diemTomTat(d.selfTotalScore);
+        const ql =
+          d.managerTotalScore === null ? '—' : diemTomTat(d.managerTotalScore);
+        return (
+          <span style={{ whiteSpace: 'nowrap' }}>
+            <Typography.Text>{tu}</Typography.Text>
+            <Typography.Text type="secondary"> / </Typography.Text>
+            <Typography.Text
+              strong
+              style={{
+                color: d.managerTotalScore === null ? undefined : mauChuDao,
+              }}
+            >
+              {ql}
+            </Typography.Text>
+          </span>
+        );
       },
     },
     {

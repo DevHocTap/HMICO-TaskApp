@@ -1450,3 +1450,13 @@
   background: #f8fafc;
   border-style: dashed;
 }
+
+/* Tên nhân viên bấm được: chữ đậm tối, chỉ đổi màu khi rê chuột */
+a.ten-nhan-vien {
+  color: #111827;
+  font-weight: 600;
+}
+a.ten-nhan-vien:hover {
+  color: var(--mau-chu-dao);
+  text-decoration: underline;
+}
