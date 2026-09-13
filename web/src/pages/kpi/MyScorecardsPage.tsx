@@ -526,12 +526,12 @@ export function MyScorecardsPage() {
             <table className="pt-table pt-table-ke">
               <colgroup>
                 <col style={{ width: 64 }} />
-                <col style={{ width: '32%' }} />
-                <col style={{ width: 96 }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '18%' }} />
+                <col style={{ width: '38%' }} />
+                <col style={{ width: 110 }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: 140 }} />
                 <col style={{ width: 120 }} />
-                <col style={{ width: 96 }} />
               </colgroup>
               <thead>
                 <tr>

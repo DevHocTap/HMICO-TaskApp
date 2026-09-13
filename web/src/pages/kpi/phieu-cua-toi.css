@@ -498,3 +498,14 @@
 .pt-table-ke tfoot td { vertical-align: middle; }
 .pt-table-ke tfoot .pt-tfoot-nhan { text-align: right; padding-right: 20px; }
 .pt-table-ke tfoot .pt-tfoot-mo { text-align: left; }
+
+/* ---------- cân lại độ rộng và cỡ chữ các cột số (13/09) */
+.pt-table-ke th:nth-child(7), .pt-table-ke td:nth-child(7) { padding-right: 24px; }
+.pt-table-ke th:nth-child(1), .pt-table-ke td:nth-child(1) { padding-left: 14px; padding-right: 14px; }
+.pt-table-ke .pt-trong-so { font-size: 12px; padding: 3px 10px; min-width: 48px; display: inline-block; text-align: center; }
+.pt-table-ke td:nth-child(6) .pt-diem-o { font-size: 15px; }
+.pt-table-ke td:nth-child(6) .pt-mo { font-size: 12px; }
+.pt-table-ke td:nth-child(7) b { font-size: 14px; }
+.pt-table-ke td:nth-child(4) .pt-mo, .pt-table-ke td:nth-child(5) .pt-mo { padding-left: 2px; }
+.pt-table-ke tfoot .pt-tong-lon { font-size: 18px; }
+.pt-table-ke tfoot .pt-trong-so-dam { min-width: 48px; }
