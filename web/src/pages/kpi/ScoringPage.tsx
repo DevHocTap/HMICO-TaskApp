@@ -48,6 +48,10 @@ import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { LichSuPhieu } from '../../components/LichSuPhieu';
 
 /** Màu chữ xếp loại ở ô tóm tắt — cùng bảng với dashboard. */
+/** Điểm trong bảng: tối thiểu một chữ số thập phân (6 → "6,0"), tối đa hai (4,75). */
+const hienDiemBang = (v: number) =>
+  v.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+
 const MAU_XEP_LOAI_CHU: Record<XepLoai, string> = {
   NOT_ACHIEVED: '#d63b3b',
   NEEDS_IMPROVEMENT: '#e0932b',
@@ -295,7 +299,7 @@ export function ScoringPage() {
 
     const chip = (
       <span className={lop}>
-        <b>{hienDiem(Number(hien)).replace('.', ',')}</b>
+        <b>{hienDiemBang(Number(hien))}</b>
         <small> / {dong.maxScale}</small>
         {vuotThang && (
           <Tag color="purple" style={{ marginInlineStart: 6 }}>
@@ -969,7 +973,17 @@ export function ScoringPage() {
                         {cotTrong(cotChinh) ? '—' : `${hienDiem(tinhThu[cotChinh].tongDiem).replace('.', ',')}%`}
                       </span>
                       {xepLoai && tinhThu.manager.daChamDu && (
-                        <Tag color="success" style={{ marginInlineStart: 8 }}>{NHAN_XEP_LOAI[xepLoai]}</Tag>
+                        <Tag
+                          style={{
+                            marginInlineStart: 8,
+                            background: `${MAU_XEP_LOAI_CHU[xepLoai]}1a`,
+                            color: MAU_XEP_LOAI_CHU[xepLoai],
+                            border: 0,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {NHAN_XEP_LOAI[xepLoai]}
+                        </Tag>
                       )}
                     </Table.Summary.Cell>
                   </Table.Summary.Row>
