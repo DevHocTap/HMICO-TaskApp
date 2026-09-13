@@ -1,27 +1,17 @@
 import { useState } from 'react';
+import { App, Select, TreeSelect } from 'antd';
 import {
-  App,
-  Avatar,
-  Button,
-  Card,
-  Empty,
-  Select,
-  Table,
-  Tag,
-  Tooltip,
-  TreeSelect,
-  Typography,
-} from 'antd';
-import {
+  CheckOutlined,
   ClockCircleOutlined,
   DownloadOutlined,
   EyeOutlined,
+  InfoCircleOutlined,
   LockOutlined,
-  RollbackOutlined,
+  RightOutlined,
   SafetyCertificateOutlined,
+  SyncOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -31,36 +21,37 @@ import {
   layTienDoNop,
   taiExcelTongHop,
 } from '../../api/report';
-import { khoaKy, layDanhSachPhieu, layKyDanhGia } from '../../api/scorecard';
+import { khoaKy, layDanhSachPhieu } from '../../api/scorecard';
 import { layCayPhongBan } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import type { XepLoaiKpi } from '../../types/report';
 import type { PhieuTomTat, ResultStatus, XepLoai } from '../../types/scorecard';
-import {
-  MAU_TRANG_THAI_CHAM,
-  NHAN_TRANG_THAI_CHAM,
-  NHAN_XEP_LOAI,
-} from '../../types/scorecard';
+import { NHAN_TRANG_THAI_CHAM, NHAN_XEP_LOAI } from '../../types/scorecard';
 import type { DepartmentNode } from '../../types/org';
-import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { ThanhTab } from '../../components/ThanhTab';
-import { TheSoLieu } from '../../components/TheSoLieu';
-import {
-  MAU_XEP_LOAI_BD,
-  THU_TU_XEP_LOAI,
-  TheHieuSuatPhong,
-  TheXepLoai,
-} from '../../components/TheBaoCao';
 import { useAuth } from '../../auth/useAuth';
 import { coTheChotSo } from '../../auth/permissions';
-import {
-  chuVietTat,
-  giaiDoanCuaKy,
-  kyChuaHomNay,
-  ngayTrongThang,
-} from '../../utils/period';
+import { useKyDangXem } from '../../contexts/KyDangXem';
+import { chuVietTat, giaiDoanCuaKy, ngayTrongThang } from '../../utils/period';
 import { diemTomTat, ngayVN, phanTram } from '../../utils/format';
-import { mauChuDao, mauNhan } from '../../config/theme';
+import './bao-cao-ky.css';
+
+/** Màu bốn hạng theo mẫu: blue-600 · sky-500 · amber-500 · rose-500. */
+const HANG: Record<XepLoaiKpi, { mau: string; lop: string }> = {
+  EXCEEDED: { mau: '#2563eb', lop: 'xanh' },
+  COMPLETED: { mau: '#0ea5e9', lop: 'sky' },
+  NEEDS_IMPROVEMENT: { mau: '#f59e0b', lop: 'cam' },
+  NOT_ACHIEVED: { mau: '#f43f5e', lop: 'do' },
+};
+const THU_TU: XepLoaiKpi[] = ['EXCEEDED', 'COMPLETED', 'NEEDS_IMPROVEMENT', 'NOT_ACHIEVED'];
+const MAU_AVATAR = ['#2563eb', '#0284c7', '#1d4ed8', '#475569', '#334155'];
+const LOP_TRANG_THAI: Record<ResultStatus, string> = {
+  PENDING: 'bc-pill-xam',
+  SELF_SCORED: 'bc-pill-cam',
+  MANAGER_SCORED: 'bc-pill-xanh',
+  REJECTED: 'bc-pill-do',
+  RECEIVED: 'bc-pill-xanh-la',
+};
 
 const SO_DONG = 10;
 
@@ -90,18 +81,14 @@ export function DashboardPage() {
   const { message, modal } = App.useApp();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [periodId, setPeriodId] = useState<string | undefined>();
   const [locPhong, setLocPhong] = useState<string | undefined>();
   const [locXepLoai, setLocXepLoai] = useState<XepLoai | undefined>();
   const [locTrangThai, setLocTrangThai] = useState<ResultStatus | undefined>();
   const [trang, setTrang] = useState(1);
 
-  const { data: cacKy = [] } = useQuery({
-    queryKey: ['periods', 'MONTH'],
-    queryFn: () => layKyDanhGia('MONTH'),
-  });
-  const kyDangXem = periodId ?? kyChuaHomNay(cacKy)?.id ?? cacKy[0]?.id;
-  const ky = cacKy.find((k) => k.id === kyDangXem);
+  // Kỳ đang xem dùng chung với ô chọn "Kỳ:" ở header
+  const { cacKy, ky, datKyId } = useKyDangXem();
+  const kyDangXem = ky?.id;
 
   const { data } = useQuery({
     queryKey: ['reports', 'dashboard', kyDangXem],
@@ -182,115 +169,6 @@ export function DashboardPage() {
     ? dayjs(ky.submitDeadline).startOf('day').diff(homNay.startOf('day'), 'day')
     : null;
 
-  const cotPhieu: ColumnsType<PhieuTomTat> = [
-    {
-      title: 'Mã NV & họ tên',
-      dataIndex: 'ownerName',
-      render: (ten: string | null, r) => (
-        <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Avatar
-            size={34}
-            style={{ background: '#dbe6ff', color: mauChuDao, fontWeight: 700 }}
-          >
-            {chuVietTat(ten ?? '?')}
-          </Avatar>
-          <span className="ten-va-phu">
-            <Typography.Text strong>{ten ?? '—'}</Typography.Text>
-            <small>{r.employeeCode ?? '—'}</small>
-          </span>
-        </span>
-      ),
-    },
-    { title: 'Phòng ban', dataIndex: 'departmentName' },
-    {
-      title: 'NV chấm',
-      dataIndex: 'selfTotalScore',
-      align: 'right',
-      width: 100,
-      render: (v: string | null) =>
-        v === null ? (
-          <Typography.Text type="secondary">—</Typography.Text>
-        ) : (
-          diemTomTat(v)
-        ),
-    },
-    {
-      title: 'QL chốt',
-      dataIndex: 'managerTotalScore',
-      align: 'right',
-      width: 100,
-      render: (v: string | null, r) =>
-        v === null ? (
-          <Typography.Text type="secondary">—</Typography.Text>
-        ) : (
-          <Typography.Text
-            strong
-            style={{ color: r.grade === 'NOT_ACHIEVED' ? mauNhan : mauChuDao }}
-          >
-            {diemTomTat(v)}
-          </Typography.Text>
-        ),
-    },
-    {
-      title: 'Xếp loại',
-      dataIndex: 'grade',
-      width: 150,
-      render: (g: XepLoai | null) =>
-        g ? (
-          <Tag
-            style={{
-              background: `${MAU_XEP_LOAI_BD[g]}22`,
-              color: MAU_XEP_LOAI_BD[g],
-              border: 0,
-              fontWeight: 700,
-            }}
-          >
-            {NHAN_XEP_LOAI[g]}
-          </Tag>
-        ) : (
-          <Tag>Chưa xếp</Tag>
-        ),
-    },
-    {
-      title: 'Trạng thái hồ sơ',
-      dataIndex: 'resultStatus',
-      width: 210,
-      render: (rs: ResultStatus, r) => {
-        const tre =
-          rs === 'PENDING' && quaTuCham && r.assignStatus === 'ACCEPTED';
-        if (tre)
-          return (
-            <Tag color="error" icon={<ClockCircleOutlined />}>
-              Quá hạn tự nộp
-            </Tag>
-          );
-        if (r.assignStatus !== 'ACCEPTED') return <Tag>Chưa ký nhận</Tag>;
-        return (
-          <Tag color={MAU_TRANG_THAI_CHAM[rs]}>{NHAN_TRANG_THAI_CHAM[rs]}</Tag>
-        );
-      },
-    },
-    {
-      title: 'Quản lý phụ trách',
-      dataIndex: 'evaluatorName',
-      render: (v: string | null) =>
-        v ?? <Typography.Text type="secondary">—</Typography.Text>,
-    },
-    {
-      title: '',
-      key: 'xem',
-      width: 60,
-      align: 'center',
-      render: (_: unknown, r) => (
-        <Tooltip title="Xem phiếu">
-          <Link to={`/kpi/scorecards/${r.id}/scoring`}>
-            <Button type="text" icon={<EyeOutlined />} aria-label="Xem phiếu" />
-          </Link>
-        </Tooltip>
-      ),
-    },
-  ];
-
   // Chip chỉ cho phòng CÓ PHIẾU trong kỳ (không lấy đơn vị cha chỉ cộng dồn),
   // tối đa 6 — 12 chip tràn hai hàng là lý do sửa (13/09). Phòng còn lại
   // chọn qua ô cây bên phải.
@@ -308,321 +186,381 @@ export function DashboardPage() {
     phongCoPhieu.some((p) => p.departmentId === d.id),
   );
 
+  const trangThaiHoSo = (r: PhieuTomTat) => {
+    const tre = r.resultStatus === 'PENDING' && quaTuCham && r.assignStatus === 'ACCEPTED';
+    if (tre) return { ten: 'Quá hạn tự nộp', lop: 'bc-pill-do' };
+    if (r.assignStatus !== 'ACCEPTED') return { ten: 'Chưa ký nhận', lop: 'bc-pill-xam' };
+    return { ten: NHAN_TRANG_THAI_CHAM[r.resultStatus], lop: LOP_TRANG_THAI[r.resultStatus] };
+  };
+  const mauAvatar = (ten: string) => MAU_AVATAR[[...ten].reduce((a, c) => a + c.charCodeAt(0), 0) % MAU_AVATAR.length]!;
+  const tongPhieuBang = phieu?.total ?? 0;
+  const tuDong = tongPhieuBang === 0 ? 0 : (trang - 1) * SO_DONG + 1;
+  const denDong = Math.min(trang * SO_DONG, tongPhieuBang);
+  const soTrang = Math.max(1, Math.ceil(tongPhieuBang / SO_DONG));
+  const phongTheoDiem = (data?.diemTrungBinhTheoPhong ?? [])
+    .filter((p) => p.diemTrungBinh !== null)
+    .sort((a, b) => Number(b.diemTrungBinh) - Number(a.diemTrungBinh));
+
   return (
-    <div>
-      <ThanhTab nhom="bao-cao" />
-      <TieuDeTrang
-        eyebrow="Báo cáo kỳ"
-        tieuDe={
-          <>
-            Tổng hợp kỳ đánh giá & xếp loại — {ky.name.toLowerCase()}{' '}
-            <Tag
-              color={
-                ky.isLocked
-                  ? 'default'
-                  : giaiDoan.so === 3
-                    ? 'error'
-                    : 'processing'
-              }
-              style={{ verticalAlign: 'middle', marginInlineStart: 8 }}
-            >
-              {ky.isLocked
-                ? 'Đã chốt sổ'
-                : giaiDoan.so === 4
-                  ? giaiDoan.ten
-                  : `Ngày ${ngayTrongThang(giaiDoan.han)} — ${giaiDoan.ten}`}
-            </Tag>
-          </>
-        }
-        moTa="Số liệu thẩm định chính thức cho hành chính và ban giám đốc trước khi chốt sổ tháng."
-        phai={
-          <>
-            <Select
-              className="chon-tron"
-              size="large"
-              style={{ width: 190 }}
-              value={kyDangXem}
-              onChange={(v) => {
-                setPeriodId(v);
-                setTrang(1);
-              }}
-              options={cacKy.map((k) => ({ value: k.id, label: k.name }))}
-            />
-            <Button
-              shape="round"
-              size="large"
-              icon={<DownloadOutlined />}
-              loading={xuat.isPending}
-              onClick={() => xuat.mutate()}
-            >
-              Xuất dữ liệu (.xlsx)
-            </Button>
-            {coTheChotSo(user?.role) && !ky.isLocked && (
-              <Button
-                type="primary"
-                shape="round"
-                size="large"
-                icon={<LockOutlined />}
-                loading={khoa.isPending}
-                onClick={() =>
-                  modal.confirm({
-                    title: `Khoá sổ ${ky.name}?`,
-                    content: `Còn ${tong - daChot} phiếu chưa chốt điểm. Sau khi khoá, không ai chấm hay sửa điểm được nữa; muốn sửa phải mở lại kỳ ở màn Kỳ đánh giá.`,
-                    okText: 'Khoá sổ',
-                    okButtonProps: { danger: true },
-                    cancelText: 'Huỷ',
-                    onOk: () => khoa.mutateAsync(),
-                  })
-                }
-              >
-                Khoá sổ kỳ đánh giá
-              </Button>
-            )}
-          </>
-        }
-      />
-
-      {data && (
-        <>
-          <div className="the-so-lieu-luoi">
-            <TheSoLieu
-              nhan="Tiến độ thẩm định hồ sơ"
-              icon={<SafetyCertificateOutlined />}
-              so={daChot}
-              donVi={`/ ${tong} phiếu đã chốt`}
-              phanTram={phanTram(daChot, tong)}
-              soSanh={
-                <span className="delta-bang">{phanTram(daChot, tong)}%</span>
-              }
-              chuThich={`${tt!.RECEIVED} HCNS đã tiếp nhận · ${tt!.MANAGER_SCORED} chờ tiếp nhận`}
-            />
-            <TheSoLieu
-              nhan="Trễ hạn tự nộp"
-              icon={<WarningOutlined />}
-              so={treTuCham}
-              donVi="nhân sự"
-              phanTram={treTuCham > 0 ? 100 : 0}
-              canChuY={treTuCham > 0}
-              chuThich={
-                treTuCham > 0
-                  ? `Chưa nộp điểm tự chấm (${phongTre.slice(0, 3).join(', ')}${phongTre.length > 3 ? '…' : ''})`
-                  : quaTuCham
-                    ? 'Mọi nhân sự đã nộp đúng hạn'
-                    : `Hạn tự chấm ${ngayVN(ky.selfScoreDeadline)} chưa tới`
-              }
-            />
-            <TheSoLieu
-              nhan="Bị trả lại, chờ chấm lại"
-              icon={<RollbackOutlined />}
-              so={biTraLai}
-              donVi="hồ sơ"
-              phanTram={biTraLai > 0 ? 100 : 0}
-              canChuY={biTraLai > 0}
-              chuThich={
-                biTraLai > 0
-                  ? 'Trưởng bộ phận đã trả lại, nhân viên đang chấm lại'
-                  : 'Không có hồ sơ bị trả lại'
-              }
-            />
-            <div className="the-so-lieu the-so-lieu-toi">
-              <div className="the-so-lieu-dau">
-                <span
-                  className="eyebrow"
-                  style={{ color: 'rgba(255,255,255,0.7)' }}
-                >
-                  Hạn chốt sổ
-                </span>
-                <ClockCircleOutlined />
-              </div>
-              <div className="the-so-lieu-so" style={{ color: '#fff' }}>
-                {ky.isLocked
-                  ? 'Đã khoá'
-                  : conToiChotSo === null
-                    ? '—'
-                    : conToiChotSo < 0
-                      ? `Quá ${-conToiChotSo} ngày`
-                      : conToiChotSo === 0
-                        ? 'Hôm nay'
-                        : `${conToiChotSo} ngày`}
-              </div>
-              <Typography.Text
-                style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}
-              >
-                {ky.isLocked
-                  ? 'Kỳ đã chốt sổ, không sửa điểm được nữa'
-                  : `Gửi hành chính bản cuối ${ngayVN(ky.submitDeadline)}`}
-              </Typography.Text>
-              <Typography.Text
-                style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}
-              >
-                Hệ thống KHÔNG tự khoá — HCNS hoặc ban giám đốc bấm khoá sổ.
-              </Typography.Text>
-            </div>
+    <div className="bc">
+      {/* ===== tiêu đề + nút */}
+      <div className="bc-dau">
+        <div>
+          <ThanhTab nhom="bao-cao" />
+          <div className="bc-dau-ten">
+            <h1>Tổng hợp kỳ đánh giá &amp; xếp loại — {ky.name.toLowerCase()}</h1>
+            <span className={`bc-tt ${ky.isLocked ? 'bc-tt-xam' : giaiDoan.so === 3 ? 'bc-tt-do' : 'bc-tt-sky'}`}>
+              {ky.isLocked ? 'Đã chốt sổ' : giaiDoan.so === 4 ? giaiDoan.ten : `Ngày ${ngayTrongThang(giaiDoan.han)} — ${giaiDoan.ten}`}
+            </span>
           </div>
+          <p className="bc-mo-ta">Số liệu thẩm định chính thức cho hành chính và ban giám đốc trước khi chốt sổ tháng.</p>
+        </div>
+        <div className="bc-nut-nhom">
+          <Select
+            className="bc-select-ky"
+            value={kyDangXem}
+            onChange={(v) => {
+              datKyId(v);
+              setTrang(1);
+            }}
+            options={cacKy.map((k) => ({ value: k.id, label: k.name }))}
+          />
+          <button type="button" className="bc-nut bc-nut-trang" disabled={xuat.isPending} onClick={() => xuat.mutate()}>
+            <DownloadOutlined /> Xuất dữ liệu (.xlsx)
+          </button>
+          {coTheChotSo(user?.role) && !ky.isLocked && (
+            <button
+              type="button"
+              className="bc-nut bc-nut-xanh"
+              disabled={khoa.isPending}
+              onClick={() =>
+                modal.confirm({
+                  title: `Khoá sổ ${ky.name}?`,
+                  content: `Còn ${tong - daChot} phiếu chưa chốt điểm. Sau khi khoá, không ai chấm hay sửa điểm được nữa; muốn sửa phải mở lại kỳ ở màn Kỳ đánh giá.`,
+                  okText: 'Khoá sổ',
+                  okButtonProps: { danger: true },
+                  cancelText: 'Huỷ',
+                  onOk: () => khoa.mutateAsync(),
+                })
+              }
+            >
+              <LockOutlined /> Khoá sổ kỳ đánh giá
+            </button>
+          )}
+        </div>
+      </div>
 
-          {/* ---------------------------------------------- 4 thẻ hạng */}
-          <div className="the-so-lieu-luoi" style={{ marginTop: 16 }}>
-            {THU_TU_XEP_LOAI.map((xl: XepLoaiKpi) => {
+      {data && tt && (
+        <>
+          {/* ===== 4 thẻ số liệu */}
+          <section className="bc-4">
+            <div className="bc-the">
+              <div>
+                <div className="bc-the-dau">
+                  <span className="bc-nhan">Tiến độ thẩm định hồ sơ</span>
+                  <span className="bc-o-icon bc-o-xanh"><SafetyCertificateOutlined /></span>
+                </div>
+                <div className="bc-so-dong">
+                  <span className="bc-so">{daChot}</span>
+                  <span className="bc-so-phu">/ {tong} phiếu đã chốt</span>
+                </div>
+                <div className="bc-phan-tram">{phanTram(daChot, tong)}%</div>
+                <div className="bc-thanh"><span style={{ width: `${phanTram(daChot, tong)}%` }} /></div>
+              </div>
+              <div className="bc-the-chan">
+                <strong>{tt.RECEIVED} HCNS đã tiếp nhận</strong> · {tt.MANAGER_SCORED} chờ tiếp nhận
+              </div>
+            </div>
+
+            <div className="bc-the">
+              <div>
+                <div className="bc-the-dau">
+                  <span className="bc-nhan">Trễ hạn tự nộp</span>
+                  <span className="bc-o-icon bc-o-cam"><WarningOutlined /></span>
+                </div>
+                <div className="bc-so-dong">
+                  <span className={`bc-so${treTuCham > 0 ? ' bc-so-do' : ''}`}>{treTuCham}</span>
+                  <span className="bc-so-phu">nhân sự</span>
+                </div>
+                <div className={`bc-dong-phu ${treTuCham > 0 ? 'bc-chu-do' : 'bc-chu-xanh-la'}`}>
+                  {treTuCham > 0 ? <WarningOutlined /> : <CheckOutlined />}{' '}
+                  {treTuCham > 0 ? `Chưa nộp: ${phongTre.slice(0, 3).join(', ')}${phongTre.length > 3 ? '…' : ''}` : 'Tiến độ tự đánh giá đúng hạn'}
+                </div>
+              </div>
+              <div className="bc-the-chan">
+                {quaTuCham ? `Hạn tự chấm ${ngayVN(ky.selfScoreDeadline)} đã qua` : `Hạn tự chấm ${ngayVN(ky.selfScoreDeadline)} chưa tới`}
+              </div>
+            </div>
+
+            <div className="bc-the">
+              <div>
+                <div className="bc-the-dau">
+                  <span className="bc-nhan">Bị trả lại, chờ chấm lại</span>
+                  <span className="bc-o-icon bc-o-tim"><SyncOutlined /></span>
+                </div>
+                <div className="bc-so-dong">
+                  <span className={`bc-so${biTraLai > 0 ? ' bc-so-do' : ''}`}>{biTraLai}</span>
+                  <span className="bc-so-phu">hồ sơ</span>
+                </div>
+                <div className="bc-dong-phu">{biTraLai > 0 ? 'Trưởng bộ phận đã trả lại, nhân viên đang chấm lại' : 'Không phát sinh yêu cầu chấm lại'}</div>
+              </div>
+              <div className="bc-the-chan">{biTraLai > 0 ? `${biTraLai} hồ sơ đang chờ nhân viên chấm lại` : 'Không có hồ sơ bị trả lại'}</div>
+            </div>
+
+            <div className="bc-the bc-the-toi">
+              <div className="bc-toi-quang" />
+              <div>
+                <div className="bc-the-dau">
+                  <span className="bc-nhan bc-nhan-sang">Hạn chốt sổ</span>
+                  <ClockCircleOutlined style={{ color: '#94a3b8' }} />
+                </div>
+                <div className="bc-so-dong">
+                  <span className="bc-so bc-so-sang">
+                    {ky.isLocked ? 'Đã khoá' : conToiChotSo === null ? '—' : conToiChotSo < 0 ? `Quá ${-conToiChotSo}` : conToiChotSo === 0 ? 'Hôm nay' : conToiChotSo}
+                  </span>
+                  {!ky.isLocked && conToiChotSo !== null && conToiChotSo !== 0 && <span className="bc-so-phu bc-so-phu-sang">ngày</span>}
+                </div>
+                <p className="bc-toi-phu">{ky.isLocked ? 'Kỳ đã chốt sổ, không sửa điểm được nữa' : `Gửi hành chính bản cuối ${ngayVN(ky.submitDeadline)}`}</p>
+              </div>
+              <div className="bc-the-chan bc-the-chan-toi">
+                Hệ thống <span>KHÔNG</span> tự khoá — HCNS hoặc ban giám đốc bấm khoá sổ.
+              </div>
+            </div>
+          </section>
+
+          {/* ===== 4 thẻ hạng */}
+          <section className="bc-4">
+            {THU_TU.map((xl) => {
               const so = data.phanBoXepLoai[xl];
               const tb = data.diemTrungBinhTheoXepLoai[xl];
               return (
-                <div key={xl} className="the-hang">
-                  <div className="the-hang-dau">
-                    <span
-                      className="the-hang-ten"
-                      style={{
-                        background: `${MAU_XEP_LOAI_BD[xl]}22`,
-                        color: MAU_XEP_LOAI_BD[xl],
-                      }}
-                    >
-                      {NHAN_XEP_LOAI[xl]}
-                    </span>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      {daChot > 0 ? `${phanTram(so, daChot)}%` : '—'}
-                    </Typography.Text>
+                <div key={xl} className={`bc-hang bc-hang-${HANG[xl].lop}`}>
+                  <div className="bc-the-dau">
+                    <span className={`bc-hang-ten bc-hang-ten-${HANG[xl].lop}`}>{NHAN_XEP_LOAI[xl]}</span>
+                    <span className={`bc-hang-pt${so > 0 ? ' bc-hang-pt-dam' : ''}`}>{daChot > 0 ? `${phanTram(so, daChot)}%` : '—'}</span>
                   </div>
-                  <div
-                    className="the-hang-so"
-                    style={{
-                      color:
-                        xl === 'NOT_ACHIEVED' && so > 0 ? mauNhan : undefined,
-                    }}
-                  >
-                    {so} <small>nhân sự</small>
+                  <div className="bc-hang-so">
+                    <span>{so}</span>
+                    <small>nhân sự</small>
                   </div>
-                  <div className="the-hang-tb">
+                  <div className="bc-hang-tb">
                     <span>Điểm trung bình</span>
-                    <strong>
-                      {tb === null ? '—' : `${diemTomTat(tb)} / 100`}
-                    </strong>
+                    {tb === null ? <span className="bc-hang-tb-trong">—</span> : <strong>{diemTomTat(tb)} <span>/ 100</span></strong>}
                   </div>
                 </div>
               );
             })}
-          </div>
+          </section>
 
-          <div className="dashboard-luoi">
-            <TheXepLoai data={data} />
-            <TheHieuSuatPhong data={data} />
-          </div>
+          {/* ===== phân bố + hiệu suất phòng */}
+          <section className="bc-2">
+            <div className="bc-khoi">
+              <div className="bc-khoi-dau">
+                <div>
+                  <h3>Phân bố xếp loại</h3>
+                  <p>Tính trên {daChot}/{tong} phiếu đã chốt</p>
+                </div>
+              </div>
+              <div className="bc-chu-giai">
+                {THU_TU.map((xl) => (
+                  <span key={xl}>
+                    <i style={{ background: HANG[xl].mau }} /> {NHAN_XEP_LOAI[xl]} <strong>{data.phanBoXepLoai[xl]}</strong>
+                  </span>
+                ))}
+              </div>
+              <div className="bc-thanh-chia">
+                {daChot > 0 &&
+                  THU_TU.map((xl) =>
+                    data.phanBoXepLoai[xl] > 0 ? (
+                      <span
+                        key={xl}
+                        style={{ width: `${(data.phanBoXepLoai[xl] / daChot) * 100}%`, background: HANG[xl].mau }}
+                        title={`${NHAN_XEP_LOAI[xl]}: ${phanTram(data.phanBoXepLoai[xl], daChot)}% (${data.phanBoXepLoai[xl]} người)`}
+                      />
+                    ) : null,
+                  )}
+              </div>
+              <div className="bc-o-4">
+                {THU_TU.map((xl) => {
+                  const so = data.phanBoXepLoai[xl];
+                  return (
+                    <div key={xl} className={`bc-o${so > 0 ? ` bc-o-${HANG[xl].lop}` : ''}`}>
+                      <span className="bc-o-ten">{NHAN_XEP_LOAI[xl]}</span>
+                      <span className="bc-o-so">{daChot > 0 ? phanTram(so, daChot) : 0}%</span>
+                      <span className="bc-o-nguoi">{so} người</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-          {/* ---------------------------------------------- bảng nhân sự */}
-          <Card
-            style={{ marginTop: 20 }}
-            styles={{ body: { padding: 0 } }}
-            title={
-              <div
-                className="chip-loc-hang"
-                style={{ marginBottom: 0, fontWeight: 400 }}
-              >
-                <span className="eyebrow">Bộ lọc</span>
-                <button
-                  type="button"
-                  className={`chip-loc${!locPhong ? ' chip-loc-chon' : ''}`}
-                  onClick={() => {
-                    setLocPhong(undefined);
-                    setTrang(1);
-                  }}
-                >
+            <div className="bc-khoi">
+              <div>
+                <div className="bc-khoi-dau">
+                  <div>
+                    <h3>Hiệu suất theo phòng ban</h3>
+                    <p>Tính trên {daChot}/{tong} phiếu đã chốt</p>
+                  </div>
+                  <Link to="/kpi/progress" className="bc-link">
+                    Chi tiết <RightOutlined />
+                  </Link>
+                </div>
+                {phongTheoDiem.length === 0 ? (
+                  <div className="bc-rong">Chưa phòng nào có phiếu chốt điểm</div>
+                ) : (
+                  <div className="bc-phong-ds">
+                    {phongTheoDiem.map((p, i) => {
+                      const diem = Number(p.diemTrungBinh);
+                      const duoi = diem < 80;
+                      return (
+                        <div key={p.departmentId} className="bc-phong">
+                          <div className="bc-phong-dau">
+                            <div className="bc-phong-ten">
+                              <span className="bc-stt">{i + 1}</span>
+                              <span>
+                                <b>{p.departmentName}</b>
+                                <small>{p.soPhieuDaChot} phiếu đã chốt</small>
+                              </span>
+                            </div>
+                            <span className={`bc-phong-diem${duoi ? ' bc-chu-do' : ''}`}>{diemTomTat(p.diemTrungBinh)}</span>
+                          </div>
+                          <div className="bc-thanh bc-thanh-8">
+                            <span style={{ width: `${Math.min(diem, 100)}%`, background: duoi ? '#f43f5e' : '#2563eb' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="bc-chu-thich">
+                <InfoCircleOutlined />
+                <span>Đỏ: dưới ngưỡng 80. KHÔNG cộng dồn lên phòng cha — trung bình của các trung bình không phải trung bình chung.</span>
+              </div>
+            </div>
+          </section>
+
+          {/* ===== bộ lọc + bảng nhân sự */}
+          <section className="bc-bang">
+            <div className="bc-loc">
+              <div className="bc-loc-trai">
+                <span className="bc-nhan" style={{ marginRight: 8 }}>Bộ lọc:</span>
+                <button type="button" className={`bc-chip${!locPhong ? ' bc-chip-chon' : ''}`} onClick={() => { setLocPhong(undefined); setTrang(1); }}>
                   Tất cả phòng ban
                 </button>
                 {phongChip.map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    className={`chip-loc${locPhong === d.id ? ' chip-loc-chon' : ''}`}
-                    onClick={() => {
-                      setLocPhong(d.id);
-                      setTrang(1);
-                    }}
-                  >
+                  <button key={d.id} type="button" className={`bc-chip${locPhong === d.id ? ' bc-chip-chon' : ''}`} onClick={() => { setLocPhong(d.id); setTrang(1); }}>
                     {d.name}
                   </button>
                 ))}
               </div>
-            }
-            extra={
-              <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="bc-loc-phai">
                 <TreeSelect
                   allowClear
                   showSearch
+                  size="small"
                   treeNodeFilterProp="title"
                   placeholder="Phòng khác…"
-                  style={{ width: 200 }}
-                  value={
-                    locPhong && !phongChip.some((d) => d.id === locPhong)
-                      ? locPhong
-                      : undefined
-                  }
-                  treeData={sangCay(cayPhong)}
-                  onChange={(v: string | undefined) => {
-                    setLocPhong(v);
-                    setTrang(1);
-                  }}
-                />
-                <Select
-                  allowClear
-                  placeholder="Tất cả xếp loại"
                   style={{ width: 170 }}
-                  value={locXepLoai}
-                  onChange={(v) => {
-                    setLocXepLoai(v);
-                    setTrang(1);
-                  }}
-                  options={THU_TU_XEP_LOAI.map((xl) => ({
-                    value: xl,
-                    label: NHAN_XEP_LOAI[xl],
-                  }))}
+                  value={locPhong && !phongChip.some((d) => d.id === locPhong) ? locPhong : undefined}
+                  treeData={sangCay(cayPhong)}
+                  onChange={(v: string | undefined) => { setLocPhong(v); setTrang(1); }}
                 />
                 <Select
                   allowClear
-                  placeholder="Trạng thái: tất cả"
-                  style={{ width: 220 }}
-                  value={locTrangThai}
-                  onChange={(v) => {
-                    setLocTrangThai(v);
-                    setTrang(1);
-                  }}
-                  options={(
-                    Object.keys(NHAN_TRANG_THAI_CHAM) as ResultStatus[]
-                  ).map((k) => ({ value: k, label: NHAN_TRANG_THAI_CHAM[k] }))}
+                  size="small"
+                  placeholder="Tất cả xếp loại"
+                  style={{ width: 150 }}
+                  value={locXepLoai}
+                  onChange={(v) => { setLocXepLoai(v); setTrang(1); }}
+                  options={THU_TU.map((xl) => ({ value: xl, label: NHAN_XEP_LOAI[xl] }))}
                 />
-              </span>
-            }
-          >
-            {phieu && phieu.data.length === 0 && !dangTaiPhieu ? (
-              <Empty
-                style={{ padding: 32 }}
-                description="Không có phiếu nào khớp bộ lọc"
-              />
-            ) : (
-              <Table<PhieuTomTat>
-                rowKey="id"
-                size="middle"
-                loading={dangTaiPhieu}
-                columns={cotPhieu}
-                dataSource={phieu?.data ?? []}
-                scroll={{ x: 'max-content' }}
-                rowClassName={(r) =>
-                  r.grade === 'NOT_ACHIEVED' ||
-                  (r.resultStatus === 'PENDING' &&
-                    quaTuCham &&
-                    r.assignStatus === 'ACCEPTED')
-                    ? 'dong-can-chu-y'
-                    : ''
-                }
-                pagination={{
-                  current: trang,
-                  pageSize: SO_DONG,
-                  total: phieu?.total ?? 0,
-                  showSizeChanger: false,
-                  showTotal: (t, [a, b]) =>
-                    `Hiển thị ${a}–${b} trên tổng số ${t} phiếu ${ky.name.toLowerCase()}`,
-                  onChange: setTrang,
-                }}
-              />
-            )}
-          </Card>
+                <Select
+                  allowClear
+                  size="small"
+                  placeholder="Trạng thái: Tất cả"
+                  style={{ width: 200 }}
+                  value={locTrangThai}
+                  onChange={(v) => { setLocTrangThai(v); setTrang(1); }}
+                  options={(Object.keys(NHAN_TRANG_THAI_CHAM) as ResultStatus[]).map((k) => ({ value: k, label: NHAN_TRANG_THAI_CHAM[k] }))}
+                />
+              </div>
+            </div>
+            <div className="bc-cuon">
+              <table className="bc-table">
+                <thead>
+                  <tr>
+                    <th>Mã NV &amp; Họ tên</th>
+                    <th>Phòng ban</th>
+                    <th style={{ textAlign: 'center' }}>NV chấm</th>
+                    <th style={{ textAlign: 'center' }}>QL chốt</th>
+                    <th>Xếp loại</th>
+                    <th>Trạng thái hồ sơ</th>
+                    <th>Quản lý phụ trách</th>
+                    <th style={{ textAlign: 'right' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dangTaiPhieu && !phieu ? (
+                    <tr><td colSpan={8} className="bc-rong">Đang tải…</td></tr>
+                  ) : (phieu?.data ?? []).length === 0 ? (
+                    <tr><td colSpan={8} className="bc-rong">Không có phiếu nào khớp bộ lọc</td></tr>
+                  ) : (
+                    (phieu?.data ?? []).map((r) => {
+                      const th = trangThaiHoSo(r);
+                      const ten = r.ownerName ?? '—';
+                      return (
+                        <tr key={r.id}>
+                          <td>
+                            <div className="bc-nv">
+                              <span className="bc-avatar" style={{ background: mauAvatar(ten) }}>{chuVietTat(ten)}</span>
+                              <div>
+                                <div className="bc-nv-ten">{ten}</div>
+                                <div className="bc-nv-ma">{r.employeeCode ?? '—'}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="bc-td-mo">{r.departmentName}</td>
+                          <td style={{ textAlign: 'center' }} className={r.selfTotalScore === null ? 'bc-td-trong' : 'bc-td-dam'}>
+                            {r.selfTotalScore === null ? '—' : diemTomTat(r.selfTotalScore)}
+                          </td>
+                          <td style={{ textAlign: 'center' }} className={r.managerTotalScore === null ? 'bc-td-trong' : r.grade === 'NOT_ACHIEVED' ? 'bc-td-do' : 'bc-td-xanh'}>
+                            {r.managerTotalScore === null ? '—' : diemTomTat(r.managerTotalScore)}
+                          </td>
+                          <td>
+                            {r.grade ? (
+                              <span className={`bc-pill bc-pill-hang-${HANG[r.grade].lop}`}>{NHAN_XEP_LOAI[r.grade]}</span>
+                            ) : (
+                              <span className="bc-pill bc-pill-xam">Chưa xếp</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`bc-pill ${th.lop}`}>{th.ten}</span>
+                          </td>
+                          <td className="bc-td-ql">{r.evaluatorName ?? <span className="bc-td-trong">—</span>}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <Link to={`/kpi/scorecards/${r.id}/scoring`} className="bc-xem" title="Xem chi tiết">
+                              <EyeOutlined />
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="bc-bang-chan">
+              <div>
+                Hiển thị <strong>{tuDong === 0 ? 0 : `${tuDong}–${denDong}`}</strong> trên <strong>{tongPhieuBang}</strong> hồ sơ {ky.name.toLowerCase()}
+              </div>
+              <div className="bc-trang">
+                <button type="button" disabled={trang <= 1} onClick={() => setTrang(trang - 1)}>Trước</button>
+                <span>{trang}{soTrang > 1 ? ` / ${soTrang}` : ''}</span>
+                <button type="button" disabled={trang >= soTrang} onClick={() => setTrang(trang + 1)}>Sau</button>
+              </div>
+            </div>
+          </section>
         </>
       )}
     </div>

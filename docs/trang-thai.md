@@ -407,7 +407,6 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   chí xem gập/mở (`CayTieuChi.tsx`, sửa lỗi con đứng trước cha).
 - **Nhân viên** — 3 thẻ đầu trang từ `home-summary` theo vai.
 - **Cài đặt** — lịch kỳ thành 4 thẻ giai đoạn, ngưỡng thành bảng có chấm màu.
-- Component `ThanhNgang` (SVG) hiện không màn nào dùng — giữ cho màn sau.
 
 - **Quyền soạn mẫu KPI đổi (12/09):** TRƯỞNG BỘ PHẬN soạn cho chức danh
   phòng mình + ADMIN; HCNS và BGĐ chỉ xem (trước: ADMIN + HR ghi, MANAGER
@@ -507,6 +506,17 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   DRAFT/DISPUTED, KPI con thụt vào có nhánh cây, "+ KPI con · Chia đều ·
   xoá"); phiếu đã gửi ký cùng bố cục nhưng chỉ đọc; lịch sử phiếu dạng dòng
   thời gian. Bỏ chế độ "Sửa nội dung KPI" hai bước và `CayTieuChi`.
+
+- **Báo cáo kỳ (`/kpi/dashboard`) — dựng lại theo mã HTML mẫu (13/09):**
+  `DashboardPage.tsx` + `bao-cao-ky.css`. Cùng số liệu như bản 12/09 nhưng
+  bố cục/kích thước theo mẫu: tiêu đề + tag giai đoạn + ô chọn kỳ (dùng chung
+  `KyDangXem` với header) + Xuất .xlsx + Khoá sổ; 4 thẻ (tiến độ thẩm định có
+  thanh, trễ hạn, bị trả lại, **hạn chốt sổ thẻ tối** có quầng sáng); 4 thẻ
+  hạng viền trái màu (blue / sky / amber / rose) kèm điểm TB; phân bố xếp
+  loại (chú giải + thanh chia + 4 ô) và hiệu suất phòng (STT, thanh, đỏ dưới
+  80); bộ lọc chip + 3 ô chọn, bảng nhân sự tự dựng (avatar màu theo tên,
+  mã NV mono, pill xếp loại / trạng thái, nút mắt) và chân trang Trước / Sau.
+  Gỡ `TheBaoCao.tsx`, `ThanhXepChong`, `ThanhNgang` (không còn ai dùng).
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
