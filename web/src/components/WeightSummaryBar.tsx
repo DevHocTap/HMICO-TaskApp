@@ -1,7 +1,12 @@
 import { Card, Space, Tag, Typography } from 'antd';
 import { CheckCircleFilled, WarningFilled } from '@ant-design/icons';
 import { hienSo, tongTrongSo } from '../utils/weight';
-import { TEN_MUC, TONG_TRONG_SO, type EditorItem, type KpiSection } from '../types/kpi-template';
+import {
+  TEN_MUC,
+  type EditorItem,
+  type KpiSection,
+} from '../types/kpi-template';
+import { useTrongSo } from '../auth/useTrongSo';
 
 interface Props {
   items: EditorItem[];
@@ -19,9 +24,11 @@ interface Props {
  * báo đỏ cho một mẫu hoàn toàn đúng.
  */
 export function WeightSummaryBar({ items, section }: Props) {
-  const cap1 = items.filter((i) => i.parentKey === null && i.section === section);
+  const cap1 = items.filter(
+    (i) => i.parentKey === null && i.section === section,
+  );
   const tong = tongTrongSo(cap1.map((i) => i.weight));
-  const can = TONG_TRONG_SO[section];
+  const can = useTrongSo()[section];
   const dung = tong === can;
   const lech = Math.round((tong - can) * 100) / 100;
 

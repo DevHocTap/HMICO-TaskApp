@@ -1,5 +1,6 @@
 import { Prisma, KpiSection } from '@prisma/client';
 import { TONG_TRONG_SO, TONG_TRONG_SO_CON } from './kpi-scale.constants.js';
+import type { TrongSoHaiMuc } from '../settings/cai-dat-mac-dinh.js';
 
 /** Một dòng trong mẫu, đủ để kiểm tra. Không cần cả bản ghi Prisma. */
 export interface ItemDeKiem {
@@ -51,6 +52,11 @@ function soDep(d: Prisma.Decimal): string {
 export function kiemTraMau(
   items: readonly ItemDeKiem[],
   isSystem: boolean,
+  // Tỉ lệ hai mục từ Cài đặt hệ thống; mặc định 70/30 (kpi-scale.constants)
+  trongSo: TrongSoHaiMuc = {
+    bscWork: TONG_TRONG_SO[KpiSection.BSC_WORK],
+    compliance: TONG_TRONG_SO[KpiSection.COMPLIANCE],
+  },
 ): LoiKiemTra[] {
   const loi: LoiKiemTra[] = [];
 
@@ -88,7 +94,7 @@ export function kiemTraMau(
   }
 
   // --- 1 & 2. Tổng trọng số tiêu chí cấp 1 ---
-  const canCo = D(TONG_TRONG_SO[sectionChinh]);
+  const canCo = D(isSystem ? trongSo.compliance : trongSo.bscWork);
   const thucTe = tong(cap1.map((i) => i.weight));
   if (!thucTe.equals(canCo)) {
     const lech = thucTe.minus(canCo);

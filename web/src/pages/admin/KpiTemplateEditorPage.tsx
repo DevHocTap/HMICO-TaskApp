@@ -81,7 +81,10 @@ export function KpiTemplateEditorPage() {
     }
   }, [mau]);
 
-  const chiDoc = !coQuyenGhi || mau?.isSystem === true;
+  // Mẫu hệ thống: chỉ ADMIN sửa (qua endpoint system-items); trước 13/09 màn
+  // này khoá cứng mọi người nên mẫu hệ thống không sửa được từ giao diện.
+  const chiDoc =
+    !coQuyenGhi || (mau?.isSystem === true && user?.role !== 'ADMIN');
 
   // --- Kiểm thử ngay khi gõ, không đợi bấm Xuất bản ---
   useEffect(() => {
@@ -216,7 +219,7 @@ export function KpiTemplateEditorPage() {
   }
 
   const luu = useMutation({
-    mutationFn: () => luuCayItem(id, items),
+    mutationFn: () => luuCayItem(id, items, mau?.isSystem === true),
     onSuccess: () => {
       message.success('Đã lưu nháp');
       setCoThayDoi(false);
@@ -228,7 +231,7 @@ export function KpiTemplateEditorPage() {
 
   const xuatBan = useMutation({
     mutationFn: async () => {
-      if (coThayDoi) await luuCayItem(id, items);
+      if (coThayDoi) await luuCayItem(id, items, mau?.isSystem === true);
       return xuatBanMau(id);
     },
     onSuccess: () => {
@@ -305,12 +308,20 @@ export function KpiTemplateEditorPage() {
         </Space>
       </Space>
 
+      {!chiDoc && mau.isSystem && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Mẫu hệ thống — áp cho MỌI nhân sự"
+          description="Xuất bản lại là mọi phiếu sinh sau đó đổi theo (phiếu đã giao giữ nguyên vì đã chụp nội dung). Tỉ lệ trọng số hai mục đặt ở Cài đặt hệ thống."
+        />
+      )}
       {chiDoc && mau.isSystem ? (
         <Alert
           type="info"
           showIcon
-          message="Mẫu hệ thống — chỉ đọc"
-          description="Mục “Chấp hành nội quy” áp dụng chung cho mọi chức danh, không sửa ở đây."
+          message="Mẫu hệ thống — chỉ đọc với bạn"
+          description="Mục “Chấp hành nội quy” áp dụng chung cho mọi chức danh, do quản trị viên soạn. Tỉ lệ trọng số hai mục đặt ở Cài đặt hệ thống."
         />
       ) : (
         chiDoc && (
@@ -344,7 +355,7 @@ export function KpiTemplateEditorPage() {
 
       <Row gutter={16}>
         {/* --- Cột trái: cây tiêu chí --- */}
-        <Col xs={24} lg={14}>
+        <Col xs={24} lg={chiDoc ? 24 : 14}>
           <Card
             title="Danh sách tiêu chí"
             extra={
@@ -542,103 +553,105 @@ export function KpiTemplateEditorPage() {
           </Card>
         </Col>
 
-        {/* --- Cột phải: form sửa dòng đang chọn --- */}
-        <Col xs={24} lg={10}>
-          <Card
-            title={itemDangChon?.parentKey ? 'Sửa KPI con' : 'Sửa tiêu chí'}
-          >
-            {!itemDangChon ? (
-              <Empty description="Chọn một dòng bên trái để sửa" />
-            ) : (
-              <Form layout="vertical" disabled={chiDoc}>
-                <Form.Item label="Tên" required>
-                  <Input
-                    value={itemDangChon.name}
-                    onChange={(e) =>
-                      capNhat(itemDangChon.key, { name: e.target.value })
-                    }
-                    placeholder={
-                      itemDangChon.parentKey
-                        ? 'VD: Hoàn thành bản vẽ theo kế hoạch được giao.'
-                        : 'VD: Tiến độ hoàn thành Shop Drawing'
-                    }
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  label="Trọng số (%)"
-                  extra={
-                    itemDangChon.parentKey
-                      ? 'Các KPI con trong cùng một tiêu chí cộng lại phải bằng 100'
-                      : 'Các tiêu chí cộng lại phải bằng 70'
-                  }
-                >
-                  <InputNumber
-                    value={Number(itemDangChon.weight)}
-                    onChange={(v) =>
-                      capNhat(itemDangChon.key, { weight: String(v ?? 0) })
-                    }
-                    min={0}
-                    max={100}
-                    step={1}
-                    precision={2}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-
-                {itemDangChon.parentKey ? (
-                  <>
-                    <Form.Item
-                      label="Mục tiêu"
-                      extra="Nguyên văn như biểu mẫu: ≥ 95%, ≤ 3%, 2 giờ, Đạt"
-                    >
-                      <Input
-                        value={itemDangChon.measurementText}
-                        onChange={(e) =>
-                          capNhat(itemDangChon.key, {
-                            measurementText: e.target.value,
-                          })
-                        }
-                      />
-                    </Form.Item>
-                    <Form.Item label="Cách đo">
-                      <Input.TextArea
-                        rows={3}
-                        value={itemDangChon.measureMethod}
-                        onChange={(e) =>
-                          capNhat(itemDangChon.key, {
-                            measureMethod: e.target.value,
-                          })
-                        }
-                        placeholder="VD: Số bản vẽ hoàn thành đúng hạn / Tổng số bản vẽ × 100%"
-                      />
-                    </Form.Item>
-                  </>
-                ) : (
-                  <Form.Item
-                    label="Chỉ tiêu cụ thể"
-                    extra="Mô tả hiện trên biểu mẫu in"
-                  >
-                    <Input.TextArea
-                      rows={4}
-                      value={itemDangChon.description}
+        {/* --- Cột phải: form sửa dòng đang chọn (ẩn khi chỉ đọc) --- */}
+        {!chiDoc && (
+          <Col xs={24} lg={10}>
+            <Card
+              title={itemDangChon?.parentKey ? 'Sửa KPI con' : 'Sửa tiêu chí'}
+            >
+              {!itemDangChon ? (
+                <Empty description="Chọn một dòng bên trái để sửa" />
+              ) : (
+                <Form layout="vertical" disabled={chiDoc}>
+                  <Form.Item label="Tên" required>
+                    <Input
+                      value={itemDangChon.name}
                       onChange={(e) =>
-                        capNhat(itemDangChon.key, {
-                          description: e.target.value,
-                        })
+                        capNhat(itemDangChon.key, { name: e.target.value })
+                      }
+                      placeholder={
+                        itemDangChon.parentKey
+                          ? 'VD: Hoàn thành bản vẽ theo kế hoạch được giao.'
+                          : 'VD: Tiến độ hoàn thành Shop Drawing'
                       }
                     />
                   </Form.Item>
-                )}
 
-                <Typography.Text type="secondary">
-                  Thang điểm tối đa: {MAX_SCALE[itemDangChon.section]} (theo
-                  mục, không sửa được)
-                </Typography.Text>
-              </Form>
-            )}
-          </Card>
-        </Col>
+                  <Form.Item
+                    label="Trọng số (%)"
+                    extra={
+                      itemDangChon.parentKey
+                        ? 'Các KPI con trong cùng một tiêu chí cộng lại phải bằng 100'
+                        : 'Các tiêu chí cộng lại phải bằng 70'
+                    }
+                  >
+                    <InputNumber
+                      value={Number(itemDangChon.weight)}
+                      onChange={(v) =>
+                        capNhat(itemDangChon.key, { weight: String(v ?? 0) })
+                      }
+                      min={0}
+                      max={100}
+                      step={1}
+                      precision={2}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+
+                  {itemDangChon.parentKey ? (
+                    <>
+                      <Form.Item
+                        label="Mục tiêu"
+                        extra="Nguyên văn như biểu mẫu: ≥ 95%, ≤ 3%, 2 giờ, Đạt"
+                      >
+                        <Input
+                          value={itemDangChon.measurementText}
+                          onChange={(e) =>
+                            capNhat(itemDangChon.key, {
+                              measurementText: e.target.value,
+                            })
+                          }
+                        />
+                      </Form.Item>
+                      <Form.Item label="Cách đo">
+                        <Input.TextArea
+                          rows={3}
+                          value={itemDangChon.measureMethod}
+                          onChange={(e) =>
+                            capNhat(itemDangChon.key, {
+                              measureMethod: e.target.value,
+                            })
+                          }
+                          placeholder="VD: Số bản vẽ hoàn thành đúng hạn / Tổng số bản vẽ × 100%"
+                        />
+                      </Form.Item>
+                    </>
+                  ) : (
+                    <Form.Item
+                      label="Chỉ tiêu cụ thể"
+                      extra="Mô tả hiện trên biểu mẫu in"
+                    >
+                      <Input.TextArea
+                        rows={4}
+                        value={itemDangChon.description}
+                        onChange={(e) =>
+                          capNhat(itemDangChon.key, {
+                            description: e.target.value,
+                          })
+                        }
+                      />
+                    </Form.Item>
+                  )}
+
+                  <Typography.Text type="secondary">
+                    Thang điểm tối đa: {MAX_SCALE[itemDangChon.section]} (theo
+                    mục, không sửa được)
+                  </Typography.Text>
+                </Form>
+              )}
+            </Card>
+          </Col>
+        )}
       </Row>
 
       <TemplatePreviewModal

@@ -20,7 +20,13 @@ export interface CaiDatBaoMat {
   phutKhoaTam: number;
 }
 
+export interface TrongSoHaiMuc {
+  bscWork: number;
+  compliance: number;
+}
+
 export interface CaiDatHeThong {
+  trongSo: TrongSoHaiMuc;
   lichKy: MocLichKy;
   nguongXepLoai: NguongXepLoai;
   baoMat: CaiDatBaoMat;

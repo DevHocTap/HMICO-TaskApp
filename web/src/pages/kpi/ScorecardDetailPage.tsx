@@ -33,7 +33,8 @@ import {
   NHAN_TRANG_THAI_GIAO_NGUOI_GIAO,
   type DongPhieuKpi,
 } from '../../types/scorecard';
-import { MAX_SCALE, TEN_MUC, TONG_TRONG_SO } from '../../types/kpi-template';
+import { MAX_SCALE, TEN_MUC } from '../../types/kpi-template';
+import { useTrongSo } from '../../auth/useTrongSo';
 import type { KpiSection } from '../../types/kpi-template';
 import { bang, chiaDeu, hienSo, tongTrongSo } from '../../utils/weight';
 import { useAuth } from '../../auth/useAuth';
@@ -103,6 +104,7 @@ export function ScorecardDetailPage() {
     if (phieu && !dangSoan) setDong(tuPhieu(phieu.items));
   }, [phieu, dangSoan]);
 
+  const TONG_TRONG_SO = useTrongSo();
   const laNguoiGiao = coTheGiaoKpi(user?.role);
   const suaDuoc =
     laNguoiGiao &&

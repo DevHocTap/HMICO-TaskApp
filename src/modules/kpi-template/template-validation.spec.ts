@@ -208,4 +208,13 @@ describe('kiemTraMau', () => {
     const loi = kiemTraMau(items, false);
     expect(loi.length).toBe(3); // tổng cấp 1 sai + 2 nhóm con sai
   });
+
+  it('tỉ lệ hai mục lấy từ Cài đặt: mẫu chức danh tổng 60 đúng khi cài 60/40', () => {
+    const sauMuoi = { bscWork: 60, compliance: 40 };
+    const mau60 = [cha('a', 30), cha('b', 30)];
+    expect(kiemTraMau(mau60, false)).not.toEqual([]); // mặc định 70 -> sai
+    expect(kiemTraMau(mau60, false, sauMuoi)).toEqual([]);
+    const heThong40 = [cha('c', 40, 'c', { section: KpiSection.COMPLIANCE })];
+    expect(kiemTraMau(heThong40, true, sauMuoi)).toEqual([]);
+  });
 });

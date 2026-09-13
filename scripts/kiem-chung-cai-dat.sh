@@ -216,7 +216,7 @@ R=$(goi GET "$AT_NV1" /settings)
 mong "$(ma_cua "$R")" 200 "1. STAFF đọc được cài đặt"
 # Máy dev có thể đã được sửa tay, nên chỉ kiểm hình dạng: đủ 5 nhóm và 5 mục capNhat
 MD=$(than_cua "$R" | jq_ "'|'.join(sorted(d['caiDat'])) + '#' + str(len(d['capNhat']))")
-[ "$MD" = "baoMat|chamDiem|kyDanhGia|lichKy|nguongXepLoai#5" ] && pass "    đủ 5 nhóm cài đặt và 5 mục capNhat" || fail "    nhận: $MD"
+[ "$MD" = "baoMat|chamDiem|kyDanhGia|lichKy|nguongXepLoai|trongSo#6" ] && pass "    đủ 6 nhóm cài đặt và 6 mục capNhat" || fail "    nhận: $MD"
 
 R=$(put_settings "$AT_NV1" '{"kyDanhGia":{"tuSinhHangThang":false}}')
 mong "$(ma_cua "$R")" 403 "2. STAFF ghi -> 403"
@@ -347,6 +347,24 @@ MA=$(ma -X POST "$API/auth/login" -H 'Content-Type: application/json' \
 [ "$MA" = "423" ] || [ "$MA" = "429" ] \
   && pass "26. sai lần thứ 5 với ngưỡng 3 -> bị khoá (HTTP $MA)" \
   || fail "26. sai lần thứ 5 -> HTTP $MA (mong 423/429)"
+
+# ================================================= 27-29 TRỌNG SỐ HAI MỤC
+buoc "27–29  TRỌNG SỐ HAI MỤC LẤY TỪ CÀI ĐẶT (không bó cứng 70/30)"
+R=$(put_settings "$AT_HR" '{"trongSo":{"bscWork":60,"compliance":30}}')
+mong "$(ma_cua "$R")" 400 "27. 60 + 30 ≠ 100 -> 400"
+# Mẫu chức danh tổng 60: mặc định 70 thì xuất bản sai; cài 60/40 thì được
+R=$(goi POST "$AT_ADMIN" /kpi-templates "{\"code\":\"ZTEST-TS60\",\"name\":\"Thử tỉ lệ 60\",\"jobTitleId\":\"$(sql "SELECT id FROM \"JobTitle\" WHERE code='KT-KSTK';")\"}")
+ID_TS=$(than_cua "$R" | jq_ "d['id']")
+goi PUT "$AT_ADMIN" "/kpi-templates/$ID_TS/items" '{"items":[{"key":"a","parentKey":null,"name":"Tiến độ","section":"BSC_WORK","weight":60,"displayOrder":1}]}' >/dev/null
+R=$(goi POST "$AT_ADMIN" "/kpi-templates/$ID_TS/publish")
+mong "$(ma_cua "$R")" 400 "28. mặc định 70/30: mẫu tổng 60 không xuất bản được"
+R=$(put_settings "$AT_HR" '{"trongSo":{"bscWork":60,"compliance":40}}')
+mong "$(ma_cua "$R")" 200 "    HR đặt tỉ lệ 60/40"
+R=$(goi POST "$AT_ADMIN" "/kpi-templates/$ID_TS/publish")
+mong "$(ma_cua "$R")" 200 "29. sau khi đặt 60/40: mẫu tổng 60 xuất bản được ngay, không khởi động lại" "$(than_cua "$R")"
+WR=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates" | jq_ "next((t['weightRequired'] for t in d if t['id']=='$ID_TS'), None)")
+[ "$WR" = "60" ] && pass "    danh sách mẫu trả weightRequired=60" || fail "    weightRequired=$WR"
+sql "DELETE FROM \"KpiTemplateItem\" WHERE \"templateId\"='$ID_TS'; DELETE FROM \"AuditLog\" WHERE \"entityId\"='$ID_TS'; DELETE FROM \"KpiTemplate\" WHERE id='$ID_TS';" >/dev/null
 
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"

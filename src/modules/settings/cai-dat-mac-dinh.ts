@@ -60,7 +60,18 @@ export interface CaiDatChamDiem {
   choPhepTraLaiPhieuDaChot: boolean;
 }
 
+/**
+ * Tỉ lệ trọng số hai mục của một phiếu — chốt 13/09/2026: KHÔNG bó cứng
+ * 70/30 nữa, HCNS/ADMIN đặt được, miễn cộng đúng 100. Mẫu chức danh phải
+ * đủ `bscWork`, mẫu hệ thống đủ `compliance`, phiếu ghép hai mục đủ 100.
+ */
+export interface TrongSoHaiMuc {
+  bscWork: number;
+  compliance: number;
+}
+
 export interface CaiDatHeThong {
+  trongSo: TrongSoHaiMuc;
   lichKy: MocLichKy;
   nguongXepLoai: NguongXepLoai;
   baoMat: CaiDatBaoMat;
@@ -71,6 +82,7 @@ export interface CaiDatHeThong {
 export type NhomCaiDat = keyof CaiDatHeThong;
 
 export const CAI_DAT_MAC_DINH: CaiDatHeThong = {
+  trongSo: { bscWork: 70, compliance: 30 },
   lichKy: { ngayLenKpiThangSau: 25, ngayTuCham: 25, ngayTruongCham: 29, ngayGuiHcns: 30 },
   nguongXepLoai: { canCaiThien: 80, hoanThanh: 90, vuot: 100 },
   baoMat: {
@@ -92,7 +104,17 @@ export const CAC_NHOM_CAI_DAT = Object.keys(CAI_DAT_MAC_DINH) as NhomCaiDat[];
  */
 export function kiemTraCaiDat(caiDat: CaiDatHeThong): string[] {
   const loi: string[] = [];
-  const { lichKy: l, nguongXepLoai: n, baoMat: b } = caiDat;
+  const { lichKy: l, nguongXepLoai: n, baoMat: b, trongSo: t } = caiDat;
+
+  for (const [ten, v] of [
+    ['Trọng số mục BSC công việc', t.bscWork],
+    ['Trọng số mục Chấp hành nội quy', t.compliance],
+  ] as const) {
+    if (!Number.isInteger(v) || v < 0 || v > 100) loi.push(`${ten} phải là số nguyên 0–100`);
+  }
+  if (t.bscWork + t.compliance !== 100) {
+    loi.push(`Hai mục phải cộng đúng 100 (đang ${t.bscWork} + ${t.compliance} = ${t.bscWork + t.compliance})`);
+  }
 
   const ngay = (ten: string, v: number) => {
     if (!Number.isInteger(v) || v < 1 || v > 31) loi.push(`${ten} phải là ngày từ 1 đến 31`);

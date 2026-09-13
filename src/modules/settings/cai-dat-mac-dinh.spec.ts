@@ -3,6 +3,7 @@ import { CAI_DAT_MAC_DINH, kiemTraCaiDat } from './cai-dat-mac-dinh.js';
 
 const sua = (phan: Partial<{ [K in keyof typeof CAI_DAT_MAC_DINH]: Partial<(typeof CAI_DAT_MAC_DINH)[K]> }>) =>
   ({
+    trongSo: { ...CAI_DAT_MAC_DINH.trongSo, ...phan.trongSo },
     lichKy: { ...CAI_DAT_MAC_DINH.lichKy, ...phan.lichKy },
     nguongXepLoai: { ...CAI_DAT_MAC_DINH.nguongXepLoai, ...phan.nguongXepLoai },
     baoMat: { ...CAI_DAT_MAC_DINH.baoMat, ...phan.baoMat },
@@ -51,5 +52,14 @@ describe('kiemTraCaiDat', () => {
     expect(kiemTraCaiDat(sua({ baoMat: { soLanSaiToiDa: 2 } })).length).toBeGreaterThan(0);
     expect(kiemTraCaiDat(sua({ baoMat: { phutKhoaTam: 0 } })).length).toBeGreaterThan(0);
     expect(kiemTraCaiDat(sua({ baoMat: { soLanSaiToiDa: 5, phutKhoaTam: 30 } }))).toEqual([]);
+  });
+
+  it('trọng số hai mục phải cộng đúng 100, mỗi mục 0–100 nguyên', () => {
+    expect(kiemTraCaiDat(sua({ trongSo: { bscWork: 60, compliance: 40 } }))).toEqual([]);
+    expect(kiemTraCaiDat(sua({ trongSo: { bscWork: 60, compliance: 30 } }))).toContainEqual(
+      expect.stringContaining('cộng đúng 100'),
+    );
+    expect(kiemTraCaiDat(sua({ trongSo: { bscWork: 100, compliance: 0 } }))).toEqual([]);
+    expect(kiemTraCaiDat(sua({ trongSo: { bscWork: 70.5, compliance: 29.5 } })).length).toBeGreaterThan(0);
   });
 });

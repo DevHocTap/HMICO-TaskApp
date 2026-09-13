@@ -14,6 +14,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DepartmentScopeService } from '../org/department-scope.service.js';
 import { ScorecardWorkflowService } from './scorecard-workflow.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { kiemTraTrongSoPhieu } from './scorecard-validation.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { MAX_SCALE } from '../kpi-template/kpi-scale.constants.js';
@@ -29,6 +30,7 @@ export class ScorecardAssignService {
     private readonly prisma: PrismaService,
     private readonly departmentScope: DepartmentScopeService,
     private readonly workflow: ScorecardWorkflowService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -202,6 +204,7 @@ export class ScorecardAssignService {
         section: i.section,
         weight: new Prisma.Decimal(i.weight),
       })),
+      this.settings.lay().trongSo,
     );
     if (loi.length > 0) {
       throw new BadRequestException({
@@ -346,7 +349,7 @@ export class ScorecardAssignService {
       where: { scorecardId },
       select: { id: true, parentId: true, name: true, section: true, weight: true },
     });
-    const loi = kiemTraTrongSoPhieu(items);
+    const loi = kiemTraTrongSoPhieu(items, this.settings.lay().trongSo);
     if (loi.length > 0) {
       throw new BadRequestException({
         message: 'Phiếu chưa gửi đi ký được vì trọng số chưa đúng.',

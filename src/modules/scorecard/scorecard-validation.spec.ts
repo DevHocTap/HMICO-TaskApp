@@ -29,6 +29,18 @@ describe('kiemTraTrongSoPhieu', () => {
     expect(kiemTraTrongSoPhieu(phieuDung())).toEqual([]);
   });
 
+  it('tỉ lệ hai mục lấy từ Cài đặt: 60/40 thì phiếu 70/30 sai, phiếu 60/40 đúng', () => {
+    const sauMuoi = { bscWork: 60, compliance: 40 };
+    expect(ma(kiemTraTrongSoPhieu(phieuDung(), sauMuoi))).toContain('TONG_MUC_SAI');
+    const phieu6040 = [
+      cha('b1', 40),
+      cha('b2', 20),
+      cha('c1', 20, KpiSection.COMPLIANCE),
+      cha('c2', 20, KpiSection.COMPLIANCE),
+    ];
+    expect(kiemTraTrongSoPhieu(phieu6040, sauMuoi)).toEqual([]);
+  });
+
   it('thiếu hẳn mục Chấp hành nội quy — gợi ý kiểm mẫu hệ thống', () => {
     const loi = kiemTraTrongSoPhieu([cha('b1', 70)]);
     expect(ma(loi)).toContain('THIEU_MUC');

@@ -83,9 +83,11 @@ export async function saoChepMau(
 export async function luuCayItem(
   id: string,
   items: EditorItem[],
+  /** Mẫu hệ thống đi đường riêng `system-items` (chỉ ADMIN) — cố ý tách khỏi đường thường. */
+  isSystem = false,
 ): Promise<KpiTemplateDetail> {
   const { data } = await apiClient.put<KpiTemplateDetail>(
-    `/kpi-templates/${id}/items`,
+    `/kpi-templates/${id}/${isSystem ? 'system-items' : 'items'}`,
     { items: sangPayload(items) },
   );
   return data;

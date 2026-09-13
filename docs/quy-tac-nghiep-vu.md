@@ -72,6 +72,12 @@ Mỗi **phiếu** (`Scorecard`) gắn với **một nhân viên, một chức da
 | BSC công việc | `BSC_WORK` | 70% | 10 | 6–7 tiêu chí theo chức danh |
 | Chấp hành nội quy | `COMPLIANCE` | 30% | 3 | 3 tiêu chí cố định |
 
+> **70/30 là giá trị MẶC ĐỊNH, không bó cứng — chốt 13/09/2026.** Hai con số
+> nằm ở Cài đặt hệ thống, nhóm `trongSo` (`bscWork` + `compliance` = 100,
+> số nguyên). Mọi chỗ kiểm trọng số (`kiemTraMau`, `kiemTraTrongSoPhieu`,
+> thanh tổng trọng số trên giao diện) đọc từ đó. Đổi chỉ áp cho lần xuất bản
+> mẫu / gửi ký phiếu SAU khi đổi — phiếu đã ký giữ nguyên số đã chụp.
+
 **Mục 2 giống nhau cho mọi chức danh.** Nằm trong một `KpiTemplate` có
 `isSystem = true`, hệ thống tự nối vào mọi phiếu:
 1. Số lần đi trễ / về sớm không phép (trên 30 phút) — 10%
@@ -140,8 +146,8 @@ ràng buộc trọng số phải áp theo loại mẫu, không áp chung cho m�
 
 | Loại mẫu | Kiểm khi xuất bản |
 |---|---|
-| **Mẫu chức danh** (`isSystem = false`) | Σ tiêu chí cấp 1 = **70** · chỉ chứa `BSC_WORK` · có ít nhất 1 tiêu chí |
-| **Mẫu hệ thống** (`isSystem = true`) | Σ tiêu chí cấp 1 = **30** · chỉ chứa `COMPLIANCE` |
+| **Mẫu chức danh** (`isSystem = false`) | Σ tiêu chí cấp 1 = **`trongSo.bscWork`** (mặc định 70) · chỉ chứa `BSC_WORK` · có ít nhất 1 tiêu chí |
+| **Mẫu hệ thống** (`isSystem = true`) | Σ tiêu chí cấp 1 = **`trongSo.compliance`** (mặc định 30) · chỉ chứa `COMPLIANCE` |
 | **Cả hai** | Σ trọng số KPI con trong mỗi tiêu chí **có con** = **100** |
 
 > **Ràng buộc "tổng phiếu = 100" thuộc về lúc GHÉP hai mẫu thành phiếu, KHÔNG
@@ -688,8 +694,9 @@ còn — đó chính là lúc cần tra cứu nhất.
 > mới biết kỹ sư triển khai phải đạt gì, HCNS không nắm được. Trưởng bộ phận
 > chỉ soạn cho **chức danh thuộc phòng mình** (`assertCoTheGhi` trong
 > `kpi-template.service.ts`); mẫu hệ thống và mẫu của chức danh dùng chung
-> vẫn là việc của ADMIN. HCNS và ban giám đốc xem toàn bộ mẫu và nội dung
-> phiếu đã giao, không sửa.
+> vẫn là việc của ADMIN — ADMIN sửa mẫu hệ thống ngay trên màn soạn mẫu, đi
+> qua `PUT :id/system-items` (13/09). HCNS và ban giám đốc xem toàn bộ mẫu và
+> nội dung phiếu đã giao, không sửa.
 >
 > **Về `EXECUTIVE`:** ban giám đốc phải xem được cơ cấu tổ chức, chức danh
 > và danh sách nhân sự toàn công ty — giấu những màn hình đó đi thì họ đăng

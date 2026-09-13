@@ -12,6 +12,7 @@ import { ngayGioVN } from '../../utils/format';
 import type { CaiDatHeThong, NhomCaiDat } from '../../types/settings';
 
 const CAC_NHOM: NhomCaiDat[] = [
+  'trongSo',
   'lichKy',
   'nguongXepLoai',
   'baoMat',
@@ -20,7 +21,7 @@ const CAC_NHOM: NhomCaiDat[] = [
 ];
 
 /**
- * Cài đặt hệ thống — một form cho cả năm nhóm, lưu CHỈ nhóm đã đổi.
+ * Cài đặt hệ thống — một form cho cả sáu nhóm, lưu CHỈ nhóm đã đổi.
  *
  * Kiểm quan hệ (tự chấm trước trưởng chấm, ngưỡng tăng dần) do backend làm và
  * trả câu tiếng Việt; ở đây chỉ chặn kiểu và khoảng trên từng ô.
@@ -75,6 +76,7 @@ export function SettingsPage() {
 
   const soDoi = nhomDaDoi().length;
   const {
+    trongSo: t,
     lichKy: l,
     nguongXepLoai: n,
     baoMat: b,
@@ -142,6 +144,71 @@ export function SettingsPage() {
       {!suaDuoc && <ReadOnlyNotice role={user?.role} />}
 
       <div className="cai-dat-luoi">
+        <Card
+          title={
+            <span className="ten-va-phu">
+              <span>Trọng số hai mục của phiếu KPI</span>
+              <small>
+                Mẫu chức danh phải đủ Mục 1, mẫu hệ thống phải đủ Mục 2. Áp cho
+                lần xuất bản mẫu và gửi ký phiếu SAU khi đổi; phiếu đã ký giữ
+                nguyên.
+              </small>
+            </span>
+          }
+          extra={ghiChuNhom('trongSo')}
+        >
+          <div className="giai-doan-luoi">
+            {[
+              {
+                ten: 'KPI công việc (BSC)',
+                phu: 'Mục 1 — trưởng bộ phận soạn theo chức danh',
+                v: t.bscWork,
+                set: (v: number) =>
+                  dat('trongSo', { bscWork: v, compliance: 100 - v }),
+              },
+              {
+                ten: 'Chấp hành nội quy',
+                phu: 'Mục 2 — mẫu hệ thống dùng chung toàn công ty',
+                v: t.compliance,
+                set: (v: number) =>
+                  dat('trongSo', { bscWork: 100 - v, compliance: v }),
+              },
+            ].map((d, i) => (
+              <div key={d.ten} className="giai-doan-the">
+                <div className="giai-doan-the-dau">
+                  <span className="eyebrow">Mục {i + 1}</span>
+                  <InputNumber
+                    className="cai-dat-o-so"
+                    size="large"
+                    min={0}
+                    max={100}
+                    precision={0}
+                    value={d.v}
+                    disabled={!suaDuoc}
+                    onChange={(v) => v !== null && d.set(v)}
+                  />
+                </div>
+                <div className="giai-doan-the-ten">{d.v}% tổng điểm</div>
+                <Typography.Text strong>{d.ten}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {d.phu}
+                </Typography.Text>
+              </div>
+            ))}
+          </div>
+          <div
+            className="trong-so-hai-muc"
+            aria-label={`Mục 1 ${t.bscWork}%, Mục 2 ${t.compliance}%`}
+          >
+            <span style={{ width: `${t.bscWork}%` }} />
+            <span style={{ width: `${t.compliance}%` }} />
+          </div>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            Hai mục luôn cộng đủ 100 — sửa một ô, ô kia tự bù. Mặc định 70/30
+            theo biểu mẫu BM.01.
+          </Typography.Text>
+        </Card>
+
         <Card
           title={
             <span className="ten-va-phu">

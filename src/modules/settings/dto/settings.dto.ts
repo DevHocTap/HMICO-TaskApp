@@ -14,6 +14,11 @@ import {
  * trọn nhóm đó, nhóm không gửi giữ nguyên. Quan hệ giữa các giá trị
  * (tự chấm trước trưởng chấm…) kiểm ở `kiemTraCaiDat`, không ở đây.
  */
+export class TrongSoDto {
+  @IsInt() @Min(0) @Max(100) bscWork!: number;
+  @IsInt() @Min(0) @Max(100) compliance!: number;
+}
+
 export class LichKyDto {
   @IsInt() @Min(1) @Max(31) ngayLenKpiThangSau!: number;
   @IsInt() @Min(1) @Max(31) ngayTuCham!: number;
@@ -43,6 +48,7 @@ export class ChamDiemDto {
 }
 
 export class UpdateSettingsDto {
+  @IsOptional() @ValidateNested() @Type(() => TrongSoDto) trongSo?: TrongSoDto;
   @IsOptional() @ValidateNested() @Type(() => LichKyDto) lichKy?: LichKyDto;
   @IsOptional() @ValidateNested() @Type(() => NguongXepLoaiDto) nguongXepLoai?: NguongXepLoaiDto;
   @IsOptional() @ValidateNested() @Type(() => BaoMatDto) baoMat?: BaoMatDto;

@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 327 test backend + 41 test frontend + 3 e2e; 35 + 63 + 51 + 82 + 159 + 96 + 76 + 37 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 63 + 51 + 82 + 159 + 96 + 76 + 42 kiểm tra curl.**
 
 ## Đang làm
 
@@ -439,6 +439,15 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   ban, Chức danh) đổi sang đầu trang `TieuDeTrang` + nút/bộ chọn bo tròn —
   toàn bộ màn đã cùng một khung. Thêm `POST /kpi-templates/:id/activate` +
   `includeInactive` (đóng nợ kích hoạt lại mẫu), `verify-kpi-template.sh` **51**.
+
+- **Trọng số hai mục thành cài đặt (13/09):** nhóm `trongSo` (`bscWork` /
+  `compliance`, tổng = 100) trong `SystemSetting`, mặc định 70/30. Đọc ở
+  `kiemTraMau` (xuất bản mẫu), `kiemTraTrongSoPhieu` (gửi ký phiếu), và
+  frontend qua `useTrongSo()` (thanh tổng trọng số, đồng hồ trọng số, mô tả
+  mẫu). Màn Cài đặt có thẻ hai ô "sửa một ô, ô kia tự bù" kèm thanh chia
+  phần. **ADMIN soạn được mẫu hệ thống từ giao diện** — màn soạn mẫu gọi
+  `PUT :id/system-items` khi `isSystem`, kèm cảnh báo áp toàn công ty; vai
+  khác chỉ đọc. `kiem-chung-cai-dat.sh` **42** (mục 27–29).
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.

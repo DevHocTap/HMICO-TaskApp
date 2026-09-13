@@ -492,6 +492,11 @@ tự động rồi mới vỡ.
       KHÔNG tính lại xếp loại đã chốt — cố ý, ghi ở quy-tac mục 4.
 - [ ] `PUT /settings` kiểm quan hệ trong `kiemTraCaiDat()`; DTO chỉ kiểm từng
       ô. Thêm nhóm mới thì phải thêm cả hai chỗ.
+- [ ] **Đổi `trongSo` KHÔNG đụng mẫu đã xuất bản.** Mẫu 70 đang PUBLISHED
+      vẫn PUBLISHED sau khi đổi sang 60/40; nó chỉ trượt ở lần xuất bản kế
+      hoặc lúc gửi ký phiếu sinh từ nó (backend báo đúng con số thiếu). Cố ý
+      — tự hạ mẫu về DRAFT hàng loạt là làm gián đoạn việc giao KPI giữa kỳ.
+      Nếu HCNS đổi trọng số thì phải báo trưởng bộ phận sửa mẫu trước kỳ sau.
 
 ## Giao diện theo bộ mẫu (11/09)
 

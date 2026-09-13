@@ -15,8 +15,9 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { DepartmentScopeService } from '../org/department-scope.service.js';
-import { MAX_SCALE, TONG_TRONG_SO } from './kpi-scale.constants.js';
+import { MAX_SCALE } from './kpi-scale.constants.js';
 import { kiemTraMau, type ItemDeKiem, type LoiKiemTra } from './template-validation.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import type {
@@ -53,6 +54,7 @@ export class KpiTemplateService {
     private readonly prisma: PrismaService,
     private readonly departmentScope: DepartmentScopeService,
     private readonly audit: AuditService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ------------------------------------------------------------------ đọc
@@ -379,7 +381,7 @@ export class KpiTemplateService {
       where: { templateId: id },
     });
 
-    const loi = kiemTraMau(this.sangItemDeKiem(items), template.isSystem);
+    const loi = kiemTraMau(this.sangItemDeKiem(items), template.isSystem, this.settings.lay().trongSo);
     if (loi.length > 0) {
       throw new BadRequestException({
         message: 'Mẫu chưa xuất bản được vì còn lỗi trọng số hoặc cấu trúc.',
@@ -500,6 +502,7 @@ export class KpiTemplateService {
         scoringMode: i.scoringMode,
       })),
       template.isSystem,
+      this.settings.lay().trongSo,
     );
   }
 
@@ -738,7 +741,7 @@ export class KpiTemplateService {
       criteriaCount: t._count.items,
       subCriteriaCount: tongHop?.subCriteriaCount ?? 0,
       weightTotal: (tongHop?.weightTotal ?? new Prisma.Decimal(0)).toFixed(2),
-      weightRequired: t.isSystem ? TONG_TRONG_SO.COMPLIANCE : TONG_TRONG_SO.BSC_WORK,
+      weightRequired: t.isSystem ? this.settings.lay().trongSo.compliance : this.settings.lay().trongSo.bscWork,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };

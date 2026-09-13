@@ -1,4 +1,5 @@
 import { KpiSection, Prisma } from '@prisma/client';
+import type { TrongSoHaiMuc } from '../settings/cai-dat-mac-dinh.js';
 import {
   TONG_TRONG_SO,
   TONG_TRONG_SO_CON,
@@ -48,7 +49,14 @@ const TEN_MUC: Record<KpiSection, string> = {
  * Trả về danh sách lỗi, rỗng nghĩa là hợp lệ. Không ném exception: giao
  * diện cần hiện HẾT các lỗi cùng lúc.
  */
-export function kiemTraTrongSoPhieu(items: readonly DongDeKiem[]): LoiTrongSo[] {
+export function kiemTraTrongSoPhieu(
+  items: readonly DongDeKiem[],
+  // Tỉ lệ hai mục từ Cài đặt hệ thống; mặc định 70/30
+  trongSo: TrongSoHaiMuc = {
+    bscWork: TONG_TRONG_SO[KpiSection.BSC_WORK],
+    compliance: TONG_TRONG_SO[KpiSection.COMPLIANCE],
+  },
+): LoiTrongSo[] {
   const loi: LoiTrongSo[] = [];
 
   if (items.length === 0) {
@@ -65,7 +73,7 @@ export function kiemTraTrongSoPhieu(items: readonly DongDeKiem[]): LoiTrongSo[] 
   // --- Từng mục phải đúng tổng của nó ---
   for (const section of [KpiSection.BSC_WORK, KpiSection.COMPLIANCE]) {
     const cuaMuc = cap1.filter((i) => i.section === section);
-    const canCo = D(TONG_TRONG_SO[section]);
+    const canCo = D(section === KpiSection.BSC_WORK ? trongSo.bscWork : trongSo.compliance);
     const thucTe = tong(cuaMuc.map((i) => i.weight));
 
     if (cuaMuc.length === 0) {

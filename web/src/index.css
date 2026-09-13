@@ -1246,6 +1246,20 @@
   font-size: 18px;
   font-weight: 700;
 }
+.trong-so-hai-muc {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e5e7eb;
+  margin: 2px 0 10px;
+}
+.trong-so-hai-muc span:first-child {
+  background: var(--mau-chu-dao);
+}
+.trong-so-hai-muc span:last-child {
+  background: #3fa3c9;
+}
 .bang-xep-loai {
   width: 100%;
   border-collapse: collapse;

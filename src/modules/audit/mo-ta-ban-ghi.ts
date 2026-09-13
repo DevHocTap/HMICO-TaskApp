@@ -39,6 +39,7 @@ export const NHAN_DOI_TUONG: Record<string, string> = {
 };
 
 const NHAN_NHOM_CAI_DAT: Record<string, string> = {
+  trongSo: 'trọng số hai mục',
   lichKy: 'lịch kỳ đánh giá',
   nguongXepLoai: 'ngưỡng xếp loại',
   baoMat: 'bảo mật & tài khoản',
