@@ -6,6 +6,7 @@ import {
   Layout,
   Menu,
   Popover,
+  Select,
   Tag,
   Typography,
 } from 'antd';
@@ -34,10 +35,11 @@ import {
   chuVietTat,
   giaiDoanCuaKy,
   kyChuaHomNay,
-  ngayTrongThang,
 } from '../utils/period';
 import { mauChuDao } from '../config/theme';
 import { NHOM_TAB, loiVaoNhom } from './ThanhTab';
+import { ngayVN } from '../utils/format';
+import { KyDangXemProvider, useKyDangXem } from '../contexts/KyDangXem';
 
 /**
  * Dòng phụ dưới tên người dùng: chức danh · phòng ban.
@@ -93,7 +95,16 @@ const TEN_TRANG: [string, string][] = [
 ];
 
 /** Khung chung cho mọi trang sau khi đăng nhập: thanh trên + menu trái. */
+/** Bọc provider "kỳ đang xem" ngoài khung, vì chính header của khung cũng đọc nó. */
 export function AdminLayout() {
+  return (
+    <KyDangXemProvider>
+      <KhungAdmin />
+    </KyDangXemProvider>
+  );
+}
+
+function KhungAdmin() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -111,12 +122,14 @@ export function AdminLayout() {
   });
   const kyHienTai = kyChuaHomNay(kyDanhGia);
   const giaiDoan = kyHienTai ? giaiDoanCuaKy(kyHienTai) : null;
-  // Chip "Thẩm định N%" cho vai quản lý — cùng queryKey với Tổng quan nên
-  // không gọi thêm lần nào khi đang ở trang chủ.
+  // Vai quản lý: ô chọn "Kỳ:" + chip "Tiến độ thẩm định N%" theo kỳ đang xem
+  // (mẫu 13/09). Cùng queryKey với Tổng quan nên không gọi thêm lần nào.
+  const xemBaoCao = coTheXemBaoCao(user?.role);
+  const { cacKy, ky: kyDangXem, datKyId } = useKyDangXem();
   const { data: soLieu } = useQuery({
-    queryKey: ['reports', 'dashboard', kyHienTai?.id],
-    queryFn: () => laySoLieuDashboard(kyHienTai!.id),
-    enabled: Boolean(kyHienTai) && coTheXemBaoCao(user?.role),
+    queryKey: ['reports', 'dashboard', kyDangXem?.id],
+    queryFn: () => laySoLieuDashboard(kyDangXem!.id),
+    enabled: Boolean(kyDangXem) && xemBaoCao,
     staleTime: 60 * 1000,
   });
   const tienDoThamDinh =
@@ -252,18 +265,28 @@ export function AdminLayout() {
           {/* Ba mốc của kỳ tháng chứa hôm nay — mọi vai đều đọc được /periods */}
           {kyHienTai && giaiDoan && (
             <div className="sidebar-ky">
-              <span className="eyebrow">Chu kỳ đang chạy</span>
+              <div className="sidebar-ky-dau">
+                <span className="sidebar-ky-nhan">
+                  <i className="sidebar-ky-cham" />
+                  Chu kỳ hiện tại
+                </span>
+                <span className="sidebar-ky-active">
+                  {kyHienTai.isLocked ? 'ĐÃ KHOÁ' : 'ACTIVE'}
+                </span>
+              </div>
               <strong>{kyHienTai.name}</strong>
-              <span>
-                {giaiDoan.so === 4
-                  ? giaiDoan.ten
-                  : `GĐ ${giaiDoan.so} · ${giaiDoan.ten}${giaiDoan.conNgay !== null ? ` · còn ${giaiDoan.conNgay} ngày` : ''}`}
-              </span>
-              <small>
-                Mốc {ngayTrongThang(kyHienTai.selfScoreDeadline)} ·{' '}
-                {ngayTrongThang(kyHienTai.managerScoreDeadline)} ·{' '}
-                {ngayTrongThang(kyHienTai.submitDeadline)} hằng tháng
-              </small>
+              <div className="sidebar-ky-hang">
+                <span>Hạn chốt:</span>
+                <b>{ngayVN(kyHienTai.submitDeadline)}</b>
+              </div>
+              <div className="sidebar-ky-hang">
+                <span>
+                  {giaiDoan.so === 4 ? giaiDoan.ten : `GĐ ${giaiDoan.so} · ${giaiDoan.ten}`}
+                </span>
+                {giaiDoan.conNgay !== null && giaiDoan.so !== 4 && (
+                  <b>còn {giaiDoan.conNgay} ngày</b>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -281,7 +304,21 @@ export function AdminLayout() {
                 </>
               )}
             </span>
-            {kyHienTai && giaiDoan && (
+            {xemBaoCao && kyDangXem && (
+              <span className="chip-ky-chon">
+                <CalendarOutlined />
+                <span className="chip-ky-chon-nhan">Kỳ:</span>
+                <Select
+                  size="small"
+                  variant="borderless"
+                  value={kyDangXem.id}
+                  onChange={datKyId}
+                  popupMatchSelectWidth={false}
+                  options={cacKy.map((k) => ({ value: k.id, label: k.name }))}
+                />
+              </span>
+            )}
+            {!xemBaoCao && kyHienTai && giaiDoan && (
               <Link to="/kpi/periods" className="chip-ky">
                 <CalendarOutlined />
                 <span>Kỳ {kyHienTai.name.toLowerCase()}</span>
@@ -294,7 +331,7 @@ export function AdminLayout() {
               </Link>
             )}
             {tienDoThamDinh !== null && (
-              <Link to="/kpi/dashboard" className="chip-ky chip-tham-dinh">
+              <Link to="/kpi/dashboard" className="chip-tham-dinh">
                 <span className="chip-tham-dinh-cham" />
                 Tiến độ thẩm định: <strong>{tienDoThamDinh}%</strong>
               </Link>

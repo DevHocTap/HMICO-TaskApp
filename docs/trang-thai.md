@@ -461,21 +461,24 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   `verify-kpi-template.sh` **71** — gồm sinh phiếu thật và đối chiếu
   `systemTemplateId` bằng SQL. Ghi ở quy-tac mục 2 và 7.
 
-- **Tổng quan vai quản lý theo mẫu bảng điều hành 13/09** (`BangDieuHanhKy`
-  dựng lại): đầu trang "Bảng điều hành KPI: Phòng X" + ba nút (N nhân sự ·
-  Chấm điểm/Tiếp nhận (N chờ) · Giao KPI tháng mới), bốn thẻ (tỷ lệ hoàn
-  thành có **vòng tiến độ**, điểm TB kèm tag Đạt/Dưới chỉ tiêu, tiến độ chốt,
-  cần chú ý), **quy trình 3 giai đoạn** dạng thẻ (số / tổng, %, "Còn N ngày ·
-  Hạn"), hai cột: trái = **xu hướng 6 tháng có vạch chỉ tiêu** (ngưỡng
-  `canCaiThien` trong Cài đặt) + **xếp loại vành khuyên** (`bieu-do/VongTron`)
-  + **hiệu suất theo chức danh** (trưởng phòng; backend
-  `diemTrungBinhTheoChucDanh`) hoặc theo phòng (HCNS/BGĐ); phải = **mốc tiến
-  độ tháng** dòng thời gian (`MocTienDoThang`) + **quy tắc & thang điểm** từ
-  Cài đặt (`TheQuyTac`). Cuối trang: "Việc của tôi" hoặc dải "Hàng đợi
-  trống"; thẻ phiếu gấp ẩn khi rỗng. Header thêm chip "Tiến độ thẩm định N%".
-  Thay thế của mẫu: "Khoá sổ tự động" → hạn chốt sổ (không tự khoá); "Tải quy
-  chế" → số thật từ Cài đặt + link mẫu KPI; "Nhắc nộp KPI" → không có (không
-  có kênh thông báo). Nhân viên giữ trang chủ riêng.
+- **Tổng quan vai quản lý — dựng lại theo MÃ HTML mẫu (13/09):** trang riêng
+  `pages/TongQuanQuanLy.tsx` + `tong-quan.css` dịch một-đối-một từ Tailwind
+  của mẫu (số đo, màu slate/blue/emerald/amber/rose), KHÔNG dùng lại
+  `TheSoLieu` / stepper / `TheBaoCao` cũ. Gồm: thanh tiêu đề trong thẻ trắng +
+  3 nút (N nhân sự · Chấm điểm/Tiếp nhận (N chờ) · Giao KPI tháng mới), 4 thẻ
+  (vòng tròn SVG, huy hiệu xếp loại, thanh tiến độ, ô icon), pipeline 3 giai
+  đoạn (thẻ đang chạy nền xanh), lưới 8/4: xu hướng có vùng tô + vạch mục tiêu
+  nét đứt (`bieu-do/DuongVung.tsx`, nhãn tháng kèm số dưới biểu đồ), donut xếp
+  loại + chú giải 2×2, hiệu suất nhóm (trưởng phòng: theo chức danh — backend
+  `diemTrungBinhTheoChucDanh`; HCNS/BGĐ: theo phòng), dải hàng đợi; cột phải:
+  mốc tiến độ tháng (timeline chấm màu) + quy chế & biểu mẫu (thang xếp loại
+  từ Cài đặt, minh chứng bắt buộc, nút tối "Tải bảng tổng hợp (.xlsx)").
+  **Header** đổi sang ô chọn "Kỳ:" (`contexts/KyDangXem.tsx`, dùng chung với
+  Tổng quan) + chip "Tiến độ thẩm định N%"; **sidebar** thẻ "Chu kỳ hiện tại ·
+  ACTIVE · Hạn chốt". Thay thế của mẫu: "Khoá sổ tự động 18:00" → "Hạn chốt
+  sổ"; "Tải Quy chế HMICO 2026" → tải Excel tổng hợp kỳ (không có file quy
+  chế); "Nhắc nộp KPI" → "Tiến độ nộp" (không có kênh thông báo); "Lịch sử T8"
+  → đổi kỳ đang xem sang tháng trước. Nhân viên giữ trang chủ riêng.
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.

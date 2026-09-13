@@ -18,8 +18,7 @@ import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { layKyDanhGia, layViecCuaToi } from '../api/scorecard';
 import { layTomTatTrangChu } from '../api/report';
-import { BangDieuHanhKy } from '../components/BangDieuHanhKy';
-import { PhieuCanXuLyGap } from '../components/PhieuCanXuLyGap';
+import { TongQuanQuanLy } from './TongQuanQuanLy';
 import { PhieuKyNayCuaToi } from '../components/PhieuKyNayCuaToi';
 import type { TomTatTrangChu } from '../types/report';
 import { NHAN_XEP_LOAI } from '../types/scorecard';
@@ -412,118 +411,52 @@ export function HomePage() {
     ? loiDanTheoVai(user.role, ky, kySau, user.departmentName)
     : null;
 
-  // Số nhân sự cho nút đầu trang (theo vai, từ home-summary)
-  const soNhanSu =
-    tomTat?.role === 'MANAGER' || tomTat?.role === 'HR'
-      ? tomTat.soNhanSu
-      : tomTat?.role === 'ADMIN'
-        ? tomTat.taiKhoanHoatDong
-        : undefined;
-  const tenPhamVi =
-    user?.role === 'MANAGER' && user.departmentName
-      ? user.departmentName
-      : 'Toàn công ty';
+  // Vai quản lý: bảng điều hành theo mẫu 13/09 (trang riêng, kỳ chọn ở header)
+  if (xemBaoCao) return <TongQuanQuanLy />;
 
-  /** "Việc của tôi": danh sách khi có việc; vai quản lý mà trống thì thành dải "hàng đợi trống". */
-  const khoiViec = (viec.length > 0 || isLoading || xemBaoCao) && (
-    xemBaoCao && !isLoading && viec.length === 0 ? (
-      <div className="hang-doi-trong">
-        <span className="hang-doi-trong-icon">
-          <CheckCircleOutlined />
-        </span>
-        <span className="ten-va-phu" style={{ flex: 1 }}>
-          <Typography.Text strong>Hàng đợi trống · Không có việc nào đang chờ bạn</Typography.Text>
-          <small>Không có email nhắc, không chuông — mở trang này là thấy đủ việc.</small>
-        </span>
-        <Link to="/kpi/dashboard">
-          <Button shape="round">Báo cáo kỳ</Button>
-        </Link>
-        <Link to="/kpi/progress">
-          <Button shape="round">Tiến độ nộp</Button>
-        </Link>
-      </div>
-    ) : (
-      <Card
-        loading={isLoading}
-        title={
-          <span className="viec-tieu-de">
-            Việc của tôi
-            <Typography.Text
-              type="secondary"
-              style={{ fontSize: 14, fontWeight: 400 }}
-            >
-              {viec.length > 0
-                ? `${viec.length} việc đang chờ`
-                : 'không có việc nào'}
-            </Typography.Text>
-          </span>
-        }
-        extra={
-          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            Không có email nhắc, không chuông — mở trang này là thấy đủ việc
+  const khoiViec = (viec.length > 0 || isLoading) && (
+    <Card
+      loading={isLoading}
+      title={
+        <span className="viec-tieu-de">
+          Việc của tôi
+          <Typography.Text type="secondary" style={{ fontSize: 14, fontWeight: 400 }}>
+            {viec.length > 0 ? `${viec.length} việc đang chờ` : 'không có việc nào'}
           </Typography.Text>
-        }
-      >
-        {viec.length === 0 ? (
-          <Empty
-            image={
-              <CheckCircleOutlined
-                style={{ fontSize: 40, color: '#52c41a' }}
-              />
-            }
-            styles={{ image: { height: 48 } }}
-            description="Không có việc nào đang chờ bạn"
-          />
-        ) : (
-          <div className="viec-danh-sach">
-            {viec.map((v) => (
-              <div
-                key={v.type}
-                className={
-                  v.isOverdue ? 'viec-dong viec-dong-qua-han' : 'viec-dong'
-                }
-              >
-                <span className="viec-icon">
-                  {ICON_VIEC[v.type] ?? <FileDoneOutlined />}
-                </span>
-                <Typography.Text strong style={{ fontSize: 16, flex: 1 }}>
-                  {v.message}
-                </Typography.Text>
-                {nhanHan(v)}
-                <Link to={v.link}>
-                  <Button
-                    shape="round"
-                    icon={<ArrowRightOutlined />}
-                    iconPosition="end"
-                  >
-                    Xử lý
-                  </Button>
-                </Link>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    )
-  );
-
-  // Vai quản lý: bảng điều hành theo mẫu 13/09 (đầu trang riêng, không chào tên);
-  // hàng đợi việc và phiếu cần xử lý gấp nằm cuối trang.
-  if (xemBaoCao && ky) {
-    return (
-      <div className="trang-chu">
-        <BangDieuHanhKy
-          ky={ky}
-          kySau={kySau}
-          role={user!.role}
-          tenPhamVi={tenPhamVi}
-          soNhanSu={soNhanSu}
+        </span>
+      }
+      extra={
+        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+          Không có email nhắc, không chuông — mở trang này là thấy đủ việc
+        </Typography.Text>
+      }
+    >
+      {viec.length === 0 ? (
+        <Empty
+          image={<CheckCircleOutlined style={{ fontSize: 40, color: '#52c41a' }} />}
+          styles={{ image: { height: 48 } }}
+          description="Không có việc nào đang chờ bạn"
         />
-        {khoiViec}
-        <PhieuCanXuLyGap ky={ky} />
-      </div>
-    );
-  }
+      ) : (
+        <div className="viec-danh-sach">
+          {viec.map((v) => (
+            <div key={v.type} className={v.isOverdue ? 'viec-dong viec-dong-qua-han' : 'viec-dong'}>
+              <span className="viec-icon">{ICON_VIEC[v.type] ?? <FileDoneOutlined />}</span>
+              <Typography.Text strong style={{ fontSize: 16, flex: 1 }}>
+                {v.message}
+              </Typography.Text>
+              {nhanHan(v)}
+              <Link to={v.link}>
+                <Button shape="round" icon={<ArrowRightOutlined />} iconPosition="end">
+                  Xử lý
+                </Button>
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
 
   return (
     <div className="trang-chu">
