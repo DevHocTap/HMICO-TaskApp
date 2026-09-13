@@ -335,9 +335,10 @@ tự động rồi mới vỡ.
       không phải lỗi code (đối chứng 12/09: HEAD trước/sau đều 7 FAIL). Muốn
       xanh lại: `npx prisma db seed` rồi chạy. Các script `kiem-chung-*` mới
       hơn đã so với SQL thay vì gõ cứng, nên không mắc chuyện này.
-- [ ] Mẫu bị "Vô hiệu hoá" thì **không có endpoint kích hoạt lại** — chỉ
-      sửa thẳng database (`UPDATE "KpiTemplate" SET "isActive"=true`). Bấm
-      nhầm trên máy thật là kẹt; cần thêm `POST :id/activate` trước tháng 11.
+- [x] ~~Mẫu bị "Vô hiệu hoá" thì không có endpoint kích hoạt lại~~ — **đã
+      thêm 13/09:** `POST /kpi-templates/:id/activate` (mẫu về DRAFT để kiểm
+      lại), `GET /kpi-templates?includeInactive=true`; màn Mẫu KPI có công
+      tắc "Cả mẫu đã ngừng" và nút "Kích hoạt lại". `verify-kpi-template.sh` 51.
 
 ## Lát cắt 5 — chấm điểm
 

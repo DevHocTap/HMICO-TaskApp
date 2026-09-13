@@ -1444,3 +1444,9 @@
 .dong-can-chu-y > td {
   background: #fff7f7 !important;
 }
+
+.mau-kpi-the-ngung {
+  opacity: 0.75;
+  background: #f8fafc;
+  border-style: dashed;
+}

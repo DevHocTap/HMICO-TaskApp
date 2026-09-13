@@ -70,7 +70,7 @@ export class KpiTemplateService {
   ): Promise<TemplateResponse[]> {
     const rows = await this.prisma.kpiTemplate.findMany({
       where: {
-        isActive: true,
+        ...(query.includeInactive ? {} : { isActive: true }),
         jobTitleId: query.jobTitleId,
         status: query.status,
       },
@@ -437,6 +437,42 @@ export class KpiTemplateService {
       entityType: 'KpiTemplate',
       entityId: id,
       action: 'DEACTIVATE',
+      before: this.toAuditSnapshot(before),
+      after: this.toAuditSnapshot(updated),
+      ipAddress,
+    });
+
+    return this.toResponse(updated);
+  }
+
+  /**
+   * Kích hoạt lại mẫu đã ngừng. Mẫu về DRAFT để người soạn kiểm lại nội dung
+   * trước khi xuất bản — trong lúc ngừng, chức danh có thể đã đổi mẫu khác.
+   */
+  async activate(
+    id: string,
+    actor: AuthenticatedUser,
+    ipAddress?: string,
+  ): Promise<TemplateResponse> {
+    const before = await this.mustFind(id);
+    await this.assertCoTheGhi(before, actor);
+    this.assertKhongPhaiMauHeThong(before);
+
+    if (before.isActive) {
+      throw new BadRequestException('Mẫu này đang sử dụng');
+    }
+
+    const updated = await this.prisma.kpiTemplate.update({
+      where: { id },
+      data: { isActive: true, status: TemplateStatus.DRAFT },
+      include: INCLUDE_EXTRAS,
+    });
+
+    await this.audit.log({
+      actorId: actor.id,
+      entityType: 'KpiTemplate',
+      entityId: id,
+      action: 'ACTIVATE',
       before: this.toAuditSnapshot(before),
       after: this.toAuditSnapshot(updated),
       ipAddress,

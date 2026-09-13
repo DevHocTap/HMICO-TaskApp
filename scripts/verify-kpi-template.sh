@@ -338,6 +338,25 @@ SO_DB=$(sql "SELECT count(*) FROM \"KpiTemplateItem\" WHERE \"templateId\"='$ID_
 SO_API=$(echo "$DS" | json "next((t['subCriteriaCount'] for t in d if t['code']=='TPL-KT-SD'), -1)")
 [ "$SO_API" = "$SO_DB" ] && pass "subCriteriaCount khớp DB: $SO_API" || fail "API $SO_API, DB $SO_DB"
 
+# ===================================================== KÍCH HOẠT LẠI
+buoc "KÍCH HOẠT LẠI MẪU ĐÃ NGỪNG"
+ID_KH=$(tao_mau ZTEST-KH "Thử kích hoạt lại")
+MA=$(ma -X DELETE -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_KH")
+[ "$MA" = "200" ] && pass "vô hiệu hoá mẫu thử -> 200" || fail "vô hiệu hoá -> $MA"
+SO=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates" | json "sum(1 for t in d if t['id']=='$ID_KH')")
+[ "$SO" = "0" ] && pass "danh sách mặc định KHÔNG còn mẫu đã ngừng" || fail "vẫn thấy mẫu đã ngừng"
+SO=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates?includeInactive=true" | json "sum(1 for t in d if t['id']=='$ID_KH' and not t['isActive'])")
+[ "$SO" = "1" ] && pass "includeInactive=true thấy mẫu đã ngừng, isActive=false" || fail "includeInactive không thấy"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_HR" "$API/kpi-templates/$ID_KH/activate")
+[ "$MA" = "403" ] && pass "HR kích hoạt lại -> 403" || fail "HR activate -> $MA"
+KQ=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_KH/activate")
+echo "$KQ" | json "d['isActive'] and d['status']" | grep -q "DRAFT" \
+  && pass "ADMIN kích hoạt lại -> isActive=true, về DRAFT để kiểm lại nội dung" || fail "activate: $KQ"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_KH/activate")
+[ "$MA" = "400" ] && pass "kích hoạt mẫu đang dùng -> 400" || fail "activate lần hai -> $MA"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_SYS/activate")
+[ "$MA" = "403" ] || [ "$MA" = "400" ] && pass "mẫu hệ thống không qua activate (HTTP $MA)" || fail "activate mẫu hệ thống -> $MA"
+
 echo
 printf '%.0s=' {1..60}; echo
 if [ "$SO_FAIL" -eq 0 ]; then

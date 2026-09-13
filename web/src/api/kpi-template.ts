@@ -37,6 +37,8 @@ function sangPayload(items: EditorItem[]): ItemPayload[] {
 export async function layDanhSachMau(params?: {
   jobTitleId?: string;
   status?: TemplateStatus;
+  /** Kèm mẫu đã ngừng sử dụng — để kích hoạt lại. */
+  includeInactive?: boolean;
 }): Promise<KpiTemplate[]> {
   const { data } = await apiClient.get<KpiTemplate[]>('/kpi-templates', { params });
   return data;
@@ -107,4 +109,10 @@ export async function xuatBanMau(id: string): Promise<KpiTemplate> {
 
 export async function voHieuHoaMau(id: string): Promise<void> {
   await apiClient.delete(`/kpi-templates/${id}`);
+}
+
+/** Kích hoạt lại mẫu đã ngừng; mẫu về DRAFT để kiểm lại trước khi xuất bản. */
+export async function kichHoatLaiMau(id: string): Promise<KpiTemplate> {
+  const { data } = await apiClient.post<KpiTemplate>(`/kpi-templates/${id}/activate`);
+  return data;
 }

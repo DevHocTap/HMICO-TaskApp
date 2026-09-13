@@ -1,8 +1,10 @@
+import { BoolQuery } from '../../../common/transforms/bool-query.js';
 import { KpiSection, ScoringMode, TemplateStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNumber,
@@ -90,6 +92,12 @@ export class ListTemplatesQuery {
   @IsOptional()
   @IsEnum(TemplateStatus, { message: 'Trạng thái không hợp lệ' })
   status?: TemplateStatus;
+
+  /** Kèm cả mẫu đã ngừng sử dụng — để kích hoạt lại khi bấm nhầm (13/09). */
+  @IsOptional()
+  @BoolQuery()
+  @IsBoolean()
+  includeInactive?: boolean;
 }
 
 /**

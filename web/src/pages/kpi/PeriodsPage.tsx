@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { ThanhTab } from '../../components/ThanhTab';
 import {
   Alert,
@@ -193,23 +194,23 @@ export function PeriodsPage() {
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <ThanhTab nhom="he-thong" />
-      <Space
-        align="center"
-        style={{ justifyContent: 'space-between', width: '100%' }}
-      >
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Kỳ đánh giá
-        </Typography.Title>
-        {taoDuoc && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setMoTao(true)}
-          >
-            Tạo kỳ thủ công
-          </Button>
-        )}
-      </Space>
+      <TieuDeTrang
+        tieuDe="Kỳ đánh giá"
+        moTa="Kỳ tháng tự sinh kèm bốn mốc; chỉ kỳ tháng chốt sổ được. Kỳ quá khứ cần thì tạo tay."
+        phai={
+          taoDuoc && (
+            <Button
+              type="primary"
+              shape="round"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={() => setMoTao(true)}
+            >
+              Tạo kỳ thủ công
+            </Button>
+          )
+        }
+      />
 
       <Alert
         type="info"

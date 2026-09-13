@@ -149,6 +149,18 @@ export class KpiTemplateController {
     return this.service.deactivate(id, user, req.ip);
   }
 
+  /** Kích hoạt lại mẫu đã ngừng — đường thoát khi bấm nhầm "Vô hiệu hoá". */
+  @Roles(...VAI_TRO_GHI)
+  @HttpCode(HttpStatus.OK)
+  @Post(':id/activate')
+  activate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestInfo,
+  ) {
+    return this.service.activate(id, user, req.ip);
+  }
+
   /**
    * Endpoint RIÊNG để sửa mẫu hệ thống. Chỉ ADMIN.
    *

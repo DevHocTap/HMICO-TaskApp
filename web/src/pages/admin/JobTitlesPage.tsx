@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { ThanhTab } from '../../components/ThanhTab';
 import {
   Alert,
@@ -125,28 +126,37 @@ export function JobTitlesPage() {
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <ThanhTab nhom="nhan-su" />
-      <Space style={{ justifyContent: 'space-between', width: '100%' }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Chức danh
-        </Typography.Title>
-        <Space wrap>
-          <Select
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            style={{ minWidth: 240 }}
-            placeholder="Lọc theo phòng ban"
-            value={locPhongBan}
-            onChange={setLocPhongBan}
-            options={luaChonPhongBan}
-          />
-          {coQuyenGhi && (
-            <Button icon={<PlusOutlined />} type="primary" onClick={moThemMoi}>
-              Thêm chức danh
-            </Button>
-          )}
-        </Space>
-      </Space>
+      <TieuDeTrang
+        tieuDe="Chức danh"
+        moTa="Chức danh gắn phòng ban để trưởng bộ phận soạn mẫu KPI; chức danh dùng chung do quản trị viên quản lý."
+        phai={
+          <>
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              className="chon-tron"
+              size="large"
+              style={{ minWidth: 240 }}
+              placeholder="Lọc theo phòng ban"
+              value={locPhongBan}
+              onChange={setLocPhongBan}
+              options={luaChonPhongBan}
+            />
+            {coQuyenGhi && (
+              <Button
+                icon={<PlusOutlined />}
+                type="primary"
+                shape="round"
+                size="large"
+                onClick={moThemMoi}
+              >
+                Thêm chức danh
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {!coQuyenGhi && <ReadOnlyNotice role={nguoiDangDangNhap?.role} />}
 

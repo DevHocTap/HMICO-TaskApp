@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { ThanhTab } from '../../components/ThanhTab';
 import {
   Alert,
@@ -226,39 +227,46 @@ export function DepartmentsPage() {
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <ThanhTab nhom="nhan-su" />
-      <Space style={{ justifyContent: 'space-between', width: '100%' }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Cây phòng ban
-        </Typography.Title>
-        {coQuyenGhi && (
-          <Space>
-            <Button
-              icon={<PlusOutlined />}
-              onClick={() => moThemMoi(dangChon)}
-              type="primary"
-            >
-              {dangChon
-                ? `Thêm phòng con của "${dangChon.name}"`
-                : 'Thêm phòng ban'}
-            </Button>
-            <Button
-              icon={<EditOutlined />}
-              disabled={!dangChon}
-              onClick={() => dangChon && moSua(dangChon)}
-            >
-              Sửa
-            </Button>
-            <Button
-              icon={<DeleteOutlined />}
-              danger
-              disabled={!dangChon}
-              onClick={() => dangChon && xacNhanVoHieuHoa(dangChon)}
-            >
-              Vô hiệu hoá
-            </Button>
-          </Space>
-        )}
-      </Space>
+      <TieuDeTrang
+        tieuDe="Cây phòng ban"
+        moTa="Bấm một phòng để sửa hoặc thêm phòng con. Phòng có nhân sự mà thiếu trưởng bộ phận thì không sinh được phiếu KPI."
+        phai={
+          coQuyenGhi && (
+            <>
+              <Button
+                shape="round"
+                size="large"
+                icon={<PlusOutlined />}
+                onClick={() => moThemMoi(dangChon)}
+                type="primary"
+              >
+                {dangChon
+                  ? `Thêm phòng con của "${dangChon.name}"`
+                  : 'Thêm phòng ban'}
+              </Button>
+              <Button
+                shape="round"
+                size="large"
+                icon={<EditOutlined />}
+                disabled={!dangChon}
+                onClick={() => dangChon && moSua(dangChon)}
+              >
+                Sửa
+              </Button>
+              <Button
+                shape="round"
+                size="large"
+                icon={<DeleteOutlined />}
+                danger
+                disabled={!dangChon}
+                onClick={() => dangChon && xacNhanVoHieuHoa(dangChon)}
+              >
+                Vô hiệu hoá
+              </Button>
+            </>
+          )
+        }
+      />
 
       {!coQuyenGhi && <ReadOnlyNotice role={nguoiDangDangNhap?.role} />}
 

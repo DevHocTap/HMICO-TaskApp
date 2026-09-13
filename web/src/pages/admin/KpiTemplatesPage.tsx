@@ -10,6 +10,7 @@ import {
   Modal,
   Select,
   Spin,
+  Switch,
   Tag,
   Typography,
 } from 'antd';
@@ -23,6 +24,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   layDanhSachMau,
+  kichHoatLaiMau,
   layMau,
   saoChepMau,
   taoMau,
@@ -63,6 +65,7 @@ export function KpiTemplatesPage() {
     TemplateStatus | undefined
   >();
   const [modalMo, setModalMo] = useState(false);
+  const [hienDaNgung, setHienDaNgung] = useState(false);
   /** Null = tạo mới; có giá trị = đang sao chép từ mẫu đó. */
   const [dangSaoChep, setDangSaoChep] = useState<KpiTemplate | null>(null);
   const [loiForm, setLoiForm] = useState<string | null>(null);
@@ -75,9 +78,14 @@ export function KpiTemplatesPage() {
       'kpi-templates',
       locChucDanh ?? 'tat-ca',
       locTrangThai ?? 'tat-ca',
+      hienDaNgung,
     ],
     queryFn: () =>
-      layDanhSachMau({ jobTitleId: locChucDanh, status: locTrangThai }),
+      layDanhSachMau({
+        jobTitleId: locChucDanh,
+        status: locTrangThai,
+        includeInactive: hienDaNgung || undefined,
+      }),
   });
 
   const { data: chucDanh = [] } = useQuery({
@@ -99,6 +107,17 @@ export function KpiTemplatesPage() {
       navigate(`/admin/kpi-templates/${mau.id}/edit`);
     },
     onError: (e) => setLoiForm(layThongBaoLoi(e)),
+  });
+
+  const kichHoatLai = useMutation({
+    mutationFn: kichHoatLaiMau,
+    onSuccess: () => {
+      message.success(
+        'Đã kích hoạt lại mẫu — mẫu về bản nháp, kiểm lại rồi xuất bản',
+      );
+      lamMoi();
+    },
+    onError: (e) => message.error(layThongBaoLoi(e)),
   });
 
   const voHieuHoa = useMutation({
@@ -185,6 +204,14 @@ export function KpiTemplatesPage() {
               ]}
             />
             {coQuyenGhi && (
+              <Switch
+                checked={hienDaNgung}
+                onChange={setHienDaNgung}
+                checkedChildren="Cả mẫu đã ngừng"
+                unCheckedChildren="Ẩn mẫu đã ngừng"
+              />
+            )}
+            {coQuyenGhi && (
               <Button
                 icon={<PlusOutlined />}
                 type="primary"
@@ -220,10 +247,17 @@ export function KpiTemplatesPage() {
             const nhanSua =
               mau.isSystem && user?.role !== 'ADMIN' ? 'Xem' : 'Sửa';
             return (
-              <div key={mau.id} className="mau-kpi-the">
+              <div
+                key={mau.id}
+                className={`mau-kpi-the${mau.isActive ? '' : ' mau-kpi-the-ngung'}`}
+              >
                 <div className="mau-kpi-dau">
                   <span className="eyebrow">{mau.code}</span>
-                  {mau.status === 'PUBLISHED' ? (
+                  {!mau.isActive ? (
+                    <Tag color="error" className="tag-tron">
+                      Đã ngừng sử dụng
+                    </Tag>
+                  ) : mau.status === 'PUBLISHED' ? (
                     <Tag color="success" className="tag-tron">
                       Đã xuất bản
                     </Tag>
@@ -279,7 +313,20 @@ export function KpiTemplatesPage() {
                     >
                       {nhanSua}
                     </Button>
-                    {coQuyenGhi && (
+                    {coQuyenGhi && !mau.isActive && (
+                      <Button
+                        type="primary"
+                        shape="round"
+                        loading={
+                          kichHoatLai.isPending &&
+                          kichHoatLai.variables === mau.id
+                        }
+                        onClick={() => kichHoatLai.mutate(mau.id)}
+                      >
+                        Kích hoạt lại
+                      </Button>
+                    )}
+                    {coQuyenGhi && mau.isActive && (
                       <Dropdown
                         trigger={['click']}
                         menu={{

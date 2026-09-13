@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { ThanhTab } from '../../components/ThanhTab';
 import {
   Alert,
@@ -167,32 +168,33 @@ export function SubmissionProgressPage() {
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <ThanhTab nhom="bao-cao" />
-      <Space
-        align="center"
-        wrap
-        style={{ justifyContent: 'space-between', width: '100%' }}
-      >
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Tiến độ nộp KPI
-        </Typography.Title>
-        <Space>
-          <Select
-            style={{ minWidth: 200 }}
-            placeholder="Chọn kỳ"
-            value={kyDangXem}
-            onChange={setPeriodId}
-            options={cacKy.map((k) => ({ value: k.id, label: k.name }))}
-          />
-          <Button
-            icon={<DownloadOutlined />}
-            loading={xuatExcel.isPending}
-            disabled={!kyDangXem}
-            onClick={() => xuatExcel.mutate()}
-          >
-            Xuất Excel
-          </Button>
-        </Space>
-      </Space>
+      <TieuDeTrang
+        tieuDe="Tiến độ nộp KPI"
+        moTa="Mỗi phòng một dòng, bảy cột theo bước của phiếu; số của phòng cha đã cộng dồn từ phòng con."
+        phai={
+          <>
+            <Select
+              className="chon-tron"
+              size="large"
+              style={{ minWidth: 200 }}
+              placeholder="Chọn kỳ"
+              value={kyDangXem}
+              onChange={setPeriodId}
+              options={cacKy.map((k) => ({ value: k.id, label: k.name }))}
+            />
+            <Button
+              shape="round"
+              size="large"
+              icon={<DownloadOutlined />}
+              loading={xuatExcel.isPending}
+              disabled={!kyDangXem}
+              onClick={() => xuatExcel.mutate()}
+            >
+              Xuất Excel
+            </Button>
+          </>
+        }
+      />
 
       {isError && (
         <Alert

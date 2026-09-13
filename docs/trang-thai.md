@@ -4,7 +4,7 @@
 > Đây là trí nhớ của Claude Code giữa các phiên — để lạc hậu là nó sẽ
 > làm lại thứ đã có hoặc bỏ sót thứ đang dở.
 
-Cập nhật lần cuối: 11/09/2026
+Cập nhật lần cuối: 13/09/2026
 
 **Mốc bàn giao: một phòng Kỹ thuật chạy thật tháng 11/2026.**
 Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 327 test backend + 41 test frontend + 3 e2e; 35 + 63 + 44 + 82 + 159 + 96 + 76 + 37 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 327 test backend + 41 test frontend + 3 e2e; 35 + 63 + 51 + 82 + 159 + 96 + 76 + 37 kiểm tra curl.**
 
 ## Đang làm
 
@@ -435,8 +435,13 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   Thay thế của mẫu: PIP → bị trả lại; đếm ngược tự khoá → hạn chốt sổ (hệ
   thống KHÔNG tự khoá). Script 6 → **76**.
 
-**Chưa theo mẫu:** Phiếu KPI của tôi (bảng), Tiến độ nộp, Kỳ đánh giá,
-Phòng ban, Chức danh, Nhật ký (bố cục cũ, đã hưởng theme).
+- **13/09:** năm màn còn lại (Phiếu của tôi, Tiến độ nộp, Kỳ đánh giá, Phòng
+  ban, Chức danh) đổi sang đầu trang `TieuDeTrang` + nút/bộ chọn bo tròn —
+  toàn bộ màn đã cùng một khung. Thêm `POST /kpi-templates/:id/activate` +
+  `includeInactive` (đóng nợ kích hoạt lại mẫu), `verify-kpi-template.sh` **51**.
+
+**Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
+Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 
 **Việc tiếp: triển khai** (tuần 13+). Chưa có nginx, systemd, CI hay
 `.env.production.example` — xem `no-ky-thuat.md`. Một endpoint cũ vẫn chưa

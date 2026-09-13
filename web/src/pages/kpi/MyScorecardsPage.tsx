@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { CayTieuChi } from '../../components/CayTieuChi';
 import { Link } from 'react-router-dom';
 import {
@@ -144,9 +145,10 @@ export function MyScorecardsPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Typography.Title level={4} style={{ margin: 0 }}>
-        Phiếu KPI của tôi
-      </Typography.Title>
+      <TieuDeTrang
+        tieuDe="Phiếu đánh giá của tôi"
+        moTa="Ký nhận KPI đầu kỳ, tự chấm trước hạn, theo dõi điểm trưởng bộ phận chốt. Chỉ hiện phiếu của chính bạn."
+      />
 
       <Card loading={isLoading}>
         {danhSach.length === 0 && !isLoading ? (
