@@ -2,14 +2,24 @@ import { Alert, Modal, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { layDanhSachMau, layMau } from '../api/kpi-template';
+import { layChucDanh } from '../api/org';
+import { useTrongSo } from '../auth/useTrongSo';
 import { hienSo, tongTrongSo } from '../utils/weight';
-import { MAX_SCALE, type EditorItem, type KpiSection } from '../types/kpi-template';
+import {
+  MAX_SCALE,
+  type EditorItem,
+  type KpiSection,
+  type KpiTemplate,
+} from '../types/kpi-template';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  tenMau: string;
-  chucDanh: string | null;
+  /** Mẫu đang xem — cần biết là mẫu nội quy hay mẫu chức danh, và của phòng nào. */
+  mau: Pick<
+    KpiTemplate,
+    'name' | 'isSystem' | 'departmentId' | 'departmentName' | 'jobTitleId' | 'jobTitleName'
+  >;
   items: EditorItem[];
 }
 
@@ -172,31 +182,45 @@ const lopDong = (r: DongXem) => (r.laCap1 ? 'dong-cap-1' : '');
  * cần nhìn thấy thứ quen thuộc mới tin phần mềm làm đúng. Đây cũng là cách
  * nhanh nhất để phát hiện nhập sai.
  *
- * Mục 2 lấy từ mẫu hệ thống chứ không phải mẫu đang soạn: trên phiếu thật
- * hai mục nằm cạnh nhau, xem trước mà thiếu Mục 2 thì không giống biểu mẫu.
+ * Xem mẫu chức danh: Mục 2 lấy từ mẫu nội quy sẽ ghép vào phiếu thật — mẫu
+ * nội quy RIÊNG của phòng (đã xuất bản) nếu có, không thì mẫu dùng chung —
+ * vì trên phiếu hai mục nằm cạnh nhau, thiếu Mục 2 thì không giống biểu mẫu.
+ * Xem mẫu nội quy: Mục 2 là chính nó, Mục 1 không thuộc mẫu nên không vẽ bảng.
  */
-export function TemplatePreviewModal({
-  open,
-  onClose,
-  tenMau,
-  chucDanh,
-  items,
-}: Props) {
-  const { data: mauHeThong } = useQuery({
-    queryKey: ['kpi-template', 'he-thong'],
+export function TemplatePreviewModal({ open, onClose, mau, items }: Props) {
+  const trongSo = useTrongSo();
+  const tenMau = mau.name;
+  const chucDanh = mau.jobTitleName;
+
+  const { data: nguonMuc2 } = useQuery({
+    queryKey: ['kpi-template', 'noi-quy-cho-xem-truoc', mau.jobTitleId],
     queryFn: async () => {
-      const ds = await layDanhSachMau();
-      const sys = ds.find((t) => t.isSystem);
-      return sys ? layMau(sys.id) : null;
+      const [ds, cacChucDanh] = await Promise.all([layDanhSachMau(), layChucDanh()]);
+      const phongId =
+        cacChucDanh.find((c) => c.id === mau.jobTitleId)?.departmentId ?? null;
+      const cuaPhong = phongId
+        ? ds.find(
+            (t) =>
+              t.isSystem &&
+              t.departmentId === phongId &&
+              t.status === 'PUBLISHED' &&
+              t.isActive,
+          )
+        : undefined;
+      const chon = cuaPhong ?? ds.find((t) => t.isSystem && !t.departmentId);
+      return chon ? { ...(await layMau(chon.id)), departmentName: chon.departmentName } : null;
     },
-    enabled: open,
+    enabled: open && !mau.isSystem,
   });
 
   const dongMuc1 = dungDong(items, 'BSC_WORK');
 
   // Ba tiêu chí Mục 2 đều là tiêu chí lá — chấm trực tiếp, không có KPI con
-  const dongMuc2: DongXem[] = (mauHeThong?.items ?? []).map((it, i) => ({
-    key: it.id,
+  const itemMuc2 = mau.isSystem
+    ? items.filter((i) => i.section === 'COMPLIANCE' && i.parentKey === null)
+    : (nguonMuc2?.items ?? []);
+  const dongMuc2: DongXem[] = itemMuc2.map((it, i) => ({
+    key: 'id' in it ? it.id : it.key,
     stt: String(i + 1),
     tieuChi: it.name,
     chiTieu: it.description ?? '',
@@ -206,6 +230,13 @@ export function TemplatePreviewModal({
     laCap1: true,
     tinhTuCon: false,
   }));
+  const nhanNguonMuc2 = mau.isSystem
+    ? mau.departmentId
+      ? `nội quy riêng của ${mau.departmentName ?? 'phòng'}`
+      : 'nội quy dùng chung cho mọi phòng chưa có mẫu riêng'
+    : nguonMuc2?.departmentName
+      ? `ghép từ mẫu nội quy riêng của ${nguonMuc2.departmentName}`
+      : 'ghép từ mẫu nội quy dùng chung';
 
   const tongMuc1 = tongTrongSo(
     items
@@ -260,31 +291,56 @@ export function TemplatePreviewModal({
                 <b>{dongMuc2.length}</b> tiêu chí ở Mục 2.
               </>
             )}
+            {mau.isSystem && (
+              <>
+                {' '}Mẫu nội quy chỉ có Mục 2; Mục 1 lấy từ mẫu chức danh của
+                từng người khi giao KPI.
+              </>
+            )}
           </>
         }
       />
 
       <Typography.Text strong>
-        MỤC 1. BSC CÔNG VIỆC — Tổng trọng số: 70%{' '}
-        <Typography.Text type={tongMuc1 === 70 ? 'success' : 'warning'}>
-          (đang là {hienSo(tongMuc1)})
-        </Typography.Text>
+        MỤC 1. BSC CÔNG VIỆC — Tổng trọng số: {trongSo.BSC_WORK}%{' '}
+        {mau.isSystem ? (
+          <Typography.Text type="secondary">
+            (theo mẫu chức danh của từng người, không thuộc mẫu này)
+          </Typography.Text>
+        ) : (
+          <Typography.Text
+            type={tongMuc1 === trongSo.BSC_WORK ? 'success' : 'warning'}
+          >
+            (đang là {hienSo(tongMuc1)})
+          </Typography.Text>
+        )}
       </Typography.Text>
-      <Table<DongXem>
-        size="small"
-        bordered
-        tableLayout="fixed"
-        rowClassName={lopDong}
-        columns={cot}
-        dataSource={dongMuc1}
-        pagination={false}
-        style={{ marginTop: 8, marginBottom: 20 }}
-      />
+      {!mau.isSystem && (
+        <Table<DongXem>
+          size="small"
+          bordered
+          tableLayout="fixed"
+          rowClassName={lopDong}
+          columns={cot}
+          dataSource={dongMuc1}
+          pagination={false}
+          style={{ marginTop: 8 }}
+        />
+      )}
 
-      <Typography.Text strong>
-        MỤC 2. CHẤP HÀNH NỘI QUY, QUY ĐỊNH CÔNG TY — Tổng trọng số: 30%{' '}
-        <Typography.Text type="secondary">
-          (áp dụng chung cho mọi chức danh, đang là {hienSo(tongMuc2)})
+      <Typography.Text strong style={{ display: 'block', marginTop: 20 }}>
+        MỤC 2. CHẤP HÀNH NỘI QUY, QUY ĐỊNH CÔNG TY — Tổng trọng số:{' '}
+        {trongSo.COMPLIANCE}%{' '}
+        <Typography.Text
+          type={
+            mau.isSystem
+              ? tongMuc2 === trongSo.COMPLIANCE
+                ? 'success'
+                : 'warning'
+              : 'secondary'
+          }
+        >
+          ({nhanNguonMuc2}, đang là {hienSo(tongMuc2)})
         </Typography.Text>
       </Typography.Text>
       <Table<DongXem>

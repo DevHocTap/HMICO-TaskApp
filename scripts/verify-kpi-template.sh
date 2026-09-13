@@ -45,6 +45,12 @@ don_dep() {
 
 don_mau_thu() {
   docker exec kpi-postgres psql -U kpi_dev -d kpi_db -c "
+    DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\" IN (SELECT id FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%'));
+    DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\" IN (SELECT id FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%'));
+    DELETE FROM \"AuditLog\" WHERE \"entityId\" IN (SELECT id FROM \"Scorecard\" WHERE \"ownerUserId\" IN (SELECT id FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%'));
+    DELETE FROM \"Scorecard\" WHERE \"ownerUserId\" IN (SELECT id FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%');
+    DELETE FROM \"AuditLog\" WHERE \"entityId\" IN (SELECT id FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%');
+    DELETE FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%';
     DELETE FROM \"KpiTemplateItem\" WHERE \"templateId\" IN (SELECT id FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%');
     DELETE FROM \"AuditLog\" WHERE \"entityId\" IN (SELECT id FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%');
     DELETE FROM \"KpiTemplate\" WHERE code LIKE 'ZTEST%';
@@ -324,7 +330,8 @@ TT=$(sql "SELECT status FROM \"KpiTemplate\" WHERE code='ZTEST-REPUB';")
 
 # ===================================================== TỔNG HỢP CHO MÀN DANH SÁCH
 buoc "TỔNG HỢP TRÊN DANH SÁCH — số KPI con và tổng trọng số"
-DS=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates")
+# includeInactive: máy dev có thể đã ngừng mẫu thật khi thử tay; ở đây chỉ kiểm phép cộng
+DS=$(curl -s -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates?includeInactive=true")
 # Mẫu Shop Drawing nhập từ Excel: tổng mục BSC đúng 70, có KPI con
 KQ=$(echo "$DS" | json "next((f\"{t['weightTotal']}|{t['weightRequired']}|{t['subCriteriaCount']>0}\" for t in d if t['code']=='TPL-KT-SD'), 'KHONG_CO')")
 [ "$KQ" = "70.00|70|True" ] && pass "TPL-KT-SD: weightTotal=70.00, weightRequired=70, có KPI con" \
@@ -356,6 +363,92 @@ MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_KH/
 [ "$MA" = "400" ] && pass "kích hoạt mẫu đang dùng -> 400" || fail "activate lần hai -> $MA"
 MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_SYS/activate")
 [ "$MA" = "403" ] || [ "$MA" = "400" ] && pass "mẫu hệ thống không qua activate (HTTP $MA)" || fail "activate mẫu hệ thống -> $MA"
+
+# ===================================================== MẪU NỘI QUY THEO PHÒNG
+# Chốt 13/09/2026: trưởng bộ phận chép mẫu nội quy dùng chung về phòng mình,
+# sửa và xuất bản; sinh phiếu cho người phòng đó ghép Mục 2 từ bản riêng.
+buoc "MẪU NỘI QUY THEO PHÒNG"
+P_KT=$(sql "SELECT id FROM \"Department\" WHERE code='KT';")
+P_RND=$(sql "SELECT \"departmentId\" FROM \"User\" WHERE email='truongphong.rnd@hmico.vn';")
+MA=$(ma -X PUT -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+  -d '{"items":[]}' "$API/kpi-templates/$ID_SYS/system-items")
+[ "$MA" = "403" ] && pass "trưởng phòng sửa thẳng mẫu nội quy DÙNG CHUNG -> 403" || fail "MANAGER system-items -> $MA"
+MA=$(ma -X PUT -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+  -d '{"items":[]}' "$API/kpi-templates/$ID_SYS/items")
+[ "$MA" = "403" ] && pass "trưởng phòng sửa mẫu nội quy dùng chung qua đường thường -> 403" || fail "MANAGER items SYS -> $MA"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"ZTEST-NQ-RND\",\"name\":\"KT chép cho R&D\",\"departmentId\":\"$P_RND\"}" "$API/kpi-templates/$ID_SYS/duplicate")
+[ "$MA" = "403" ] && pass "trưởng phòng Kỹ thuật chép mẫu nội quy cho phòng KHÁC -> 403" || fail "chép cho phòng khác -> $MA"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"ZTEST-NQ-HR\",\"name\":\"HR chép\",\"departmentId\":\"$P_KT\"}" "$API/kpi-templates/$ID_SYS/duplicate")
+[ "$MA" = "403" ] && pass "HCNS chép mẫu nội quy -> 403 (chỉ xem)" || fail "HR duplicate -> $MA"
+
+R=$(curl -s -w '\n%{http_code}' -X POST -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"ZTEST-NQ-KT\",\"name\":\"Nội quy phòng Kỹ thuật\",\"departmentId\":\"$P_KT\"}" "$API/kpi-templates/$ID_SYS/duplicate")
+MA=$(echo "$R" | tail -1); BODY_NQ=$(echo "$R" | sed '$d'); ID_NQ=$(echo "$BODY_NQ" | json "d['id']")
+[ "$MA" = "201" ] && pass "trưởng phòng Kỹ thuật chép mẫu nội quy về phòng mình -> 201" || fail "chép về phòng mình -> $MA: $BODY_NQ"
+echo "$BODY_NQ" | json "d['isSystem'] and d['departmentId']=='$P_KT' and d['jobTitleId'] is None" | grep -q True \
+  && pass "bản sao: isSystem=true, gắn phòng KT, không gắn chức danh" || fail "bản sao sai hình dạng: $BODY_NQ"
+TS_MUC2=$(sql "SELECT (value->>'compliance') FROM \"SystemSetting\" WHERE key='trongSo';")
+echo "$BODY_NQ" | json "d['weightRequired']" | grep -q "^${TS_MUC2:-30}$" \
+  && pass "weightRequired của bản sao = trọng số Mục 2 trong cài đặt" || fail "weightRequired: $(echo "$BODY_NQ" | json "d['weightRequired']")"
+SO_SYS=$(sql "SELECT count(*) FROM \"KpiTemplateItem\" WHERE \"templateId\"='$ID_SYS';")
+SO_NQ=$(sql "SELECT count(*) FROM \"KpiTemplateItem\" WHERE \"templateId\"='$ID_NQ';")
+[ "$SO_SYS" = "$SO_NQ" ] && pass "bản sao đủ $SO_NQ tiêu chí nội quy như mẫu chung" || fail "bản sao $SO_NQ item, gốc $SO_SYS"
+
+MA=$(ma -X POST -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"ZTEST-NQ-KT2\",\"name\":\"Bản thứ hai\",\"departmentId\":\"$P_KT\"}" "$API/kpi-templates/$ID_SYS/duplicate")
+[ "$MA" = "409" ] && pass "chép lần hai cho cùng phòng -> 409 (mỗi phòng MỘT mẫu nội quy)" || fail "chép lần hai -> $MA"
+
+# Trưởng phòng sửa trọng số Mục 2 của phòng mình qua ĐƯỜNG THƯỜNG, rồi xuất bản
+NQ_BODY='{"items":[
+  {"key":"a","parentKey":null,"name":"Đi trễ về sớm","section":"COMPLIANCE","weight":15,"displayOrder":1},
+  {"key":"b","parentKey":null,"name":"Vi phạm nội quy công trường","section":"COMPLIANCE","weight":10,"displayOrder":2},
+  {"key":"c","parentKey":null,"name":"Văn hoá doanh nghiệp","section":"COMPLIANCE","weight":5,"displayOrder":3}]}'
+MA=$(ma -X PUT -H "Authorization: Bearer $AT_RND" -H 'Content-Type: application/json' -d "$NQ_BODY" "$API/kpi-templates/$ID_NQ/items")
+[ "$MA" = "403" ] && pass "trưởng phòng R&D sửa mẫu nội quy của Kỹ thuật -> 403" || fail "R&D sửa NQ KT -> $MA"
+MA=$(ma -H "Authorization: Bearer $AT_RND" "$API/kpi-templates/$ID_NQ")
+[ "$MA" = "403" ] && pass "trưởng phòng R&D xem mẫu nội quy của Kỹ thuật -> 403" || fail "R&D xem NQ KT -> $MA"
+MA=$(ma -X PUT -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' -d "$NQ_BODY" "$API/kpi-templates/$ID_NQ/items")
+[ "$MA" = "200" ] && pass "trưởng phòng Kỹ thuật đổi trọng số Mục 2 thành 15/10/5 -> 200" || fail "KT sửa NQ -> $MA"
+R=$(curl -s -w '\n%{http_code}' -X POST -H "Authorization: Bearer $AT_KT" "$API/kpi-templates/$ID_NQ/publish")
+MA=$(echo "$R" | tail -1)
+[ "$MA" = "200" ] && pass "trưởng phòng xuất bản mẫu nội quy của phòng -> 200" || fail "publish NQ -> $MA: $(echo "$R" | sed '$d')"
+SO_SYS2=$(sql "SELECT count(*) FROM \"KpiTemplateItem\" WHERE \"templateId\"='$ID_SYS' AND weight=15;")
+[ "$SO_SYS2" = "0" ] && pass "mẫu nội quy dùng chung KHÔNG bị đổi theo" || fail "mẫu chung bị đổi — RÒ RỈ GIỮA PHÒNG"
+
+# Sinh phiếu thật cho người phòng Kỹ thuật: Mục 2 phải là bản của phòng.
+# Dùng mẫu chức danh do script tạo, không dựa vào bốn mẫu thật (máy dev có
+# thể đã ngừng chúng khi thử tay).
+TS_MUC1=$(sql "SELECT (value->>'bscWork') FROM \"SystemSetting\" WHERE key='trongSo';")
+ID_JT_NQ=$(tao_mau ZTEST-NQ-JT "Mẫu chức danh cho thử nội quy")
+luu_items "$ID_JT_NQ" "{\"items\":[{\"key\":\"m\",\"parentKey\":null,\"name\":\"Một tiêu chí\",\"section\":\"BSC_WORK\",\"weight\":${TS_MUC1:-70},\"displayOrder\":1}]}" >/dev/null
+MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/kpi-templates/$ID_JT_NQ/publish")
+[ "$MA" = "200" ] && pass "mẫu chức danh thử xuất bản -> 200" || fail "publish mẫu chức danh thử -> $MA"
+KY_MO=$(sql "SELECT id FROM \"Period\" WHERE type='MONTH' AND NOT \"isLocked\" ORDER BY code DESC LIMIT 1;")
+sql "INSERT INTO \"User\" (id,\"employeeCode\",email,\"fullName\",\"passwordHash\",role,\"departmentId\",\"jobTitleId\",\"isActive\",\"mustChangePassword\",\"createdAt\",\"updatedAt\")
+     VALUES (gen_random_uuid(),'ZTESTNQ','ztestnq@hmico.vn','Người thử nội quy',(SELECT \"passwordHash\" FROM \"User\" LIMIT 1),'STAFF','$P_KT','$JT_KSTK',true,true,now(),now());" >/dev/null
+U_NQ=$(sql "SELECT id FROM \"User\" WHERE \"employeeCode\"='ZTESTNQ';")
+R=$(curl -s -w '\n%{http_code}' -X POST -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_NQ\",\"periodId\":\"$KY_MO\"}" "$API/scorecards")
+MA=$(echo "$R" | tail -1); ID_PHIEU=$(echo "$R" | sed '$d' | json "d['id']")
+[ "$MA" = "201" ] && pass "sinh phiếu cho nhân viên phòng Kỹ thuật -> 201" || fail "sinh phiếu -> $MA: $(echo "$R" | sed '$d')"
+if [ -n "$ID_PHIEU" ]; then
+  ST=$(sql "SELECT \"systemTemplateId\" FROM \"Scorecard\" WHERE id='$ID_PHIEU';")
+  [ "$ST" = "$ID_NQ" ] && pass "phiếu ghép Mục 2 từ mẫu nội quy CỦA PHÒNG, không phải mẫu chung" || fail "systemTemplateId=$ST (mong đợi $ID_NQ)"
+  TS=$(sql "SELECT string_agg(weight::text, '/' ORDER BY \"displayOrder\") FROM \"ScorecardItem\" WHERE \"scorecardId\"='$ID_PHIEU' AND section='COMPLIANCE';")
+  echo "$TS" | grep -q "15.*10.*5" && pass "Mục 2 trên phiếu là 15/10/5 của phòng ($TS)" || fail "Mục 2 trên phiếu: $TS"
+fi
+
+# Ngừng mẫu của phòng -> phiếu sinh sau đó về lại mẫu chung
+MA=$(ma -X DELETE -H "Authorization: Bearer $AT_KT" "$API/kpi-templates/$ID_NQ")
+[ "$MA" = "200" ] && pass "trưởng phòng ngừng mẫu nội quy của phòng -> 200 (mẫu chung thì không ai ngừng được)" || fail "DELETE NQ -> $MA"
+sql "DELETE FROM \"ScorecardEvent\" WHERE \"scorecardId\"='$ID_PHIEU'; DELETE FROM \"ScorecardItem\" WHERE \"scorecardId\"='$ID_PHIEU'; DELETE FROM \"Scorecard\" WHERE id='$ID_PHIEU';" >/dev/null
+R=$(curl -s -w '\n%{http_code}' -X POST -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$U_NQ\",\"periodId\":\"$KY_MO\"}" "$API/scorecards")
+ID_PHIEU2=$(echo "$R" | sed '$d' | json "d['id']")
+ST=$(sql "SELECT \"systemTemplateId\" FROM \"Scorecard\" WHERE id='$ID_PHIEU2';")
+[ "$ST" = "$ID_SYS" ] && pass "sau khi ngừng mẫu của phòng, phiếu mới về lại mẫu nội quy dùng chung" || fail "systemTemplateId=$ST (mong đợi $ID_SYS)"
 
 echo
 printf '%.0s=' {1..60}; echo

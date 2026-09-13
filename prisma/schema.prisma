@@ -31,8 +31,9 @@ model Department {
   updatedAt DateTime @updatedAt
 
   users      User[]      @relation("UserDepartment")
-  jobTitles  JobTitle[]
-  scorecards Scorecard[]
+  jobTitles    JobTitle[]
+  scorecards   Scorecard[]
+  kpiTemplates KpiTemplate[]
 
   @@index([parentId])
 }
@@ -236,6 +237,12 @@ model KpiTemplate {
   // phiếu, chỉ ADMIN sửa được qua endpoint riêng, không cho xoá.
   isSystem Boolean @default(false)
 
+  // Mẫu nội quy CỦA MỘT PHÒNG (chốt 13/09/2026): `isSystem = true` kèm
+  // `departmentId`. Trưởng bộ phận soạn cho phòng mình; sinh phiếu ưu tiên
+  // mẫu này (đã xuất bản), không có thì dùng mẫu chung (`departmentId = null`).
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
   // PUBLISHED nghĩa là "nội dung này đã qua kiểm tra trọng số". Sửa cây
   // item của mẫu đã PUBLISHED sẽ tự đưa nó về DRAFT — nếu không, trạng
   // thái sẽ nói dối về nội dung bên trong.
@@ -256,6 +263,7 @@ model KpiTemplate {
   systemScorecards Scorecard[]       @relation("ScorecardSystemTemplate")
 
   @@index([jobTitleId])
+  @@index([departmentId])
   @@index([status])
 }
 

@@ -71,7 +71,13 @@ export async function suaMau(
 
 export async function saoChepMau(
   id: string,
-  input: { code: string; name: string; jobTitleId?: string | null },
+  input: {
+    code: string;
+    name: string;
+    jobTitleId?: string | null;
+    /** Chép mẫu nội quy về một phòng — chỉ có nghĩa khi gốc là mẫu nội quy. */
+    departmentId?: string | null;
+  },
 ): Promise<KpiTemplate> {
   const { data } = await apiClient.post<KpiTemplate>(
     `/kpi-templates/${id}/duplicate`,

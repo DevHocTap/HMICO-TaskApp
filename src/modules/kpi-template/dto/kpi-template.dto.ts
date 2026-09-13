@@ -41,6 +41,19 @@ export class CreateTemplateDto {
   @IsOptional()
   @IsUUID('4', { message: 'Chức danh không hợp lệ' })
   jobTitleId?: string | null;
+
+  /**
+   * Mẫu nội quy CỦA MỘT PHÒNG (13/09/2026): `isSystem = true` kèm
+   * `departmentId`, không có `jobTitleId`. Trưởng bộ phận chỉ tạo cho phòng
+   * mình; mẫu nội quy dùng chung (không phòng) không tạo qua đây.
+   */
+  @IsOptional()
+  @IsBoolean()
+  isSystem?: boolean;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'Phòng ban không hợp lệ' })
+  departmentId?: string | null;
 }
 
 export class UpdateTemplateDto {
@@ -82,6 +95,11 @@ export class DuplicateTemplateDto {
   @IsOptional()
   @IsUUID('4', { message: 'Chức danh không hợp lệ' })
   jobTitleId?: string | null;
+
+  /** Chép mẫu nội quy về một phòng — chỉ có nghĩa khi mẫu gốc là mẫu nội quy. */
+  @IsOptional()
+  @IsUUID('4', { message: 'Phòng ban không hợp lệ' })
+  departmentId?: string | null;
 }
 
 export class ListTemplatesQuery {
@@ -193,6 +211,9 @@ export interface TemplateResponse {
   jobTitleId: string | null;
   jobTitleName: string | null;
   isSystem: boolean;
+  /** Mẫu nội quy của phòng: khác null. Mẫu nội quy dùng chung: null. */
+  departmentId: string | null;
+  departmentName: string | null;
   status: TemplateStatus;
   version: number;
   isActive: boolean;

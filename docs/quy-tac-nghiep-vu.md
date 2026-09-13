@@ -148,6 +148,19 @@ ràng buộc trọng số phải áp theo loại mẫu, không áp chung cho m�
 |---|---|
 | **Mẫu chức danh** (`isSystem = false`) | Σ tiêu chí cấp 1 = **`trongSo.bscWork`** (mặc định 70) · chỉ chứa `BSC_WORK` · có ít nhất 1 tiêu chí |
 | **Mẫu hệ thống** (`isSystem = true`) | Σ tiêu chí cấp 1 = **`trongSo.compliance`** (mặc định 30) · chỉ chứa `COMPLIANCE` |
+
+> **Mẫu nội quy THEO PHÒNG — chốt 13/09/2026.** Mẫu hệ thống có hai dạng:
+> **dùng chung** (`departmentId = null`, mã `SYS-COMPLIANCE`, chỉ ADMIN sửa,
+> không ai ngừng được) và **của một phòng** (`isSystem = true` +
+> `departmentId`). Trưởng bộ phận tạo bản của phòng mình bằng cách **sao
+> chép mẫu dùng chung về phòng** (`POST :id/duplicate` kèm `departmentId`),
+> sửa trọng số Mục 2 rồi xuất bản; mỗi phòng tối đa MỘT mẫu nội quy đang
+> dùng. Sinh phiếu (`mustFindSystemTemplate`) ưu tiên mẫu của phòng **đã
+> xuất bản và đang dùng**, không có thì dùng mẫu chung — mẫu của phòng còn
+> nháp KHÔNG được ghép vào phiếu. Ngừng mẫu của phòng là phiếu sinh sau đó
+> về lại mẫu chung. Lý do: nội quy là chung, nhưng trọng số từng dòng do
+> trưởng bộ phận — người giao KPI — quyết, và một phòng sửa không được kéo
+> theo mọi phòng khác.
 | **Cả hai** | Σ trọng số KPI con trong mỗi tiêu chí **có con** = **100** |
 
 > **Ràng buộc "tổng phiếu = 100" thuộc về lúc GHÉP hai mẫu thành phiếu, KHÔNG
@@ -694,9 +707,10 @@ còn — đó chính là lúc cần tra cứu nhất.
 > mới biết kỹ sư triển khai phải đạt gì, HCNS không nắm được. Trưởng bộ phận
 > chỉ soạn cho **chức danh thuộc phòng mình** (`assertCoTheGhi` trong
 > `kpi-template.service.ts`); mẫu hệ thống và mẫu của chức danh dùng chung
-> vẫn là việc của ADMIN — ADMIN sửa mẫu hệ thống ngay trên màn soạn mẫu, đi
-> qua `PUT :id/system-items` (13/09). HCNS và ban giám đốc xem toàn bộ mẫu và
-> nội dung phiếu đã giao, không sửa.
+> vẫn là việc của ADMIN — ADMIN sửa mẫu nội quy dùng chung ngay trên màn soạn
+> mẫu, đi qua `PUT :id/system-items` (13/09). Trưởng bộ phận sửa được **mẫu
+> nội quy của phòng mình** (sao chép từ mẫu chung, xem mục 2). HCNS và ban
+> giám đốc xem toàn bộ mẫu và nội dung phiếu đã giao, không sửa.
 >
 > **Về `EXECUTIVE`:** ban giám đốc phải xem được cơ cấu tổ chức, chức danh
 > và danh sách nhân sự toàn công ty — giấu những màn hình đó đi thì họ đăng

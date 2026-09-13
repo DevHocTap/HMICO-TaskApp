@@ -29,6 +29,9 @@ export interface KpiTemplate {
   jobTitleId: string | null;
   jobTitleName: string | null;
   isSystem: boolean;
+  /** Mẫu nội quy CỦA MỘT PHÒNG: khác null (13/09). Nội quy dùng chung: null. */
+  departmentId: string | null;
+  departmentName: string | null;
   status: TemplateStatus;
   version: number;
   isActive: boolean;

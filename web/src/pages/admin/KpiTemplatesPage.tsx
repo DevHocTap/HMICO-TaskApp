@@ -12,6 +12,7 @@ import {
   Spin,
   Switch,
   Tag,
+  TreeSelect,
   Typography,
 } from 'antd';
 import {
@@ -30,7 +31,7 @@ import {
   taoMau,
   voHieuHoaMau,
 } from '../../api/kpi-template';
-import { layChucDanh } from '../../api/org';
+import { layCayPhongBan, layChucDanh } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { coTheGhiMau } from '../../auth/permissions';
@@ -45,11 +46,44 @@ import type {
   KpiTemplateDetail,
   TemplateStatus,
 } from '../../types/kpi-template';
+import type { DepartmentNode } from '../../types/org';
 
 interface FormValues {
   code: string;
   name: string;
   jobTitleId?: string | null;
+  /** Chỉ dùng khi sao chép mẫu nội quy: phòng nhận bản sao. */
+  departmentId?: string | null;
+}
+
+/** "Phòng Kỹ thuật" → "PKT": gợi ý mã cho bản sao mẫu nội quy, người dùng sửa được. */
+function maGoiYTuTen(ten: string): string {
+  return ten
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((tu) => tu[0])
+    .join('')
+    .toUpperCase();
+}
+
+/** Mẫu nội quy dùng chung toàn công ty (khác mẫu nội quy của một phòng). */
+function laNoiQuyChung(mau: KpiTemplate): boolean {
+  return mau.isSystem && !mau.departmentId;
+}
+
+function phongThanhTreeData(nodes: DepartmentNode[]): {
+  value: string;
+  title: string;
+  children?: ReturnType<typeof phongThanhTreeData>;
+}[] {
+  return nodes.map((n) => ({
+    value: n.id,
+    title: `${n.name} (${n.code})`,
+    children: n.children.length > 0 ? phongThanhTreeData(n.children) : undefined,
+  }));
 }
 
 export function KpiTemplatesPage() {
@@ -93,6 +127,14 @@ export function KpiTemplatesPage() {
   const { data: chucDanh = [] } = useQuery({
     queryKey: ['job-titles', 'tat-ca'],
     queryFn: () => layChucDanh(),
+  });
+
+  // Chỉ ADMIN cần chọn phòng khi chép mẫu nội quy; trưởng phòng chép về
+  // phòng mình nên không cần cây.
+  const { data: cayPhong = [] } = useQuery({
+    queryKey: ['departments', 'tree'],
+    queryFn: layCayPhongBan,
+    enabled: user?.role === 'ADMIN',
   });
 
   function lamMoi() {
@@ -152,11 +194,26 @@ export function KpiTemplatesPage() {
   function moSaoChep(mau: KpiTemplate) {
     setDangSaoChep(mau);
     setLoiForm(null);
-    form.setFieldsValue({
-      code: `${mau.code}-COPY`,
-      name: `${mau.name} (bản sao)`,
-      jobTitleId: mau.jobTitleId,
-    });
+    if (mau.isSystem) {
+      // Chép mẫu nội quy = tạo bản riêng cho MỘT phòng. Trưởng phòng chỉ
+      // có một đích là phòng mình; mã gợi ý theo mã phòng để dễ nhận ra.
+      const maPhong = user?.departmentName
+        ? maGoiYTuTen(user.departmentName)
+        : 'PHONG';
+      form.setFieldsValue({
+        code: laTruongPhong ? `NQ-${maPhong}` : `NQ-`,
+        name: laTruongPhong
+          ? `Chấp hành nội quy — ${user?.departmentName ?? ''}`
+          : 'Chấp hành nội quy — ',
+        departmentId: laTruongPhong ? user?.departmentId : undefined,
+      });
+    } else {
+      form.setFieldsValue({
+        code: `${mau.code}-COPY`,
+        name: `${mau.name} (bản sao)`,
+        jobTitleId: mau.jobTitleId,
+      });
+    }
     setModalMo(true);
   }
 
@@ -245,9 +302,10 @@ export function KpiTemplatesPage() {
             const tong = Number(mau.weightTotal);
             const du = tong >= mau.weightRequired;
             const mau_ = du ? mauChuDao : mauNhan;
-            // Mẫu hệ thống chỉ ADMIN sửa; người khác chỉ xem (màn soạn tự khoá)
+            // Mẫu nội quy DÙNG CHUNG chỉ ADMIN sửa; người khác chỉ xem (màn
+            // soạn tự khoá). Mẫu nội quy của phòng thì trưởng phòng đó sửa được.
             const nhanSua =
-              mau.isSystem && user?.role !== 'ADMIN' ? 'Xem' : 'Sửa';
+              laNoiQuyChung(mau) && user?.role !== 'ADMIN' ? 'Xem' : 'Sửa';
             return (
               <div
                 key={mau.id}
@@ -275,13 +333,17 @@ export function KpiTemplatesPage() {
                       style={{ fontSize: 14, fontWeight: 400 }}
                     >
                       {' '}
-                      (mẫu hệ thống)
+                      ({mau.departmentId ? 'nội quy của phòng' : 'nội quy dùng chung'})
                     </Typography.Text>
                   )}
                 </Typography.Title>
                 <Typography.Text type="secondary" style={{ fontSize: 13 }}>
                   {mau.isSystem
-                    ? `${mau.criteriaCount} tiêu chí · áp cho mọi chức danh`
+                    ? `${mau.criteriaCount} tiêu chí · ${
+                        mau.departmentName
+                          ? `Mục 2 của ${mau.departmentName}`
+                          : 'Mục 2 cho phòng chưa có mẫu riêng'
+                      }`
                     : `${mau.criteriaCount} tiêu chí · ${mau.subCriteriaCount} KPI con · ${mau.jobTitleName ?? 'dùng chung'}`}
                   {' · '}phiên bản {mau.version}
                 </Typography.Text>
@@ -336,10 +398,14 @@ export function KpiTemplatesPage() {
                             {
                               key: 'sao-chep',
                               icon: <CopyOutlined />,
-                              label: 'Sao chép',
+                              label: !mau.isSystem
+                                ? 'Sao chép'
+                                : laTruongPhong
+                                  ? 'Sao chép về phòng mình'
+                                  : 'Sao chép cho một phòng',
                               onClick: () => moSaoChep(mau),
                             },
-                            ...(mau.isSystem
+                            ...(laNoiQuyChung(mau)
                               ? []
                               : [
                                   {
@@ -372,8 +438,7 @@ export function KpiTemplatesPage() {
         <TemplatePreviewModal
           open
           onClose={() => setXemTruoc(null)}
-          tenMau={xemTruoc.name}
-          chucDanh={xemTruoc.jobTitleName}
+          mau={xemTruoc}
           items={sangDanhSachPhang(xemTruoc.items)}
         />
       )}
@@ -398,13 +463,22 @@ export function KpiTemplatesPage() {
             style={{ marginBottom: 16 }}
           />
         )}
-        {dangSaoChep && (
+        {dangSaoChep && !dangSaoChep.isSystem && (
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
             message="Bản sao gồm toàn bộ tiêu chí và KPI con của mẫu gốc"
             description="Bản sao ở trạng thái nháp. Sửa bản sao không ảnh hưởng mẫu gốc."
+          />
+        )}
+        {dangSaoChep?.isSystem && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="Bản sao là mẫu nội quy RIÊNG của phòng"
+            description="Từ lần giao KPI sau khi xuất bản, phiếu của phòng này ghép Mục 2 từ bản sao thay cho mẫu dùng chung. Các phòng khác không ảnh hưởng. Bản sao ở trạng thái nháp cho tới khi xuất bản."
           />
         )}
         <Form<FormValues>
@@ -432,6 +506,27 @@ export function KpiTemplatesPage() {
           >
             <Input placeholder="VD: KPI Nhân viên Shop Drawing" />
           </Form.Item>
+          {dangSaoChep?.isSystem ? (
+            laTruongPhong ? (
+              <Form.Item name="departmentId" hidden>
+                <Input />
+              </Form.Item>
+            ) : (
+              <Form.Item
+                name="departmentId"
+                label="Phòng nhận mẫu nội quy riêng"
+                rules={[{ required: true, message: 'Chọn phòng' }]}
+              >
+                <TreeSelect
+                  showSearch
+                  treeDefaultExpandAll
+                  treeNodeFilterProp="title"
+                  placeholder="Chọn phòng ban"
+                  treeData={phongThanhTreeData(cayPhong)}
+                />
+              </Form.Item>
+            )
+          ) : (
           <Form.Item
             name="jobTitleId"
             label="Chức danh áp dụng"
@@ -457,6 +552,7 @@ export function KpiTemplatesPage() {
                 .map((t) => ({ value: t.id, label: `${t.name} (${t.code})` }))}
             />
           </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>

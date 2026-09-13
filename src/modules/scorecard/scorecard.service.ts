@@ -346,7 +346,7 @@ export class ScorecardService {
     ipAddress?: string,
     phieuRong = false,
   ): Promise<string> {
-    const mauHeThong = await this.mustFindSystemTemplate();
+    const mauHeThong = await this.mustFindSystemTemplate(nguoi.departmentId);
     // Phiếu rỗng: chỉ dựng Mục 2, Mục 1 để trống chờ nhập trực tiếp
     const mauChucDanh = phieuRong
       ? null
@@ -725,7 +725,25 @@ export class ScorecardService {
     return mau;
   }
 
-  private async mustFindSystemTemplate() {
+  /**
+   * Mẫu Mục 2 cho một người: ưu tiên mẫu nội quy CỦA PHÒNG (đã xuất bản,
+   * đang dùng — chốt 13/09/2026), không có thì mẫu nội quy dùng chung.
+   *
+   * Mẫu của phòng còn ở nháp thì KHÔNG dùng: nháp chưa qua kiểm trọng số,
+   * ghép vào phiếu là gửi ký không được mà trưởng phòng không hiểu vì sao.
+   */
+  private async mustFindSystemTemplate(departmentId: string | null) {
+    if (departmentId) {
+      const cuaPhong = await this.prisma.kpiTemplate.findFirst({
+        where: {
+          isSystem: true,
+          departmentId,
+          isActive: true,
+          status: TemplateStatus.PUBLISHED,
+        },
+      });
+      if (cuaPhong) return cuaPhong;
+    }
     const mau = await this.prisma.kpiTemplate.findUnique({
       where: { code: MA_MAU_HE_THONG },
     });

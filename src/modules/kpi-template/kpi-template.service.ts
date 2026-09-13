@@ -33,6 +33,7 @@ import type {
 
 type TemplateWithExtras = KpiTemplate & {
   jobTitle: { name: string; departmentId: string | null } | null;
+  department: { name: string } | null;
   _count: { items: number };
 };
 
@@ -44,6 +45,7 @@ interface TongHopItem {
 
 const INCLUDE_EXTRAS = {
   jobTitle: { select: { name: true, departmentId: true } },
+  department: { select: { name: true } },
   // Chỉ đếm tiêu chí cấp 1 — đó là con số người dùng quan tâm
   _count: { select: { items: { where: { parentId: null } } } },
 } as const;
@@ -143,15 +145,14 @@ export class KpiTemplateService {
     ipAddress?: string,
   ): Promise<TemplateResponse> {
     await this.assertCodeAvailable(dto.code);
-    if (dto.jobTitleId) await this.assertJobTitleExists(dto.jobTitleId);
-    await this.assertCoTheGhiChucDanh(dto.jobTitleId ?? null, actor);
+    const dich = await this.dichCuaMauMoi(dto, actor);
 
     const created = await this.prisma.kpiTemplate.create({
       data: {
         code: dto.code,
         name: dto.name,
         description: dto.description ?? null,
-        jobTitleId: dto.jobTitleId ?? null,
+        ...dich,
         status: TemplateStatus.DRAFT,
         createdById: actor.id,
       },
@@ -184,9 +185,16 @@ export class KpiTemplateService {
     ipAddress?: string,
   ): Promise<TemplateResponse> {
     const goc = await this.mustFind(id);
-    await this.assertCoTheGhi(goc, actor);
+    // Quyền tính trên BẢN SAO (đích), không phải bản gốc: trưởng phòng được
+    // chép mẫu nội quy dùng chung về phòng mình, dù không sửa được bản gốc.
+    await this.assertCoTheXem(goc, actor);
     await this.assertCodeAvailable(dto.code);
-    if (dto.jobTitleId) await this.assertJobTitleExists(dto.jobTitleId);
+    const dich = await this.dichCuaMauMoi(
+      goc.isSystem
+        ? { isSystem: true, departmentId: dto.departmentId ?? goc.departmentId }
+        : { jobTitleId: dto.jobTitleId ?? goc.jobTitleId },
+      actor,
+    );
 
     const items = await this.prisma.kpiTemplateItem.findMany({
       where: { templateId: id },
@@ -199,9 +207,7 @@ export class KpiTemplateService {
           code: dto.code,
           name: dto.name,
           description: goc.description,
-          jobTitleId: dto.jobTitleId ?? goc.jobTitleId,
-          // Bản sao KHÔNG bao giờ là mẫu hệ thống, dù gốc là
-          isSystem: false,
+          ...dich,
           status: TemplateStatus.DRAFT,
           version: 1,
           createdById: actor.id,
@@ -300,9 +306,9 @@ export class KpiTemplateService {
   ): Promise<TemplateDetailResponse> {
     const template = await this.mustFind(id);
     await this.assertCoTheGhi(template, actor);
-    if (template.isSystem && actor.role !== Role.ADMIN) {
+    if (this.laMauNoiQuyChung(template) && actor.role !== Role.ADMIN) {
       throw new ForbiddenException(
-        'Mẫu hệ thống chỉ quản trị viên mới sửa được, qua endpoint riêng.',
+        'Mẫu nội quy dùng chung chỉ quản trị viên mới sửa được, qua endpoint riêng.',
       );
     }
 
@@ -371,9 +377,9 @@ export class KpiTemplateService {
   ): Promise<TemplateResponse> {
     const template = await this.mustFind(id);
     await this.assertCoTheGhi(template, actor);
-    if (template.isSystem && actor.role !== Role.ADMIN) {
+    if (this.laMauNoiQuyChung(template) && actor.role !== Role.ADMIN) {
       throw new ForbiddenException(
-        'Mẫu hệ thống chỉ quản trị viên mới xuất bản được.',
+        'Mẫu nội quy dùng chung chỉ quản trị viên mới xuất bản được.',
       );
     }
 
@@ -517,11 +523,65 @@ export class KpiTemplateService {
     return found;
   }
 
+  /** Mẫu nội quy DÙNG CHUNG toàn công ty — khác mẫu nội quy của một phòng. */
+  private laMauNoiQuyChung(t: KpiTemplate): boolean {
+    return t.isSystem && !t.departmentId;
+  }
+
   private assertKhongPhaiMauHeThong(t: KpiTemplate): void {
-    if (t.isSystem) {
+    if (this.laMauNoiQuyChung(t)) {
       throw new ForbiddenException(
-        'Mẫu hệ thống không sửa được qua endpoint thường. ' +
+        'Mẫu nội quy dùng chung không sửa được qua endpoint thường. ' +
           'Mục "Chấp hành nội quy" áp dụng chung cho mọi chức danh.',
+      );
+    }
+  }
+
+  /**
+   * Đích của một mẫu mới (tạo hoặc sao chép): gắn chức danh, hoặc là mẫu
+   * nội quy của một phòng. Kiểm quyền ghi ngay tại đây.
+   *
+   * Mẫu nội quy KHÔNG có `jobTitleId`, và mỗi phòng chỉ có MỘT mẫu nội quy
+   * đang dùng — hai mẫu cùng phòng thì lúc sinh phiếu không biết lấy cái nào.
+   */
+  private async dichCuaMauMoi(
+    dto: { isSystem?: boolean; departmentId?: string | null; jobTitleId?: string | null },
+    actor: AuthenticatedUser,
+  ): Promise<{ isSystem: boolean; departmentId: string | null; jobTitleId: string | null }> {
+    if (!dto.isSystem) {
+      if (dto.jobTitleId) await this.assertJobTitleExists(dto.jobTitleId);
+      await this.assertCoTheGhiChucDanh(dto.jobTitleId ?? null, actor);
+      return { isSystem: false, departmentId: null, jobTitleId: dto.jobTitleId ?? null };
+    }
+    if (!dto.departmentId) {
+      throw new BadRequestException(
+        'Mẫu nội quy dùng chung đã có sẵn; chỉ tạo thêm mẫu nội quy CHO MỘT PHÒNG — hãy chọn phòng.',
+      );
+    }
+    await this.assertCoTheGhiPhong(dto.departmentId, actor);
+    const daCo = await this.prisma.kpiTemplate.findFirst({
+      where: { isSystem: true, departmentId: dto.departmentId, isActive: true },
+      select: { code: true },
+    });
+    if (daCo) {
+      throw new ConflictException(
+        `Phòng này đã có mẫu nội quy "${daCo.code}". Sửa mẫu đó hoặc ngừng nó trước khi tạo mẫu mới.`,
+      );
+    }
+    return { isSystem: true, departmentId: dto.departmentId, jobTitleId: null };
+  }
+
+  private async assertCoTheGhiPhong(departmentId: string, user: AuthenticatedUser): Promise<void> {
+    const phong = await this.prisma.department.findUnique({
+      where: { id: departmentId },
+      select: { name: true, isActive: true },
+    });
+    if (!phong || !phong.isActive) throw new BadRequestException('Không tìm thấy phòng ban');
+    if (user.role === Role.ADMIN) return;
+    const trongPhamVi = await this.departmentScope.getAccessibleDepartmentIds(user);
+    if (!trongPhamVi.includes(departmentId)) {
+      throw new ForbiddenException(
+        `Phòng "${phong.name}" không thuộc phạm vi bạn phụ trách.`,
       );
     }
   }
@@ -541,6 +601,8 @@ export class KpiTemplateService {
     }
     const accessibleIds = await this.departmentScope.getAccessibleDepartmentIds(user);
     return rows.filter((r) => {
+      // Mẫu nội quy của phòng nào thì phòng đó (và cấp trên) mới thấy
+      if (r.isSystem) return !r.departmentId || accessibleIds.includes(r.departmentId);
       const deptId = r.jobTitle?.departmentId;
       return !r.jobTitleId || !deptId || accessibleIds.includes(deptId);
     });
@@ -565,7 +627,14 @@ export class KpiTemplateService {
   private async assertCoTheGhi(t: TemplateWithExtras, user: AuthenticatedUser): Promise<void> {
     if (user.role === Role.ADMIN) return;
     if (t.isSystem) {
-      throw new ForbiddenException('Mẫu hệ thống chỉ quản trị viên sửa được');
+      if (!t.departmentId) {
+        throw new ForbiddenException(
+          'Mẫu nội quy dùng chung chỉ quản trị viên sửa được. ' +
+            'Muốn có bản riêng cho phòng mình, hãy sao chép mẫu này về phòng.',
+        );
+      }
+      await this.assertCoTheGhiPhong(t.departmentId, user);
+      return;
     }
     await this.assertCoTheGhiChucDanh(t.jobTitleId, user);
   }
@@ -735,6 +804,8 @@ export class KpiTemplateService {
       jobTitleId: t.jobTitleId,
       jobTitleName: t.jobTitle?.name ?? null,
       isSystem: t.isSystem,
+      departmentId: t.departmentId,
+      departmentName: t.department?.name ?? null,
       status: t.status,
       version: t.version,
       isActive: t.isActive,
@@ -753,6 +824,7 @@ export class KpiTemplateService {
       name: t.name,
       jobTitleId: t.jobTitleId,
       isSystem: t.isSystem,
+      departmentId: t.departmentId,
       status: t.status,
       version: t.version,
       isActive: t.isActive,

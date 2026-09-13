@@ -81,10 +81,11 @@ export function KpiTemplateEditorPage() {
     }
   }, [mau]);
 
-  // Mẫu hệ thống: chỉ ADMIN sửa (qua endpoint system-items); trước 13/09 màn
-  // này khoá cứng mọi người nên mẫu hệ thống không sửa được từ giao diện.
-  const chiDoc =
-    !coQuyenGhi || (mau?.isSystem === true && user?.role !== 'ADMIN');
+  // Mẫu nội quy DÙNG CHUNG: chỉ ADMIN sửa (qua endpoint system-items).
+  // Mẫu nội quy CỦA PHÒNG (isSystem + departmentId, 13/09): trưởng phòng đó
+  // sửa như mẫu thường — backend kiểm phạm vi phòng.
+  const noiQuyChung = mau?.isSystem === true && !mau.departmentId;
+  const chiDoc = !coQuyenGhi || (noiQuyChung && user?.role !== 'ADMIN');
 
   // --- Kiểm thử ngay khi gõ, không đợi bấm Xuất bản ---
   useEffect(() => {
@@ -219,7 +220,7 @@ export function KpiTemplateEditorPage() {
   }
 
   const luu = useMutation({
-    mutationFn: () => luuCayItem(id, items, mau?.isSystem === true),
+    mutationFn: () => luuCayItem(id, items, noiQuyChung),
     onSuccess: () => {
       message.success('Đã lưu nháp');
       setCoThayDoi(false);
@@ -231,7 +232,7 @@ export function KpiTemplateEditorPage() {
 
   const xuatBan = useMutation({
     mutationFn: async () => {
-      if (coThayDoi) await luuCayItem(id, items, mau?.isSystem === true);
+      if (coThayDoi) await luuCayItem(id, items, noiQuyChung);
       return xuatBanMau(id);
     },
     onSuccess: () => {
@@ -308,20 +309,28 @@ export function KpiTemplateEditorPage() {
         </Space>
       </Space>
 
-      {!chiDoc && mau.isSystem && (
+      {!chiDoc && noiQuyChung && (
         <Alert
           type="warning"
           showIcon
-          message="Mẫu hệ thống — áp cho MỌI nhân sự"
+          message="Mẫu nội quy dùng chung — áp cho MỌI phòng chưa có mẫu riêng"
           description="Xuất bản lại là mọi phiếu sinh sau đó đổi theo (phiếu đã giao giữ nguyên vì đã chụp nội dung). Tỉ lệ trọng số hai mục đặt ở Cài đặt hệ thống."
         />
       )}
-      {chiDoc && mau.isSystem ? (
+      {!chiDoc && mau.isSystem && mau.departmentId && (
         <Alert
           type="info"
           showIcon
-          message="Mẫu hệ thống — chỉ đọc với bạn"
-          description="Mục “Chấp hành nội quy” áp dụng chung cho mọi chức danh, do quản trị viên soạn. Tỉ lệ trọng số hai mục đặt ở Cài đặt hệ thống."
+          message={`Mẫu nội quy riêng của ${mau.departmentName ?? 'phòng'}`}
+          description="Sau khi xuất bản, phiếu của phòng này ghép Mục 2 từ mẫu này thay cho mẫu dùng chung. Tổng trọng số Mục 2 phải đúng tỉ lệ đặt ở Cài đặt hệ thống."
+        />
+      )}
+      {chiDoc && noiQuyChung ? (
+        <Alert
+          type="info"
+          showIcon
+          message="Mẫu nội quy dùng chung — chỉ đọc với bạn"
+          description="Do quản trị viên soạn. Trưởng bộ phận muốn có bản riêng cho phòng mình: về danh sách mẫu, menu ⋯ → “Sao chép về phòng mình”, sửa rồi xuất bản."
         />
       ) : (
         chiDoc && (
@@ -657,8 +666,7 @@ export function KpiTemplateEditorPage() {
       <TemplatePreviewModal
         open={xemTruoc}
         onClose={() => setXemTruoc(false)}
-        tenMau={mau.name}
-        chucDanh={mau.jobTitleName}
+        mau={mau}
         items={items}
       />
     </Space>

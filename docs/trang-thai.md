@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 63 + 51 + 82 + 159 + 96 + 76 + 42 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 63 + 71 + 82 + 159 + 96 + 76 + 42 kiểm tra curl.**
 
 ## Đang làm
 
@@ -448,6 +448,18 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   phần. **ADMIN soạn được mẫu hệ thống từ giao diện** — màn soạn mẫu gọi
   `PUT :id/system-items` khi `isSystem`, kèm cảnh báo áp toàn công ty; vai
   khác chỉ đọc. `kiem-chung-cai-dat.sh` **42** (mục 27–29).
+
+- **Mẫu nội quy theo phòng (13/09):** `KpiTemplate.departmentId` (migration
+  `20260913100000_mau_noi_quy_theo_phong`). Trưởng bộ phận **"Sao chép về
+  phòng mình"** từ mẫu nội quy dùng chung (menu ⋯ trên thẻ, `duplicate` kèm
+  `departmentId`; ADMIN chọn phòng bằng TreeSelect), sửa trọng số Mục 2 qua
+  đường thường, xuất bản, ngừng được; mỗi phòng một mẫu (409 nếu chép lần
+  hai). Sinh phiếu ưu tiên mẫu của phòng đã xuất bản, không có thì mẫu
+  chung (`mustFindSystemTemplate(departmentId)`). Quyền tính trên ĐÍCH sao
+  chép, không phải bản gốc. Xem trước: mẫu nội quy chỉ vẽ Mục 2; mẫu chức
+  danh ghép Mục 2 từ mẫu của phòng nếu có; số 70/30 đọc từ cài đặt.
+  `verify-kpi-template.sh` **71** — gồm sinh phiếu thật và đối chiếu
+  `systemTemplateId` bằng SQL. Ghi ở quy-tac mục 2 và 7.
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.

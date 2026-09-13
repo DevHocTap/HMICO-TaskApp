@@ -497,6 +497,17 @@ tự động rồi mới vỡ.
       hoặc lúc gửi ký phiếu sinh từ nó (backend báo đúng con số thiếu). Cố ý
       — tự hạ mẫu về DRAFT hàng loạt là làm gián đoạn việc giao KPI giữa kỳ.
       Nếu HCNS đổi trọng số thì phải báo trưởng bộ phận sửa mẫu trước kỳ sau.
+- [ ] **"Mỗi phòng một mẫu nội quy" chỉ kiểm ở service** (`dichCuaMauMoi`),
+      không có unique index — Prisma không khai được partial index, mà khai
+      tay trong SQL thì `migrate dev` lần sau muốn xoá nó. Hai request chép
+      cùng lúc có thể lọt hai mẫu; khi đó `mustFindSystemTemplate` lấy
+      `findFirst` không `orderBy` → không xác định. Ca hiếm (một trưởng
+      phòng bấm đúp), chấp nhận; nếu gặp thì ngừng bớt một mẫu.
+- [ ] **`verify-kpi-template.sh` mục "Tổng hợp trên danh sách" đọc
+      `includeInactive=true`** vì máy dev đã ngừng bốn mẫu thật khi thử tay
+      (13/09, do trưởng phòng Kỹ thuật bấm trên giao diện). Không tự bật
+      lại — đó là dữ liệu người dùng; muốn bốn mẫu hoạt động lại thì bấm
+      "Kích hoạt lại" hoặc `npx prisma db seed`.
 
 ## Giao diện theo bộ mẫu (11/09)
 
