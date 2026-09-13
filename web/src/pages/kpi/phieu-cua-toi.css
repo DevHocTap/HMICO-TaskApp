@@ -404,17 +404,20 @@
 }
 .pt-dong-con td { background: rgba(248, 250, 252, 0.35); }
 .pt-table-ke { table-layout: fixed; min-width: 900px; }
-.pt-ma {
-  display: inline-block;
-  white-space: nowrap;
-  background: #d0e2ff;
-  color: #002d9c;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
-}
-.pt-ma-con { background: #f1f5f9; color: #475569; font-weight: 600; }
+.pt-stt { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 6px; background: #d0e2ff; color: #002d9c; font-size: 12px; font-weight: 700; }
+.pt-stt-con { background: transparent; color: #64748b; font-weight: 500; }
+/* Bảng kê: đầu bảng, dòng mục và tổng cộng ba tông khác nhau cho dễ phân biệt */
+.pt-table-ke thead tr { background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
+.pt-table-ke th { color: #334155; }
+.pt-table-ke tbody td { border-bottom: 1px solid #e2e8f0; }
+.pt-table-ke .pt-dong-muc td { background: #edf5ff; color: #0043ce; border-top: 1px solid #d0e2ff; border-bottom: 1px solid #d0e2ff; }
+.pt-table-ke tfoot tr { background: #0f172a; border-top: 2px solid #0f172a; }
+.pt-table-ke tfoot td { color: #fff; }
+.pt-table-ke tfoot .pt-tfoot-nhan { color: #cbd5e1 !important; }
+.pt-table-ke tfoot .pt-tfoot-mo { color: #94a3b8 !important; }
+.pt-table-ke tfoot .pt-trong-so-dam { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.pt-table-ke tfoot .pt-chu-xanh { color: #93c5fd; }
+.pt-table-ke tfoot .pt-tong-lon { color: #93c5fd !important; }
 .pt-ke-ten { font-weight: 600; color: #0f172a; line-height: 1.35; }
 .pt-ke-ten-con { font-weight: 500; color: #334155; padding-left: 14px; position: relative; }
 .pt-ke-ten-con::before { content: '↳'; position: absolute; left: 0; color: #94a3b8; }

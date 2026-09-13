@@ -152,7 +152,7 @@ export function MyScorecardsPage() {
           const con = items
             .filter((i) => i.parentId === cha.id)
             .sort((a, b) => a.displayOrder - b.displayOrder);
-          const maCha = `${muc === 'BSC_WORK' ? 'KPI' : 'NQ'}-${String(k + 1).padStart(2, '0')}`;
+          const maCha = String(k + 1);
           const sang = (i: DongChamDiem | DongPhieuKpi, ma: string, laCha: boolean): DongKe => ({
             id: i.id,
             ma,
@@ -516,7 +516,7 @@ export function MyScorecardsPage() {
           <div className="pt-cuon pt-ke-khung">
             <table className="pt-table pt-table-ke">
               <colgroup>
-                <col style={{ width: 96 }} />
+                <col style={{ width: 64 }} />
                 <col style={{ width: '32%' }} />
                 <col style={{ width: 96 }} />
                 <col style={{ width: '18%' }} />
@@ -526,7 +526,7 @@ export function MyScorecardsPage() {
               </colgroup>
               <thead>
                 <tr>
-                  <th>Mã</th>
+                  <th style={{ textAlign: 'center' }}>STT</th>
                   <th>Tiêu chí đánh giá</th>
                   <th style={{ textAlign: 'center' }}>Trọng số</th>
                   <th>Mục tiêu (Target)</th>
@@ -552,8 +552,8 @@ export function MyScorecardsPage() {
                       </tr>,
                       ...cua.map((d) => (
                         <tr key={d.id} className={d.cap1 ? 'pt-dong-cap1' : 'pt-dong-con'}>
-                          <td>
-                            <span className={d.cap1 ? 'pt-ma' : 'pt-ma pt-ma-con'}>{d.ma}</span>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className={d.cap1 ? 'pt-stt' : 'pt-stt pt-stt-con'}>{d.ma}</span>
                           </td>
                           <td>
                             <div className={d.cap1 ? 'pt-ke-ten' : 'pt-ke-ten pt-ke-ten-con'}>{d.ten}</div>
@@ -570,7 +570,7 @@ export function MyScorecardsPage() {
                                 <b className="pt-diem-o">{diemTomTat(d.diem)}</b>
                                 <small className="pt-mo"> / {d.maxScale}</small>
                               </>
-                            ) : d.cap1 && dongKe.some((x) => !x.cap1 && x.ma.startsWith(`${d.ma}.`)) ? (
+                            ) : d.cap1 && dongKe.some((x) => !x.cap1 && x.section === d.section && x.ma.startsWith(`${d.ma}.`)) ? (
                               <small className="pt-mo">tính từ KPI con</small>
                             ) : (
                               <span className="pt-mo">—</span>
