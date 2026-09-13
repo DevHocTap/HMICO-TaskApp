@@ -1468,3 +1468,82 @@ a.ten-nhan-vien:hover {
 .bang-cham .ant-table-thead > tr > th {
   white-space: nowrap;
 }
+
+/* ---------- Trang chủ nhân viên ---------- */
+.phieu-toi-luoi {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .phieu-toi-luoi {
+    grid-template-columns: 1fr;
+  }
+}
+.phieu-toi-diem {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.phieu-toi-diem > div {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.buoc-phieu {
+  display: flex;
+  flex-direction: column;
+}
+.buoc-phieu-muc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+.buoc-dang {
+  background: var(--mau-chu-dao-mo);
+}
+.buoc-tre {
+  background: var(--mau-nhan-nhat);
+}
+.buoc-phieu-cham {
+  font-size: 20px;
+  width: 24px;
+  display: inline-grid;
+  place-items: center;
+}
+.buoc-phieu-so {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+.buoc-dang .buoc-phieu-so {
+  border-color: var(--mau-chu-dao);
+  color: var(--mau-chu-dao);
+}
+.phieu-toi-lich-su {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+}
+.phieu-toi-lich-su-dong {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border-top: 1px solid #f1f5f9;
+  color: inherit;
+}
+.phieu-toi-lich-su-dong:hover {
+  background: #f8fafc;
+}

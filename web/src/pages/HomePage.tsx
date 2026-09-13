@@ -18,6 +18,7 @@ import { layKyDanhGia, layViecCuaToi } from '../api/scorecard';
 import { layTomTatTrangChu } from '../api/report';
 import { BangDieuHanhKy } from '../components/BangDieuHanhKy';
 import { PhieuCanXuLyGap } from '../components/PhieuCanXuLyGap';
+import { PhieuKyNayCuaToi } from '../components/PhieuKyNayCuaToi';
 import type { TomTatTrangChu } from '../types/report';
 import { NHAN_XEP_LOAI } from '../types/scorecard';
 import { coTheXemBaoCao } from '../auth/permissions';
@@ -432,76 +433,83 @@ export function HomePage() {
         </div>
       </header>
 
-      <Card
-        loading={isLoading}
-        title={
-          <span className="viec-tieu-de">
-            Việc của tôi
-            <Typography.Text
-              type="secondary"
-              style={{ fontSize: 14, fontWeight: 400 }}
-            >
-              {viec.length > 0
-                ? `${viec.length} việc đang chờ`
-                : 'không có việc nào'}
-            </Typography.Text>
-          </span>
-        }
-        extra={
-          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            Không có email nhắc, không chuông — mở trang này là thấy đủ việc
-          </Typography.Text>
-        }
-      >
-        {viec.length === 0 ? (
-          <Empty
-            image={
-              <CheckCircleOutlined style={{ fontSize: 40, color: '#52c41a' }} />
-            }
-            styles={{ image: { height: 48 } }}
-            description="Không có việc nào đang chờ bạn"
-          />
-        ) : (
-          <div className="viec-danh-sach">
-            {viec.map((v) => (
-              <div
-                key={v.type}
-                className={
-                  v.isOverdue ? 'viec-dong viec-dong-qua-han' : 'viec-dong'
-                }
+      {(viec.length > 0 || isLoading || xemBaoCao) && (
+        <Card
+          loading={isLoading}
+          title={
+            <span className="viec-tieu-de">
+              Việc của tôi
+              <Typography.Text
+                type="secondary"
+                style={{ fontSize: 14, fontWeight: 400 }}
               >
-                <span className="viec-icon">
-                  {ICON_VIEC[v.type] ?? <FileDoneOutlined />}
-                </span>
-                <Typography.Text strong style={{ fontSize: 16, flex: 1 }}>
-                  {v.message}
-                </Typography.Text>
-                {nhanHan(v)}
-                <Link to={v.link}>
-                  <Button
-                    shape="round"
-                    icon={<ArrowRightOutlined />}
-                    iconPosition="end"
-                  >
-                    Xử lý
-                  </Button>
-                </Link>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+                {viec.length > 0
+                  ? `${viec.length} việc đang chờ`
+                  : 'không có việc nào'}
+              </Typography.Text>
+            </span>
+          }
+          extra={
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              Không có email nhắc, không chuông — mở trang này là thấy đủ việc
+            </Typography.Text>
+          }
+        >
+          {viec.length === 0 ? (
+            <Empty
+              image={
+                <CheckCircleOutlined
+                  style={{ fontSize: 40, color: '#52c41a' }}
+                />
+              }
+              styles={{ image: { height: 48 } }}
+              description="Không có việc nào đang chờ bạn"
+            />
+          ) : (
+            <div className="viec-danh-sach">
+              {viec.map((v) => (
+                <div
+                  key={v.type}
+                  className={
+                    v.isOverdue ? 'viec-dong viec-dong-qua-han' : 'viec-dong'
+                  }
+                >
+                  <span className="viec-icon">
+                    {ICON_VIEC[v.type] ?? <FileDoneOutlined />}
+                  </span>
+                  <Typography.Text strong style={{ fontSize: 16, flex: 1 }}>
+                    {v.message}
+                  </Typography.Text>
+                  {nhanHan(v)}
+                  <Link to={v.link}>
+                    <Button
+                      shape="round"
+                      icon={<ArrowRightOutlined />}
+                      iconPosition="end"
+                    >
+                      Xử lý
+                    </Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {xemBaoCao && ky ? (
         <BangDieuHanhKy ky={ky} />
       ) : (
-        tomTat && (
-          <div className="the-so-lieu-luoi">
-            {theSoLieuTheoVai(tomTat, ky).map((the) => (
-              <TheSoLieu key={the.nhan} {...the} />
-            ))}
-          </div>
-        )
+        <>
+          {ky && <PhieuKyNayCuaToi ky={ky} />}
+          {tomTat && (
+            <div className="the-so-lieu-luoi">
+              {theSoLieuTheoVai(tomTat, ky).map((the) => (
+                <TheSoLieu key={the.nhan} {...the} />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Hàng dưới: phiếu cần xử lý gấp (vai quản lý) bên trái, lịch bên phải */}
