@@ -518,6 +518,23 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   mã NV mono, pill xếp loại / trạng thái, nút mắt) và chân trang Trước / Sau.
   Gỡ `TheBaoCao.tsx`, `ThanhXepChong`, `ThanhNgang` (không còn ai dùng).
 
+- **Quản lý nhân sự (`/admin/users`) — dựng lại theo mã HTML mẫu (13/09):**
+  `UsersPage.tsx` + `quan-ly-nhan-su.css`. Tiêu đề "N nhân sự · phạm vi",
+  ô tìm + chọn phòng + "Thêm nhân viên" (HR/ADMIN); banner "Chế độ xem" cho
+  vai chỉ đọc; 3 thẻ (tổng nhân sự đang làm việc + đã nghỉ + số trưởng bộ
+  phận; tiến độ giao KPI kỳ này có thanh; tài khoản chưa đổi mật khẩu / đang
+  hoạt động, link lọc nhanh); chip lọc **có số đếm** (4 truy vấn `limit=1`
+  theo phòng đang lọc) + ô chức danh / vai trò; bảng tự dựng: avatar màu theo
+  tên, mã · email, chức danh + huy hiệu "cấp bậc · vai trò", **cột "Trạng
+  thái KPI tháng"** đọc `assignment-board` của kỳ đang xem (chưa giao / chờ
+  ký / đã ký nhận / đã tự chấm / đã chốt / có ý kiến), trạng thái tài khoản,
+  "Sửa hồ sơ" + menu ⋯ (HR/ADMIN) hoặc "Xem phiếu" (vai khác); chân bảng
+  Trước / trang / Sau + cỡ trang. Thay thế của mẫu: "Xuất Excel" → không có
+  (chưa có endpoint xuất nhân sự); "Gửi nhắc nhở" → "Xem danh sách" (không
+  có kênh thông báo); "Trạng thái KPI kỳ" ở bộ lọc → không có (API nhân sự
+  không lọc theo phiếu). Modal thêm/sửa, đặt lại mật khẩu, vô hiệu hoá giữ
+  nguyên.
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 
