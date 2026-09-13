@@ -77,6 +77,13 @@ export interface DiemTrungBinhPhong {
   diemTrungBinh: string | null;
 }
 
+export interface DiemTrungBinhChucDanh {
+  /** Tên chức danh chụp trên phiếu. */
+  jobTitleName: string;
+  soPhieuDaChot: number;
+  diemTrungBinh: string | null;
+}
+
 export interface SoLieuDashboard {
   period: { id: string; code: string; name: string };
   soPhieuTrongKy: number;
@@ -86,6 +93,8 @@ export interface SoLieuDashboard {
   /** Điểm TB của từng hạng (chuỗi hai chữ số), `null` khi hạng chưa có ai. */
   diemTrungBinhTheoXepLoai: Record<XepLoaiKpi, string | null>;
   diemTrungBinhTheoPhong: DiemTrungBinhPhong[];
+  /** Theo chức danh — thẻ "Hiệu suất theo chức danh" của trưởng phòng (13/09). */
+  diemTrungBinhTheoChucDanh: DiemTrungBinhChucDanh[];
 }
 
 // ------------------------------------------------- tóm tắt trang chủ

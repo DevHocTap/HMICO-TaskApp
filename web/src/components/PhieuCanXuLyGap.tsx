@@ -75,6 +75,9 @@ export function PhieuCanXuLyGap({ ky }: { ky: KyDanhGia }) {
   ];
   const tongSo = the.length;
   const hien = the.slice(0, TOI_DA);
+  // Không có phiếu gấp thì ẩn hẳn: dải "Hàng đợi trống" ở Tổng quan đã nói
+  // điều đó, thêm một thẻ rỗng nữa là thừa (13/09).
+  if (!isLoading && tongSo === 0) return null;
 
   const tieuDe = laNguoiCham ? 'Phiếu cần chấm gấp' : 'Phiếu chờ tiếp nhận';
   const lech = (p: PhieuTomTat) =>

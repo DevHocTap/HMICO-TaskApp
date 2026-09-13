@@ -25,8 +25,9 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import { coTheGiaoKpi, coTheXemNhanVien } from '../auth/permissions';
+import { coTheGiaoKpi, coTheXemBaoCao, coTheXemNhanVien } from '../auth/permissions';
 import { layKyDanhGia, layViecCuaToi } from '../api/scorecard';
+import { laySoLieuDashboard } from '../api/report';
 import type { Role } from '../types/auth';
 import type { ViecCanXuLy } from '../types/scorecard';
 import {
@@ -110,6 +111,18 @@ export function AdminLayout() {
   });
   const kyHienTai = kyChuaHomNay(kyDanhGia);
   const giaiDoan = kyHienTai ? giaiDoanCuaKy(kyHienTai) : null;
+  // Chip "Thẩm định N%" cho vai quản lý — cùng queryKey với Tổng quan nên
+  // không gọi thêm lần nào khi đang ở trang chủ.
+  const { data: soLieu } = useQuery({
+    queryKey: ['reports', 'dashboard', kyHienTai?.id],
+    queryFn: () => laySoLieuDashboard(kyHienTai!.id),
+    enabled: Boolean(kyHienTai) && coTheXemBaoCao(user?.role),
+    staleTime: 60 * 1000,
+  });
+  const tienDoThamDinh =
+    soLieu && soLieu.soPhieuTrongKy > 0
+      ? Math.round((soLieu.soPhieuDaChot / soLieu.soPhieuTrongKy) * 100)
+      : null;
   const soViec = demViecTheoDuongDan(viec);
   const tongViec = viec.reduce((a, v) => a + v.count, 0);
   const tenTrang = TEN_TRANG.find(([tienTo]) =>
@@ -278,6 +291,12 @@ export function AdminLayout() {
                     ? giaiDoan.ten
                     : `Giai đoạn ${giaiDoan.so}: ${giaiDoan.ten}`}
                 </span>
+              </Link>
+            )}
+            {tienDoThamDinh !== null && (
+              <Link to="/kpi/dashboard" className="chip-ky chip-tham-dinh">
+                <span className="chip-tham-dinh-cham" />
+                Tiến độ thẩm định: <strong>{tienDoThamDinh}%</strong>
               </Link>
             )}
           </div>

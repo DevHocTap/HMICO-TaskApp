@@ -236,7 +236,7 @@ export class ReportsService {
       resultStatus: { in: [ResultStatus.MANAGER_SCORED, ResultStatus.RECEIVED] },
     };
 
-    const [theoTrangThai, theoXepLoai, theoPhong, phongBan] = await Promise.all([
+    const [theoTrangThai, theoXepLoai, theoPhong, theoChucDanh, phongBan] = await Promise.all([
       this.prisma.scorecard.groupBy({
         by: ['resultStatus'],
         where: trongKy,
@@ -250,6 +250,15 @@ export class ReportsService {
       }),
       this.prisma.scorecard.groupBy({
         by: ['departmentId'],
+        where: daChot,
+        _count: { _all: true },
+        _avg: { managerTotalScore: true },
+      }),
+      // Theo CHỨC DANH — nhóm theo tên đã chụp trên phiếu, vì trưởng phòng
+      // nhìn phòng mình theo nhóm nghề (kỹ sư triển khai, Shop Drawing...)
+      // chứ không theo phòng con (13/09).
+      this.prisma.scorecard.groupBy({
+        by: ['jobTitleName'],
         where: daChot,
         _count: { _all: true },
         _avg: { managerTotalScore: true },
@@ -302,6 +311,14 @@ export class ReportsService {
           diemTrungBinh: this.lamTron(x._avg.managerTotalScore),
         }))
         .sort((a, b) => a.departmentName.localeCompare(b.departmentName, 'vi')),
+      /** Trung bình theo chức danh (tên chụp trên phiếu) — thẻ "Hiệu suất theo chức danh" của trưởng phòng. */
+      diemTrungBinhTheoChucDanh: theoChucDanh
+        .map((x) => ({
+          jobTitleName: x.jobTitleName,
+          soPhieuDaChot: x._count._all,
+          diemTrungBinh: this.lamTron(x._avg.managerTotalScore),
+        }))
+        .sort((a, b) => a.jobTitleName.localeCompare(b.jobTitleName, 'vi')),
     };
   }
 

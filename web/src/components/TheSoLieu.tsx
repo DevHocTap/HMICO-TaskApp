@@ -22,6 +22,8 @@ export interface TheSoLieuProps {
   daXong?: boolean;
   /** Dòng "so với tháng trước" — in giữa số và thanh. */
   soSanh?: ReactNode;
+  /** Khối bên phải con số (vòng tiến độ) — có thì ẩn thanh ngang. */
+  phai?: ReactNode;
 }
 
 /**
@@ -41,6 +43,7 @@ export function TheSoLieu({
   soSanh,
   khongCoSo,
   daXong,
+  phai,
 }: TheSoLieuProps) {
   const mau = khongCoSo
     ? '#9ca3af'
@@ -61,19 +64,26 @@ export function TheSoLieu({
           </span>
         )}
       </div>
-      <div className="the-so-lieu-so" style={{ color: mau }}>
-        {so}
-        {donVi && <span className="the-so-lieu-don-vi">{donVi}</span>}
+      <div className="the-so-lieu-than">
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="the-so-lieu-so" style={{ color: mau }}>
+            {so}
+            {donVi && <span className="the-so-lieu-don-vi">{donVi}</span>}
+          </div>
+          {soSanh && <div className="the-so-lieu-so-sanh">{soSanh}</div>}
+        </div>
+        {phai && <div className="the-so-lieu-phai">{phai}</div>}
       </div>
-      {soSanh && <div className="the-so-lieu-so-sanh">{soSanh}</div>}
-      <div className="the-so-lieu-thanh">
-        <span
-          style={{
-            width: `${Math.max(0, Math.min(100, phanTram))}%`,
-            background: mau,
-          }}
-        />
-      </div>
+      {!phai && (
+        <div className="the-so-lieu-thanh">
+          <span
+            style={{
+              width: `${Math.max(0, Math.min(100, phanTram))}%`,
+              background: mau,
+            }}
+          />
+        </div>
+      )}
       {chuThich && (
         <Typography.Text type="secondary" style={{ fontSize: 13 }}>
           {chuThich}

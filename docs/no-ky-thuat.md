@@ -503,6 +503,12 @@ tự động rồi mới vỡ.
       cùng lúc có thể lọt hai mẫu; khi đó `mustFindSystemTemplate` lấy
       `findFirst` không `orderBy` → không xác định. Ca hiếm (một trưởng
       phòng bấm đúp), chấp nhận; nếu gặp thì ngừng bớt một mẫu.
+- [ ] **`kiem-chung-lat-cat-6.sh` đỏ 10 ca trên máy dev từ 13/09** vì
+      `sd.nhanvien1` đã có phiếu tháng 08 tạo tay (06:25 13/09, tài khoản
+      trưởng phòng Kỹ thuật) nên bước "sinh phiếu đã chấm đủ" trả 409 và
+      mọi kiểm sau đó mất phiếu mẫu — cùng loại với 7 ca của
+      `verify-scorecard.sh`. Không phải lỗi code (đối chứng: các kiểm không
+      cần phiếu đó vẫn xanh). Muốn xanh lại: `npx prisma db seed`.
 - [ ] **`verify-kpi-template.sh` mục "Tổng hợp trên danh sách" đọc
       `includeInactive=true`** vì máy dev đã ngừng bốn mẫu thật khi thử tay
       (13/09, do trưởng phòng Kỹ thuật bấm trên giao diện). Không tự bật

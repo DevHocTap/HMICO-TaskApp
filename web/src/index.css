@@ -1570,3 +1570,289 @@ a.ten-nhan-vien:hover {
 .phieu-toi-lich-su-dong:hover {
   background: #f8fafc;
 }
+
+/* ---------- Tổng quan vai quản lý — mẫu bảng điều hành 13/09 ---------- */
+.dieu-hanh-dau {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.dieu-hanh-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.dieu-hanh-nut {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dieu-hanh-han-chot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #4b5563;
+}
+.dieu-hanh-han-chot strong {
+  color: #111827;
+}
+
+/* Thẻ số liệu có khối bên phải (vòng tiến độ) */
+.the-so-lieu-than {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.the-so-lieu-phai {
+  flex: none;
+}
+
+/* Quy trình 3 giai đoạn — dòng chân "Còn 9 ngày · Hạn: 22/09" */
+.stepper-buoc-chan {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: #4b5563;
+}
+.stepper-buoc-dang .stepper-buoc-chan > span:first-child {
+  color: var(--mau-chu-dao);
+  font-weight: 600;
+}
+
+/* Hai cột: trái rộng (xu hướng, xếp loại + hiệu suất), phải hẹp (mốc, quy tắc) */
+.tong-quan-luoi {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.tong-quan-cot {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.tong-quan-cot .dashboard-luoi {
+  margin-top: 0;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+@media (max-width: 1100px) {
+  .tong-quan-luoi {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Xu hướng: trục tháng kèm số, chú giải vạch chỉ tiêu */
+.xu-huong-truc {
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+.xu-huong-truc b {
+  color: #374151;
+  font-weight: 600;
+}
+.xu-huong-truc span:last-child b {
+  color: var(--mau-chu-dao);
+}
+.bd-chu-giai-vach {
+  display: inline-block;
+  width: 14px;
+  height: 0;
+  border-top: 2px dashed #d63b3b;
+}
+.bd-vach {
+  stroke: #d63b3b;
+  stroke-opacity: 0.7;
+  stroke-dasharray: 5 4;
+}
+
+/* Mốc tiến độ tháng — dòng thời gian dọc */
+.moc-tien-do {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 14px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.moc-tien-do::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: #e5e7eb;
+}
+.moc-tien-do-dong {
+  position: relative;
+}
+.moc-tien-do-cham {
+  position: absolute;
+  left: -14px;
+  top: 14px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #cbd5e1;
+}
+.moc-mo .moc-tien-do-cham {
+  background: var(--mau-chu-dao);
+  box-shadow: 0 0 0 1px var(--mau-chu-dao);
+}
+.moc-qua .moc-tien-do-cham {
+  background: #94a3b8;
+  box-shadow: 0 0 0 1px #94a3b8;
+}
+.moc-tien-do-the {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #fff;
+}
+.moc-mo .moc-tien-do-the {
+  border-color: var(--mau-chu-dao);
+  background: #eff6ff;
+}
+.moc-qua .moc-tien-do-the {
+  opacity: 0.6;
+}
+.moc-tien-do-dau {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.moc-tien-do-ngay {
+  color: var(--mau-chu-dao);
+  font-size: 13px;
+}
+.moc-qua .moc-tien-do-ngay {
+  color: #4b5563;
+}
+
+/* Phân bố xếp loại dạng vành khuyên */
+.xep-loai-vong {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.xep-loai-vong-chu-giai {
+  flex: 1;
+  min-width: 160px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.xep-loai-vong-dong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.xep-loai-vong-dong .xep-loai-o-ten {
+  flex: 1;
+  font-size: 13px;
+}
+
+/* Quy tắc & thang điểm */
+.quy-tac-danh-sach {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.quy-tac-dong {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+.quy-tac-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: var(--mau-chu-dao);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex: none;
+}
+.quy-tac-nut {
+  background: var(--mau-nen-dam);
+  color: #fff;
+  border-color: var(--mau-nen-dam);
+}
+.quy-tac-nut:hover {
+  color: #fff !important;
+  opacity: 0.9;
+}
+
+/* Dải "hàng đợi trống" cuối trang */
+.hang-doi-trong {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  border-radius: 14px;
+}
+.hang-doi-trong-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #15803d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex: none;
+}
+
+/* Chip "Tiến độ thẩm định: N%" ở header — xanh lá, cạnh chip kỳ */
+.chip-tham-dinh {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+  margin-left: 8px;
+}
+.chip-tham-dinh strong {
+  color: #166534;
+}
+.chip-tham-dinh-cham {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+@media (max-width: 900px) {
+  .chip-tham-dinh {
+    display: none;
+  }
+}
