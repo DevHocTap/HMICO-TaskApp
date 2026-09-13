@@ -92,6 +92,7 @@ export function KpiTemplatesPage() {
   const { message, modal } = App.useApp();
   const { user } = useAuth();
   const coQuyenGhi = coTheGhiMau(user?.role);
+  const laAdmin = user?.role === 'ADMIN';
   const laTruongPhong = user?.role === 'MANAGER';
   const trongSo = useTrongSo();
   const [form] = Form.useForm<FormValues>();
@@ -120,7 +121,8 @@ export function KpiTemplatesPage() {
       layDanhSachMau({
         jobTitleId: locChucDanh,
         status: locTrangThai,
-        includeInactive: hienDaNgung || undefined,
+        // Chỉ ADMIN có công tắc; vai khác không bao giờ xin mẫu đã ngừng
+        includeInactive: (laAdmin && hienDaNgung) || undefined,
       }),
   });
 
@@ -220,7 +222,6 @@ export function KpiTemplatesPage() {
   // "Xoá" với mọi vai là NGỪNG SỬ DỤNG: mẫu biến mất khỏi danh sách và
   // không sinh phiếu mới; chỉ ADMIN xem lại và khôi phục được (chốt 13/09).
   // Không xoá hẳn vì phiếu đã tạo còn trỏ về mẫu để truy vết.
-  const laAdmin = user?.role === 'ADMIN';
   function xacNhanVoHieuHoa(mau: KpiTemplate) {
     modal.confirm({
       title: `Xoá mẫu "${mau.name}"?`,
