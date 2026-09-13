@@ -476,3 +476,25 @@
 .pt-bang { border-color: #cbd5e1; }
 .pt-table-ky td { border-bottom: 1px solid #e2e8f0; }
 .pt-table-ky thead tr { border-bottom: 1px solid #cbd5e1; }
+
+/* ---------- căn cột bảng kê: đầu bảng, thân, chân cùng một lề (13/09)
+   1 STT giữa · 2 Tiêu chí trái · 3 Trọng số giữa · 4 Mục tiêu trái · 5 Ghi chú trái · 6 Điểm tự chấm giữa · 7 Điểm TS phải */
+.pt-table-ke th, .pt-table-ke td { padding: 12px 14px; vertical-align: middle; }
+.pt-table-ke th:nth-child(1), .pt-table-ke td:nth-child(1) { text-align: center; padding-left: 8px; padding-right: 8px; }
+.pt-table-ke th:nth-child(2), .pt-table-ke td:nth-child(2) { text-align: left; }
+.pt-table-ke th:nth-child(3), .pt-table-ke td:nth-child(3) { text-align: center; }
+.pt-table-ke th:nth-child(4), .pt-table-ke td:nth-child(4),
+.pt-table-ke th:nth-child(5), .pt-table-ke td:nth-child(5) { text-align: left; }
+.pt-table-ke th:nth-child(6), .pt-table-ke td:nth-child(6) { text-align: center; white-space: nowrap; }
+.pt-table-ke th:nth-child(7), .pt-table-ke td:nth-child(7) { text-align: right; white-space: nowrap; }
+.pt-table-ke th { line-height: 1.3; }
+.pt-table-ke .pt-dong-muc td { text-align: left; padding: 8px 14px; }
+.pt-table-ke .pt-ke-ten { line-height: 1.4; }
+.pt-table-ke .pt-ke-ten .pt-so-con { vertical-align: 1px; }
+.pt-table-ke .pt-ke-phu { line-height: 1.4; margin-top: 3px; }
+.pt-table-ke .pt-ke-muc-tieu { line-height: 1.5; }
+.pt-table-ke td:nth-child(6) small { font-size: 11px; }
+/* chân bảng: nhãn "Tổng cộng" dồn về phải sát cột trọng số, mô tả căn trái theo cột Mục tiêu */
+.pt-table-ke tfoot td { vertical-align: middle; }
+.pt-table-ke tfoot .pt-tfoot-nhan { text-align: right; padding-right: 20px; }
+.pt-table-ke tfoot .pt-tfoot-mo { text-align: left; }
