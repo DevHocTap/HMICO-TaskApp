@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Typography } from 'antd';
-import { mauChuDao, mauNhan } from '../config/theme';
+import { mauChuDao, mauNhan, mauXanhLa } from '../config/theme';
 
 export interface TheSoLieuProps {
   nhan: string;
@@ -18,6 +18,8 @@ export interface TheSoLieuProps {
   icon?: ReactNode;
   /** Chưa có số để hiện (khác với số 0): số và thanh in xám. */
   khongCoSo?: boolean;
+  /** Việc đã hoàn tất: số và thanh xanh lá. */
+  daXong?: boolean;
   /** Dòng "so với tháng trước" — in giữa số và thanh. */
   soSanh?: ReactNode;
 }
@@ -38,8 +40,15 @@ export function TheSoLieu({
   icon,
   soSanh,
   khongCoSo,
+  daXong,
 }: TheSoLieuProps) {
-  const mau = khongCoSo ? '#9ca3af' : canChuY ? mauNhan : mauChuDao;
+  const mau = khongCoSo
+    ? '#9ca3af'
+    : canChuY
+      ? mauNhan
+      : daXong
+        ? mauXanhLa
+        : mauChuDao;
   return (
     <div className={`the-so-lieu${canChuY ? ' the-so-lieu-chu-y' : ''}`}>
       <div className="the-so-lieu-dau">

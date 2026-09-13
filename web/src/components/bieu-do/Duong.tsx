@@ -17,23 +17,37 @@ interface Props {
   donVi?: string;
   /** Vạch ngang tham chiếu. */
   vach?: { giaTri: number; nhan: string }[];
+  /** Chiều cao (px) — mặc định 220; tăng khi thẻ chứa nó cao hơn. */
+  cao?: number;
 }
 
 /**
  * Đường một chuỗi theo thời gian. Đường 2px, chấm r=5 có viền nền 2px, lưới
  * hairline, nhãn giá trị chỉ ở điểm cuối, crosshair + tooltip khi rê chuột.
  */
-export function Duong({ diem, mau = '#0987b1', yMin, yMax, donVi = '', vach = [] }: Props) {
-  const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
+export function Duong({
+  diem,
+  mau = '#0987b1',
+  yMin,
+  yMax,
+  donVi = '',
+  vach = [],
+  cao = 220,
+}: Props) {
+  const [hover, setHover] = useState<{
+    i: number;
+    x: number;
+    y: number;
+  } | null>(null);
   const rong = 600;
-  const cao = 220;
   const le = { trai: 44, phai: 20, tren: 16, duoi: 30 };
   const coSo = diem.map((d) => d.giaTri).filter((v): v is number => v !== null);
   const min = yMin ?? Math.floor(Math.min(0, ...coSo));
   const max = yMax ?? Math.ceil(Math.max(1, ...coSo) * 1.1);
   const w = rong - le.trai - le.phai;
   const h = cao - le.tren - le.duoi;
-  const px = (i: number) => le.trai + (diem.length === 1 ? w / 2 : (i / (diem.length - 1)) * w);
+  const px = (i: number) =>
+    le.trai + (diem.length === 1 ? w / 2 : (i / (diem.length - 1)) * w);
   const py = (v: number) => le.tren + h - ((v - min) / (max - min)) * h;
 
   // Nối các đoạn liên tiếp có số; null thì ngắt
@@ -74,8 +88,20 @@ export function Duong({ diem, mau = '#0987b1', yMin, yMax, donVi = '', vach = []
           const v = min + ((max - min) * k) / buocY;
           return (
             <g key={k}>
-              <line x1={le.trai} x2={rong - le.phai} y1={py(v)} y2={py(v)} className="bd-luoi" />
-              <text x={le.trai - 8} y={py(v)} className="bd-chu-nho" textAnchor="end" dominantBaseline="middle">
+              <line
+                x1={le.trai}
+                x2={rong - le.phai}
+                y1={py(v)}
+                y2={py(v)}
+                className="bd-luoi"
+              />
+              <text
+                x={le.trai - 8}
+                y={py(v)}
+                className="bd-chu-nho"
+                textAnchor="end"
+                dominantBaseline="middle"
+              >
                 {Math.round(v)}
               </text>
             </g>
@@ -83,22 +109,53 @@ export function Duong({ diem, mau = '#0987b1', yMin, yMax, donVi = '', vach = []
         })}
         {vach.map((v) => (
           <g key={v.nhan}>
-            <line x1={le.trai} x2={rong - le.phai} y1={py(v.giaTri)} y2={py(v.giaTri)} className="bd-vach" />
-            <text x={rong - le.phai} y={py(v.giaTri) - 4} className="bd-chu-nho" textAnchor="end">
+            <line
+              x1={le.trai}
+              x2={rong - le.phai}
+              y1={py(v.giaTri)}
+              y2={py(v.giaTri)}
+              className="bd-vach"
+            />
+            <text
+              x={rong - le.phai}
+              y={py(v.giaTri) - 4}
+              className="bd-chu-nho"
+              textAnchor="end"
+            >
               {v.nhan}
             </text>
           </g>
         ))}
         {diem.map((d, i) => (
-          <text key={d.nhan} x={px(i)} y={cao - 8} className="bd-chu-nho" textAnchor="middle">
+          <text
+            key={d.nhan}
+            x={px(i)}
+            y={cao - 8}
+            className="bd-chu-nho"
+            textAnchor="middle"
+          >
             {d.nhan}
           </text>
         ))}
         {hover && (
-          <line x1={px(hover.i)} x2={px(hover.i)} y1={le.tren} y2={le.tren + h} className="bd-crosshair" />
+          <line
+            x1={px(hover.i)}
+            x2={px(hover.i)}
+            y1={le.tren}
+            y2={le.tren + h}
+            className="bd-crosshair"
+          />
         )}
         {cacDoan.map((d, k) => (
-          <path key={k} d={d} fill="none" stroke={mau} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          <path
+            key={k}
+            d={d}
+            fill="none"
+            stroke={mau}
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
         ))}
         {diem.map(
           (d, i) =>
@@ -114,7 +171,12 @@ export function Duong({ diem, mau = '#0987b1', yMin, yMax, donVi = '', vach = []
             ),
         )}
         {cuoi && cuoi.giaTri !== null && (
-          <text x={px(iCuoi)} y={py(cuoi.giaTri) - 12} className="bd-chu bd-dam" textAnchor="middle">
+          <text
+            x={px(iCuoi)}
+            y={py(cuoi.giaTri) - 12}
+            className="bd-chu bd-dam"
+            textAnchor="middle"
+          >
             {cuoi.giaTri.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}
             {donVi}
           </text>
@@ -128,7 +190,9 @@ export function Duong({ diem, mau = '#0987b1', yMin, yMax, donVi = '', vach = []
               ? 'Chưa có phiếu chốt'
               : `${diem[hover.i]!.giaTri!.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}${donVi}`}
           </div>
-          {diem[hover.i]!.phu && <div className="bd-tooltip-phu">{diem[hover.i]!.phu}</div>}
+          {diem[hover.i]!.phu && (
+            <div className="bd-tooltip-phu">{diem[hover.i]!.phu}</div>
+          )}
         </TooltipBieuDo>
       )}
     </div>

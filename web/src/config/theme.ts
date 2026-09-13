@@ -45,6 +45,10 @@ export const theme: ThemeConfig = {
     borderRadius: 8,
     colorBgLayout: '#f5f7fb',
     colorBorderSecondary: '#e5e7eb',
+    // antd mặc định chữ phụ 45% đen — quá mờ trên nền trắng (phản hồi 13/09)
+    colorText: '#111827',
+    colorTextSecondary: '#4b5563',
+    colorTextTertiary: '#6b7280',
   },
   components: {
     Layout: {

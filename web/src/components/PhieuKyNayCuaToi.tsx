@@ -14,7 +14,15 @@ import { MAU_XEP_LOAI, NHAN_XEP_LOAI } from '../types/scorecard';
 import { useAuth } from '../auth/useAuth';
 import { Duong } from './bieu-do/Duong';
 import { diemTomTat, ngayVN } from '../utils/format';
-import { mauChuDao, mauNhan, mauXanhLa } from '../config/theme';
+import { mauChuDao, mauNhan, mauVang, mauXanhLa } from '../config/theme';
+
+/** Màu số điểm theo xếp loại — không phải cái gì cũng xanh. */
+const MAU_DIEM: Record<string, string> = {
+  NOT_ACHIEVED: mauNhan,
+  NEEDS_IMPROVEMENT: mauVang,
+  COMPLETED: mauXanhLa,
+  EXCEEDED: mauChuDao,
+};
 
 /** "Tháng 09/2026" -> "09/26" cho trục thời gian. */
 const nhanThang = (ten: string) => {
@@ -171,7 +179,10 @@ export function PhieuKyNayCuaToi({ ky }: { ky: KyDanhGia }) {
               </div>
               <div>
                 <span className="eyebrow">Trưởng bộ phận chấm</span>
-                <div className="cham-o-so" style={{ color: mauChuDao }}>
+                <div
+                  className="cham-o-so"
+                  style={{ color: p.grade ? MAU_DIEM[p.grade] : undefined }}
+                >
                   {p.managerTotalScore === null
                     ? '—'
                     : diemTomTat(p.managerTotalScore)}
@@ -278,7 +289,7 @@ export function PhieuKyNayCuaToi({ ky }: { ky: KyDanhGia }) {
                   <Typography.Text
                     strong
                     style={{
-                      color: x.grade === 'NOT_ACHIEVED' ? mauNhan : undefined,
+                      color: x.grade ? MAU_DIEM[x.grade] : undefined,
                     }}
                   >
                     {diemTomTat(x.managerTotalScore)}

@@ -377,6 +377,7 @@ function theSoLieuTheoVai(
             'Chưa có phiếu kỳ này'
           ),
           canChuY: !!t.tuCham && t.tuCham.chua > 0,
+          daXong: daNop,
         },
       ];
     }

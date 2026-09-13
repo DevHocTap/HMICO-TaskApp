@@ -255,9 +255,10 @@
 
 .eyebrow {
   font-size: 12px;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.45);
+  color: #4b5563;
+  font-weight: 600;
 }
 
 .trang-chu-dau {
@@ -402,7 +403,7 @@
 }
 .the-so-lieu-don-vi {
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.55);
+  color: #4b5563;
 }
 .the-so-lieu-thanh {
   height: 6px;
@@ -496,8 +497,8 @@
   line-height: 1.35;
 }
 .ten-va-phu small {
-  color: rgba(0, 0, 0, 0.5);
-  font-size: 12px;
+  color: #4b5563;
+  font-size: 12.5px;
 }
 
 /* Tag bo tròn, chữ đậm — dùng ở các bảng theo bộ mẫu */
@@ -1193,7 +1194,7 @@
 .cham-o-so small {
   font-size: 13px;
   font-weight: 400;
-  color: #6b7280;
+  color: #4b5563;
 }
 .cham-diem-trai {
   margin-bottom: 20px;
