@@ -9,6 +9,7 @@ import {
   Table,
   Tag,
   Tooltip,
+  TreeSelect,
   Typography,
 } from 'antd';
 import {
@@ -63,9 +64,18 @@ import { mauChuDao, mauNhan } from '../../config/theme';
 
 const SO_DONG = 10;
 
-/** Chip lọc phòng: các phòng cấp cao nhất trong phạm vi + phòng con của chúng, làm phẳng. */
 function lamPhang(nodes: DepartmentNode[]): DepartmentNode[] {
   return nodes.flatMap((n) => [n, ...lamPhang(n.children)]);
+}
+
+function sangCay(
+  nodes: DepartmentNode[],
+): { value: string; title: string; children?: ReturnType<typeof sangCay> }[] {
+  return nodes.map((n) => ({
+    value: n.id,
+    title: n.name,
+    children: n.children.length > 0 ? sangCay(n.children) : undefined,
+  }));
 }
 
 /**
@@ -281,8 +291,21 @@ export function DashboardPage() {
     },
   ];
 
-  const phongChip = lamPhang(cayPhong).filter(
-    (d) => d.children.length === 0 || d.userCount > 0,
+  // Chip chỉ cho phòng CÓ PHIẾU trong kỳ (không lấy đơn vị cha chỉ cộng dồn),
+  // tối đa 6 — 12 chip tràn hai hàng là lý do sửa (13/09). Phòng còn lại
+  // chọn qua ô cây bên phải.
+  const dsTienDo = tienDo?.departments ?? [];
+  const laCha = new Set(dsTienDo.map((d) => d.parentId).filter(Boolean));
+  const phongCoPhieu = dsTienDo
+    .filter(
+      (d) => !laCha.has(d.departmentId) && d.tongNhanSu - d.chuaCoPhieu > 0,
+    )
+    .sort(
+      (a, b) => b.tongNhanSu - b.chuaCoPhieu - (a.tongNhanSu - a.chuaCoPhieu),
+    )
+    .slice(0, 6);
+  const phongChip = lamPhang(cayPhong).filter((d) =>
+    phongCoPhieu.some((p) => p.departmentId === d.id),
   );
 
   return (
@@ -519,7 +542,24 @@ export function DashboardPage() {
               </div>
             }
             extra={
-              <span style={{ display: 'flex', gap: 8 }}>
+              <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <TreeSelect
+                  allowClear
+                  showSearch
+                  treeNodeFilterProp="title"
+                  placeholder="Phòng khác…"
+                  style={{ width: 200 }}
+                  value={
+                    locPhong && !phongChip.some((d) => d.id === locPhong)
+                      ? locPhong
+                      : undefined
+                  }
+                  treeData={sangCay(cayPhong)}
+                  onChange={(v: string | undefined) => {
+                    setLocPhong(v);
+                    setTrang(1);
+                  }}
+                />
                 <Select
                   allowClear
                   placeholder="Tất cả xếp loại"

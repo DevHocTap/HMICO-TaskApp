@@ -35,7 +35,9 @@ export function ngayTrongThang(iso: string | null): string {
  */
 export function tenGoi(fullName: string): string {
   const tu = fullName.trim().split(/\s+/);
-  return tu[tu.length - 1] ?? fullName;
+  // "Kỹ sư cấu hình 1" (tên seed) — bỏ số ở cuối, lấy từ có chữ gần nhất
+  const coChu = [...tu].reverse().find((t) => /\p{L}/u.test(t));
+  return coChu ?? tu[tu.length - 1] ?? fullName;
 }
 
 /** "sự" -> "Sự": tên gọi lấy từ họ tên gõ thường (dữ liệu seed) vẫn đọc được. */

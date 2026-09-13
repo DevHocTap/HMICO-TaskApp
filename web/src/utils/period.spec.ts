@@ -62,6 +62,9 @@ describe('tenGoi / chuVietTat', () => {
     expect(tenGoi('Trần Quốc Việt')).toBe('Việt');
     expect(tenGoi('  Quản trị hệ thống ')).toBe('thống');
     expect(tenGoi('Hà')).toBe('Hà');
+    // Tên seed kết thúc bằng số: không lấy số làm tên gọi
+    expect(tenGoi('Kỹ sư cấu hình 1')).toBe('hình');
+    expect(chuVietTat('Nhân viên Shop Drawing 2')).toBe('DR');
   });
   it('viết tắt hai chữ đầu tên gọi', () => {
     expect(chuVietTat('Lê Minh Hoàng')).toBe('HO');
