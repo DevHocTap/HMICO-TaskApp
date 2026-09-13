@@ -1697,3 +1697,18 @@ a.ten-nhan-vien:hover {
   font-weight: 700;
 }
 .bang-cham .dong-tong-ket .ant-typography { color: #1e3a8a; }
+
+/* Bảng chấm điểm: viền đậm hơn + cột dọc (13/09) */
+.bang-cham .ant-table { border-color: #cbd5e1; }
+.bang-cham .ant-table-thead > tr > th { border-bottom: 1px solid #94a3b8 !important; border-right: 1px solid #cbd5e1 !important; }
+.bang-cham .ant-table-tbody > tr > td { border-bottom: 1px solid #cbd5e1 !important; border-right: 1px solid #e2e8f0 !important; }
+.bang-cham .ant-table-thead > tr > th:last-child,
+.bang-cham .ant-table-tbody > tr > td:last-child,
+.bang-cham .ant-table-summary > tr > td:last-child { border-right: 0 !important; }
+.bang-cham .dong-muc > td { border-right: 0 !important; }
+.bang-cham .ant-table-summary > tr > td { border-right: 1px solid #bfdbfe !important; }
+.bang-cham .ant-table-tbody > tr:not(.dong-cha):not(.dong-muc) > td:first-child { box-shadow: inset 3px 0 0 #93c5fd; }
+
+/* Giao KPI và các bảng antd khác: kẻ ngang đậm hơn một nấc */
+.ant-table-wrapper .ant-table-tbody > tr > td { border-bottom-color: #e2e8f0; }
+.ant-table-wrapper .ant-table-thead > tr > th { border-bottom-color: #cbd5e1; }

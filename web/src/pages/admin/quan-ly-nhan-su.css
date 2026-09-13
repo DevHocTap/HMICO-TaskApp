@@ -117,3 +117,11 @@
 .qn-trang-nut button:disabled { color: #cbd5e1; cursor: not-allowed; }
 .qn-trang-so { width: 28px; height: 28px; border-radius: 6px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
 .qn-select-nho { background: #fff; border: 1px solid #e2e8f0; font-size: 12px; border-radius: 6px; padding: 5px 8px; color: #475569; font-family: inherit; height: 28px; }
+
+/* ---------- viền đậm hơn (13/09) */
+.qn-bang { border-color: #cbd5e1; }
+.qn-table thead tr { border-bottom: 1px solid #cbd5e1; background: #f1f5f9; }
+.qn-table td { border-bottom: 1px solid #e2e8f0; }
+.qn-table th, .qn-table td { border-right: 1px solid #f1f5f9; }
+.qn-table th:last-child, .qn-table td:last-child { border-right: 0; }
+.qn-bang-chan { border-top-color: #cbd5e1; }

@@ -465,3 +465,14 @@
 .pt-table-ke tfoot .pt-trong-so-dam { background: #1d4ed8; color: #fff; font-size: 12px; }
 .pt-table-ke tfoot .pt-chu-xanh { color: #1e3a8a; font-size: 14px; }
 .pt-table-ke tfoot .pt-tong-lon { font-size: 18px; font-weight: 800; color: #1d4ed8; }
+
+/* ---------- viền đậm hơn + cột dọc cho bảng KPI (13/09) */
+.pt-ke-khung { border: 1px solid #cbd5e1; }
+.pt-table-ke th, .pt-table-ke tbody td, .pt-table-ke tfoot td { border-right: 1px solid #e2e8f0; }
+.pt-table-ke th:last-child, .pt-table-ke tbody td:last-child, .pt-table-ke tfoot td:last-child { border-right: 0; }
+.pt-table-ke tbody td { border-bottom: 1px solid #cbd5e1; }
+.pt-table-ke thead tr { border-bottom: 1px solid #94a3b8; }
+.pt-table-ke .pt-dong-muc td { border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; border-right: 0; }
+.pt-bang { border-color: #cbd5e1; }
+.pt-table-ky td { border-bottom: 1px solid #e2e8f0; }
+.pt-table-ky thead tr { border-bottom: 1px solid #cbd5e1; }

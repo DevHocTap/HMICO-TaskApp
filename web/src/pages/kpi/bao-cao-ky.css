@@ -171,3 +171,12 @@
 .bc-trang button { padding: 4px 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #fff; color: #334155; font-size: 12px; cursor: pointer; font-family: inherit; }
 .bc-trang button:disabled { color: #cbd5e1; cursor: not-allowed; }
 .bc-trang span { padding: 4px 8px; font-weight: 600; color: #2563eb; background: #eff6ff; border-radius: 4px; }
+
+/* ---------- viền đậm hơn (13/09) */
+.bc-bang { border-color: #cbd5e1; }
+.bc-loc { border-bottom-color: #cbd5e1; }
+.bc-table thead tr { border-bottom: 1px solid #cbd5e1; background: #f1f5f9; }
+.bc-table td { border-bottom: 1px solid #e2e8f0; }
+.bc-table th, .bc-table td { border-right: 1px solid #f1f5f9; }
+.bc-table th:last-child, .bc-table td:last-child { border-right: 0; }
+.bc-bang-chan { border-top-color: #cbd5e1; }
