@@ -143,8 +143,8 @@ export function TongQuanQuanLy() {
   const moc = [
     { ngay: kySau?.assignDeadline ?? null, ten: `Giao KPI tháng mới (${nhanThang(kySau)})`, phu: 'Phân bổ chỉ tiêu cho từng người', nhan: 'Ưu tiên', lop: 'xanh' },
     { ngay: ky.selfScoreDeadline, ten: 'Nhân viên tự chấm hoàn tất', phu: 'Khoá quyền chỉnh sửa tự đánh giá', nhan: 'Hạn nộp', lop: 'cam' },
-    { ngay: ky.managerScoreDeadline, ten: 'Duyệt & chốt điểm chính thức', phu: 'Trưởng bộ phận chấm cột thứ hai', nhan: 'Trưởng phòng', lop: '' },
-    { ngay: ky.submitDeadline, ten: 'Nghiệm thu & lưu hồ sơ', phu: 'Tổng kết thi đua toàn công ty', nhan: 'HCNS', lop: '' },
+    { ngay: ky.managerScoreDeadline, ten: 'Duyệt & chốt điểm chính thức', phu: 'Trưởng bộ phận chấm cột thứ hai', nhan: 'Trưởng phòng', lop: 'tim' },
+    { ngay: ky.submitDeadline, ten: 'Nghiệm thu & lưu hồ sơ', phu: 'Tổng kết thi đua toàn công ty', nhan: 'HCNS', lop: 'xanh-la' },
   ].sort((a, b) => (a.ngay ?? '').localeCompare(b.ngay ?? ''));
   const mocSapToi = moc.find((m) => m.ngay && !homNay.isAfter(dayjs(m.ngay), 'day'));
 
@@ -553,9 +553,11 @@ export function TongQuanQuanLy() {
               {moc.map((m) => {
                 const daQua = m.ngay ? homNay.isAfter(dayjs(m.ngay), 'day') : false;
                 const noiBat = m === mocSapToi;
-                const lop = daQua ? 'qua' : noiBat ? 'xanh' : m.lop || 'xam';
+                // Mỗi mốc một màu theo vai (xanh giao KPI · cam hạn nộp · tím trưởng
+                // phòng · xanh lá HCNS); mốc sắp tới gần nhất viền đậm; đã qua mờ đi.
+                const lop = daQua ? 'qua' : m.lop;
                 return (
-                  <div key={m.ten} className={`tq-moc-dong tq-moc-${lop}`}>
+                  <div key={m.ten} className={`tq-moc-dong tq-moc-${lop}${noiBat ? ' tq-moc-noi' : ''}`}>
                     <span className="tq-moc-cham" />
                     <div className="tq-moc-the">
                       <div className="tq-the-hang">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TooltipBieuDo } from './Tooltip';
 
 export interface DiemDuongVung {
@@ -20,9 +20,25 @@ interface Props {
  * bảng điều hành 13/09: điểm đầu và cuối chạm hai mép, lưới ngang nét đứt,
  * nhãn tháng do trang vẽ bên dưới (hàng chữ, không nằm trong SVG).
  */
-export function DuongVung({ diem, mau, chiTieu, cao = 150 }: Props) {
+export function DuongVung({ diem, mau, chiTieu, cao: caoMacDinh = 150 }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
-  const rong = 540;
+  // viewBox rộng đúng bằng khung thật (đo bằng ResizeObserver) để không phải
+  // kéo giãn SVG — kéo giãn là chấm tròn thành bầu dục trên màn rộng (13/09).
+  const khung = useRef<HTMLDivElement>(null);
+  const [rong, setRong] = useState(540);
+  const [cao, setCao] = useState(caoMacDinh);
+  useEffect(() => {
+    const el = khung.current;
+    if (!el) return;
+    const capNhat = () => {
+      setRong(Math.max(200, Math.round(el.clientWidth)));
+      setCao(Math.max(120, Math.round(el.clientHeight) || caoMacDinh));
+    };
+    capNhat();
+    const ro = new ResizeObserver(capNhat);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [caoMacDinh]);
   const day = cao - 25; // đường đáy lưới
   const coSo = diem.map((d) => d.giaTri).filter((v): v is number => v !== null);
   const min = Math.max(0, Math.floor((Math.min(chiTieu.giaTri, ...coSo) - 15) / 10) * 10);
@@ -46,10 +62,12 @@ export function DuongVung({ diem, mau, chiTieu, cao = 150 }: Props) {
   dong();
 
   return (
-    <div className="tq-bd" style={{ position: 'relative' }}>
+    <div className="tq-bd" style={{ position: 'relative' }} ref={khung}>
       <svg
         viewBox={`0 0 ${rong} ${cao}`}
-        preserveAspectRatio="none"
+        width={rong}
+        height={cao}
+        preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={diem.map((d) => `${d.nhan}: ${d.giaTri ?? 'không có'}`).join(', ')}
         onMouseLeave={() => setHover(null)}
@@ -94,7 +112,6 @@ export function DuongVung({ diem, mau, chiTieu, cao = 150 }: Props) {
             strokeWidth={3}
             strokeLinejoin="round"
             strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
           />
         ))}
         {diem.map(
