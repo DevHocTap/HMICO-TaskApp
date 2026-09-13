@@ -450,18 +450,18 @@
 .pt-table-ke th { color: #334155; }
 .pt-table-ke tbody td { border-bottom: 1px solid #e2e8f0; }
 .pt-table-ke .pt-dong-muc td {
-  background: #dbeafe;
-  color: #1e3a8a;
+  background: #f1f5f9;
+  color: #334155;
   font-size: 12px;
-  border-top: 1px solid #bfdbfe;
-  border-bottom: 1px solid #bfdbfe;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
 }
 .pt-table-ke .pt-dong-con td { background: #f8fafc; }
 .pt-table-ke .pt-dong-mo td { background: #eff6ff; }
-.pt-table-ke tfoot tr { background: #0f172a; }
-.pt-table-ke tfoot td { padding: 12px 16px; font-size: 13px; font-weight: 700; color: #fff; border-bottom: 0; }
-.pt-table-ke tfoot .pt-tfoot-nhan { text-align: center; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #fff; }
-.pt-table-ke tfoot .pt-tfoot-mo { font-size: 12px; font-weight: 500; color: #cbd5e1; }
-.pt-table-ke tfoot .pt-trong-so-dam { background: #fff; color: #0f172a; font-size: 12px; }
-.pt-table-ke tfoot .pt-chu-xanh { color: #fff; font-size: 14px; }
-.pt-table-ke tfoot .pt-tong-lon { font-size: 18px; font-weight: 800; color: #fbbf24; }
+.pt-table-ke tfoot tr { background: #dbeafe; border-top: 2px solid #93c5fd; }
+.pt-table-ke tfoot td { padding: 12px 16px; font-size: 13px; font-weight: 700; color: #1e3a8a; border-bottom: 0; }
+.pt-table-ke tfoot .pt-tfoot-nhan { text-align: center; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #1e3a8a; }
+.pt-table-ke tfoot .pt-tfoot-mo { font-size: 12px; font-weight: 500; color: #1e40af; }
+.pt-table-ke tfoot .pt-trong-so-dam { background: #1d4ed8; color: #fff; font-size: 12px; }
+.pt-table-ke tfoot .pt-chu-xanh { color: #1e3a8a; font-size: 14px; }
+.pt-table-ke tfoot .pt-tong-lon { font-size: 18px; font-weight: 800; color: #1d4ed8; }
