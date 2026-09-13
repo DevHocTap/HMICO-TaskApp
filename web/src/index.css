@@ -1658,3 +1658,42 @@ a.ten-nhan-vien:hover {
 .bang-cham .dong-cha-bam:hover > td { background: #f1f5f9 !important; }
 .cham-mui-ten { display: inline-block; width: 14px; color: #64748b; font-size: 12px; transition: transform 0.15s; }
 .cham-mui-ten-mo { transform: rotate(90deg); }
+
+/* ---------- Bảng chấm điểm: phân tầng màu và viền (13/09) ----------
+   đầu bảng xám đậm · dòng mục xám nhạt có viền · tiêu chí cha trắng · KPI con
+   nền rất nhạt thụt vào · tổng kết xanh nhạt viền trên đậm */
+.bang-cham .ant-table { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+.bang-cham .ant-table-thead > tr > th {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #cbd5e1 !important;
+}
+.bang-cham .ant-table-thead > tr > th::before { display: none; }
+.bang-cham .ant-table-tbody > tr > td { border-bottom: 1px solid #e2e8f0 !important; }
+.bang-cham .dong-muc > td {
+  background: #f1f5f9 !important;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-top: 1px solid #cbd5e1 !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+}
+.bang-cham .dong-muc .ant-typography { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #334155; }
+.bang-cham .dong-cha > td { background: #fff !important; }
+.bang-cham .dong-cha-bam:hover > td { background: #f8fafc !important; }
+.bang-cham .ant-table-tbody > tr:not(.dong-cha):not(.dong-muc) > td { background: #f8fafc; }
+.bang-cham .ant-table-tbody > tr:not(.dong-cha):not(.dong-muc):hover > td { background: #f1f5f9 !important; }
+.bang-cham .ant-table-tbody > tr:not(.dong-cha):not(.dong-muc) > td:first-child { box-shadow: inset 3px 0 0 #bfdbfe; }
+.bang-cham .dong-tong-ket > td {
+  background: #dbeafe !important;
+  border-top: 2px solid #93c5fd !important;
+  color: #1e3a8a;
+  font-weight: 700;
+}
+.bang-cham .dong-tong-ket .ant-typography { color: #1e3a8a; }
