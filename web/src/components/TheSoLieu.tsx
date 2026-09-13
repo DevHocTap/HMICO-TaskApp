@@ -16,6 +16,8 @@ export interface TheSoLieuProps {
   canChuY?: boolean;
   /** Icon góc phải (theo bộ mẫu 12/09). */
   icon?: ReactNode;
+  /** Chưa có số để hiện (khác với số 0): số và thanh in xám. */
+  khongCoSo?: boolean;
   /** Dòng "so với tháng trước" — in giữa số và thanh. */
   soSanh?: ReactNode;
 }
@@ -26,15 +28,29 @@ export interface TheSoLieuProps {
  * Màu KHÔNG tự suy từ con số — mỗi thẻ tự quyết `canChuY`, vì "7/14 đã chốt"
  * là bình thường giữa tháng nhưng "2 phòng dưới 80" thì luôn đáng chú ý.
  */
-export function TheSoLieu({ nhan, so, donVi, phanTram = 100, chuThich, canChuY, icon, soSanh }: TheSoLieuProps) {
-  const mau = canChuY ? mauNhan : mauChuDao;
+export function TheSoLieu({
+  nhan,
+  so,
+  donVi,
+  phanTram = 100,
+  chuThich,
+  canChuY,
+  icon,
+  soSanh,
+  khongCoSo,
+}: TheSoLieuProps) {
+  const mau = khongCoSo ? '#9ca3af' : canChuY ? mauNhan : mauChuDao;
   return (
     <div className={`the-so-lieu${canChuY ? ' the-so-lieu-chu-y' : ''}`}>
       <div className="the-so-lieu-dau">
         <Typography.Text type="secondary" className="eyebrow">
           {nhan}
         </Typography.Text>
-        {icon && <span className="the-so-lieu-icon" style={{ color: mau }}>{icon}</span>}
+        {icon && (
+          <span className="the-so-lieu-icon" style={{ color: mau }}>
+            {icon}
+          </span>
+        )}
       </div>
       <div className="the-so-lieu-so" style={{ color: mau }}>
         {so}
@@ -42,7 +58,12 @@ export function TheSoLieu({ nhan, so, donVi, phanTram = 100, chuThich, canChuY, 
       </div>
       {soSanh && <div className="the-so-lieu-so-sanh">{soSanh}</div>}
       <div className="the-so-lieu-thanh">
-        <span style={{ width: `${Math.max(0, Math.min(100, phanTram))}%`, background: mau }} />
+        <span
+          style={{
+            width: `${Math.max(0, Math.min(100, phanTram))}%`,
+            background: mau,
+          }}
+        />
       </div>
       {chuThich && (
         <Typography.Text type="secondary" style={{ fontSize: 13 }}>

@@ -1474,7 +1474,15 @@ a.ten-nhan-vien:hover {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
+}
+.the-day-cot {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.the-day-cot .ant-card-body {
+  flex: 1;
 }
 @media (max-width: 1100px) {
   .phieu-toi-luoi {

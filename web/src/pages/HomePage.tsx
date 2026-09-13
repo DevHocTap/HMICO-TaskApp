@@ -7,6 +7,8 @@ import {
   EditOutlined,
   FileDoneOutlined,
   FormOutlined,
+  RiseOutlined,
+  StarOutlined,
   InboxOutlined,
   LockOutlined,
   SendOutlined,
@@ -319,39 +321,57 @@ function theSoLieuTheoVai(
         },
       ];
     }
-    default:
+    default: {
+      const daNop = !!t.tuCham && t.tuCham.chua === 0 && t.tuCham.tong > 0;
       return [
         {
           nhan: t.thangTruoc
             ? `Điểm ${t.thangTruoc.periodName.toLowerCase()}`
             : 'Điểm tháng trước',
+          icon: <StarOutlined />,
           so: diemTomTat(t.thangTruoc?.diem),
-          donVi: 'điểm',
+          donVi: t.thangTruoc?.diem ? '/ 100' : undefined,
           phanTram: t.thangTruoc?.diem ? Number(t.thangTruoc.diem) : 0,
+          khongCoSo: !t.thangTruoc?.diem,
           chuThich: t.thangTruoc?.grade
             ? `Xếp loại ${NHAN_XEP_LOAI[t.thangTruoc.grade]}`
-            : 'Chưa chốt điểm',
+            : t.thangTruoc
+              ? 'Trưởng bộ phận chưa chốt điểm kỳ đó'
+              : 'Chưa có kỳ trước',
         },
         {
-          nhan: `Trung bình ${t.trungBinhGanDay?.soPhieu ?? 3} tháng gần nhất`,
+          nhan: t.trungBinhGanDay
+            ? `Trung bình ${t.trungBinhGanDay.soPhieu} kỳ gần nhất`
+            : 'Trung bình các kỳ',
+          icon: <RiseOutlined />,
           so: diemTomTat(t.trungBinhGanDay?.diem),
-          donVi: 'điểm',
+          donVi: t.trungBinhGanDay ? '/ 100' : undefined,
           phanTram: t.trungBinhGanDay ? Number(t.trungBinhGanDay.diem) : 0,
+          khongCoSo: !t.trungBinhGanDay,
           // "07 → 08 → 09": lấy hai chữ số tháng từ "Tháng 07/2026"
           chuThich: t.trungBinhGanDay
             ? t.trungBinhGanDay.periodNames
                 .map((n) => n.slice(-7, -5))
                 .join(' → ')
-            : 'Chưa có phiếu nào chốt điểm',
+            : 'Có số sau khi kỳ đầu tiên chốt điểm',
         },
         {
-          nhan: 'Tiêu chí chưa tự chấm',
-          so: t.tuCham ? t.tuCham.chua : '—',
-          donVi: t.tuCham ? `/${t.tuCham.tong}` : undefined,
-          phanTram: t.tuCham ? phanTram(t.tuCham.chua, t.tuCham.tong) : 0,
+          nhan: 'Tự chấm kỳ này',
+          icon: <EditOutlined />,
+          so: t.tuCham ? (daNop ? 'Đã nộp' : t.tuCham.chua) : '—',
+          donVi:
+            t.tuCham && !daNop
+              ? `/ ${t.tuCham.tong} tiêu chí còn trống`
+              : undefined,
+          phanTram: t.tuCham
+            ? phanTram(t.tuCham.tong - t.tuCham.chua, t.tuCham.tong)
+            : 0,
+          khongCoSo: !t.tuCham,
           chuThich: t.tuCham ? (
             <Link to={`/kpi/scorecards/${t.tuCham.scorecardId}/scoring`}>
-              Hạn tự chấm {ngayThang(ky?.selfScoreDeadline, ky)} — mở phiếu
+              {daNop
+                ? 'Xem lại phiếu đã nộp'
+                : `Hạn tự chấm ${ngayThang(ky?.selfScoreDeadline, ky)} — mở phiếu`}
             </Link>
           ) : (
             'Chưa có phiếu kỳ này'
@@ -359,6 +379,7 @@ function theSoLieuTheoVai(
           canChuY: !!t.tuCham && t.tuCham.chua > 0,
         },
       ];
+    }
   }
 }
 

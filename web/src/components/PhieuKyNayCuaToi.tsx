@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { layDanhSachPhieu } from '../api/scorecard';
 import type { KyDanhGia, PhieuTomTat } from '../types/scorecard';
-import { NHAN_XEP_LOAI } from '../types/scorecard';
+import { MAU_XEP_LOAI, NHAN_XEP_LOAI } from '../types/scorecard';
 import { useAuth } from '../auth/useAuth';
 import { Duong } from './bieu-do/Duong';
 import { diemTomTat, ngayVN } from '../utils/format';
@@ -125,10 +125,13 @@ export function PhieuKyNayCuaToi({ ky }: { ky: KyDanhGia }) {
   return (
     <div className="phieu-toi-luoi">
       <Card
+        className="the-day-cot"
         title={
           <span className="viec-tieu-de">
             Phiếu KPI {ky.name.toLowerCase()}
-            {p?.grade && <Tag color="success">{NHAN_XEP_LOAI[p.grade]}</Tag>}
+            {p?.grade && (
+              <Tag color={MAU_XEP_LOAI[p.grade]}>{NHAN_XEP_LOAI[p.grade]}</Tag>
+            )}
           </span>
         }
         extra={
