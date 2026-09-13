@@ -26,6 +26,8 @@ export interface UserProfile {
   id: string;
   email: string;
   fullName: string;
+  /** Mã nhân viên — hiện cạnh tên trên trang "Phiếu đánh giá của tôi" (13/09). */
+  employeeCode: string;
   role: User['role'];
   departmentId: string | null;
   departmentName: string | null;
@@ -242,6 +244,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
+      employeeCode: user.employeeCode,
       role: user.role,
       departmentId: user.departmentId,
       departmentName: user.department?.name ?? null,

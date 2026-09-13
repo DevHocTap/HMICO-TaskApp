@@ -18,6 +18,7 @@ export interface UserProfile {
   id: string;
   email: string;
   fullName: string;
+  employeeCode: string;
   role: Role;
   departmentId: string | null;
   departmentName: string | null;

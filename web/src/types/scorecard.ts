@@ -119,6 +119,12 @@ export interface PhieuKpi {
   acceptedAt: string | null;
   disputedAt: string | null;
   disputeReason: string | null;
+  /** Backend trả nguyên dòng Scorecard nên có sẵn điểm đã chốt hai cột (13/09). */
+  selfScoredAt: string | null;
+  managerScoredAt: string | null;
+  selfTotalScore: string | null;
+  managerTotalScore: string | null;
+  grade: XepLoai | null;
 }
 
 /** Một dòng của `GET /scorecards` — danh sách phiếu trong phạm vi. */

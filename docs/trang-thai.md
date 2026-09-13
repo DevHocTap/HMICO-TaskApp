@@ -480,6 +480,22 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   chế); "Nhắc nộp KPI" → "Tiến độ nộp" (không có kênh thông báo); "Lịch sử T8"
   → đổi kỳ đang xem sang tháng trước. Nhân viên giữ trang chủ riêng.
 
+- **Phiếu đánh giá của tôi (`/kpi/my`) — dựng lại theo mã HTML mẫu (13/09):**
+  `MyScorecardsPage.tsx` + `phieu-cua-toi.css` (màu hmico `#0f62fe`). Tiêu đề
+  kèm **mã nhân viên** (`/auth/me` nay trả `employeeCode`), nút "Hướng dẫn tự
+  chấm" (modal lấy thang / trọng số / ngưỡng từ Cài đặt) và "Mở phiếu kỳ
+  này"; thẻ tóm tắt kỳ hiện tại (chip tình trạng, điểm lớn: chốt → tự chấm đã
+  nộp → dự kiến từ `/scoring`, 3 bước Ký nhận / Tự chấm / Chốt điểm); bảng
+  các kỳ có lọc năm + phân đoạn Tất cả / Đang thực hiện / Đã chốt, cột Ký
+  nhận · Ngày ký · Tiến độ · Điểm số (điểm chốt + loại, hoặc tự chấm) · Thao
+  tác; **bảng kê tiêu chí** của phiếu đang chọn (mã KPI-01 / KPI-01.1, mục
+  tiêu, ghi chú tự chấm, điểm tự chấm / thang, điểm TS, tổng cộng) đọc
+  `/scoring` khi đã ký nhận, `/:id` khi chưa; ký nhận / nêu ý kiến ở chân
+  bảng kê. `GET /scorecards/my` vốn trả nguyên dòng nên `PhieuKpi` khai thêm
+  điểm hai cột và `grade`. Thay thế của mẫu: "Xuất phiếu PDF" → "Mở phiếu kỳ
+  này" (chưa có bản in từng phiếu); cột "Tệp / Minh chứng" → "Ghi chú tự
+  chấm" (hệ thống không có đính kèm); bỏ "Bổ sung tài liệu đính kèm".
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 
