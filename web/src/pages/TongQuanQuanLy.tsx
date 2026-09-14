@@ -365,7 +365,7 @@ export function TongQuanQuanLy() {
               ) : (
                 <>
                   <DuongVung diem={diemXuHuong} mau="#2563eb" chiTieu={{ giaTri: chiTieu, mau: '#f43f5e' }} />
-                  <div className="tq-truc">
+                  <div className={`tq-truc${diemXuHuong.length === 1 ? ' tq-truc-mot' : ''}`}>
                     {diemXuHuong.map((d, i) => (
                       <span key={d.nhan} className={i === diemXuHuong.length - 1 ? 'tq-truc-cuoi' : ''}>
                         {d.nhan}

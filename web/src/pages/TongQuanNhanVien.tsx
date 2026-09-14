@@ -299,7 +299,11 @@ export function TongQuanNhanVien() {
               <div>
                 <h3 className="tq-h3">
                   <span className="tq-cham-nho tq-cham-xanh" /> Lịch sử điểm KPI
-                  {diemXuHuong.length > 0 && ` (${diemXuHuong[0]!.nhan} – ${diemXuHuong[diemXuHuong.length - 1]!.nhan})`}
+                  {diemXuHuong.length === 1
+                    ? ` (${diemXuHuong[0]!.nhan})`
+                    : diemXuHuong.length > 1
+                      ? ` (${diemXuHuong[0]!.nhan} – ${diemXuHuong[diemXuHuong.length - 1]!.nhan})`
+                      : ''}
                 </h3>
                 <p className="tq-ghi-chu-12">Điểm trưởng bộ phận chốt các kỳ gần nhất, so với chỉ tiêu tối thiểu ({chiTieu} điểm)</p>
               </div>
@@ -318,7 +322,7 @@ export function TongQuanNhanVien() {
               ) : (
                 <>
                   <DuongVung diem={diemXuHuong} mau={XANH} chiTieu={{ giaTri: chiTieu, mau: '#f43f5e' }} />
-                  <div className="tq-truc">
+                  <div className={`tq-truc${diemXuHuong.length === 1 ? ' tq-truc-mot' : ''}`}>
                     {diemXuHuong.map((d, i) => (
                       <span key={d.nhan} className={i === diemXuHuong.length - 1 ? 'tq-truc-cuoi' : ''}>
                         {d.nhan} ({d.giaTri.toLocaleString('vi-VN', { maximumFractionDigits: 1 })})

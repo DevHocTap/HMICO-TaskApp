@@ -855,3 +855,5 @@
 .tqn-diem-cam { background: #fffbeb; border-color: #fde68a; }
 .tqn-diem-do { background: #fff1f2; border-color: #fecdd3; }
 .tq-so-do { color: #e11d48; }
+/* Một kỳ duy nhất: chấm vẽ giữa khung nên nhãn cũng căn giữa */
+.tq-truc-mot { justify-content: center; }
