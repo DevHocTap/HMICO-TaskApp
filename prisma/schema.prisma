@@ -108,6 +108,8 @@ model User {
   refreshTokens        RefreshToken[]
   scorecards           Scorecard[]      @relation("ScorecardOwner")
   evaluatingScorecards Scorecard[]      @relation("ScorecardEvaluator")
+  profile              EmployeeProfile?
+  assignmentHistory    EmployeeAssignmentHistory[]
   createdScorecards    Scorecard[]      @relation("ScorecardCreator")
   receivedScorecards   Scorecard[]      @relation("ScorecardReceiver")
   scorecardEvents      ScorecardEvent[]
@@ -144,6 +146,58 @@ model RefreshToken {
 }
 
 // ===== KỲ ĐÁNH GIÁ =====
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+/// Hồ sơ nhân sự — tách khỏi `User` (tài khoản đăng nhập) có chủ ý (14/09/2026):
+/// giai đoạn 2 chấm công sẽ thêm nhiều trường ở đây mà không kéo theo mọi
+/// truy vấn auth/KPI. Trường nào nhân viên TỰ sửa được quyết ở DTO
+/// (`UpdateMyProfileDto`), không phải ở schema.
+model EmployeeProfile {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Nhân viên tự sửa
+  phone            String?
+  personalEmail    String?
+  address          String?
+  dateOfBirth      DateTime? @db.Date
+  gender           Gender?
+  emergencyContact String? // "Tên — quan hệ — SĐT", chuỗi tự do
+
+  // Chỉ HR / ADMIN
+  hireDate        DateTime? @db.Date
+  terminationDate DateTime? @db.Date
+  nationalId      String? // CCCD — nhân viên chỉ xem
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Lịch sử phòng ban / chức danh — ghi TỰ ĐỘNG mỗi lần HR đổi (14/09/2026),
+/// chưa có màn hình. Để dành cho chấm công: tháng 10 người chuyển phòng ngày
+/// 15 thì nửa đầu tháng thuộc phòng nào. `validTo` null = đang hiệu lực.
+model EmployeeAssignmentHistory {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  departmentId String?
+  jobTitleId   String?
+  level        String?
+
+  validFrom DateTime @db.Date
+  validTo   DateTime? @db.Date
+
+  changedById String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, validFrom])
+}
 
 enum PeriodType {
   MONTH

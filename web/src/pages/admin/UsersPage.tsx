@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ThanhTab } from '../../components/ThanhTab';
-import { Alert, App, Checkbox, Dropdown, Form, Input, Modal, Select, Space, TreeSelect, Typography } from 'antd';
+import { Alert, App, Checkbox, Dropdown, Form, Input, Modal, Select, Skeleton, Space, TreeSelect, Typography } from 'antd';
 import {
+  IdcardOutlined,
   CheckCircleOutlined,
   InfoCircleOutlined,
   KeyOutlined,
@@ -25,12 +26,15 @@ import {
   suaNhanVien,
   suaPhongBan,
   taoNhanVien,
+  capNhatHoSoNhanVien,
+  layHoSoNhanVien,
 } from '../../api/org';
+import { FormHoSo } from '../../components/FormHoSo';
 import { layThongBaoLoi } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { coTheGhiToChuc } from '../../auth/permissions';
 import { ROLE_LABELS, type Role } from '../../types/auth';
-import type { DepartmentNode, ListUsersParams, OrgUser } from '../../types/org';
+import type { DepartmentNode, HoSoHrInput, ListUsersParams, OrgUser } from '../../types/org';
 import { TemporaryPasswordModal } from '../../components/TemporaryPasswordModal';
 import { layTomTatTrangChu } from '../../api/report';
 import { layBangGiaoKpi } from '../../api/scorecard';
@@ -103,6 +107,22 @@ function chuyenSangTreeData(nodes: DepartmentNode[]): {
 export function UsersPage() {
   const queryClient = useQueryClient();
   const { message, modal } = App.useApp();
+  // Modal "Hồ sơ nhân sự" (HR/ADMIN) — tải hồ sơ khi mở, lưu qua PUT :id/profile
+  const [hoSoCua, setHoSoCua] = useState<OrgUser | null>(null);
+  const hoSoQuery = useQuery({
+    queryKey: ['profile', hoSoCua?.id],
+    queryFn: () => layHoSoNhanVien(hoSoCua!.id),
+    enabled: Boolean(hoSoCua),
+  });
+  const luuHoSo = useMutation({
+    mutationFn: (input: HoSoHrInput) => capNhatHoSoNhanVien(hoSoCua!.id, input),
+    onSuccess: (moi) => {
+      queryClient.setQueryData(['profile', hoSoCua?.id], moi);
+      message.success(`Đã lưu hồ sơ của ${moi.fullName}`);
+      setHoSoCua(null);
+    },
+    onError: (e) => message.error(layThongBaoLoi(e)),
+  });
   const { user: nguoiDangDangNhap } = useAuth();
   const [form] = Form.useForm<FormValues>();
 
@@ -561,6 +581,7 @@ export function UsersPage() {
                               trigger={['click']}
                               menu={{
                                 items: [
+                                  { key: 'ho-so', icon: <IdcardOutlined />, label: 'Hồ sơ nhân sự', onClick: () => setHoSoCua(row) },
                                   { key: 'dat-lai', icon: <KeyOutlined />, label: 'Đặt lại mật khẩu', onClick: () => xacNhanDatLai(row) },
                                   {
                                     key: 'trang-thai',
@@ -740,6 +761,31 @@ export function UsersPage() {
             />
           )}
         </Form>
+      </Modal>
+
+      <Modal
+        open={hoSoCua !== null}
+        title={hoSoCua ? `Hồ sơ nhân sự — ${hoSoCua.fullName} (${hoSoCua.employeeCode})` : ''}
+        onCancel={() => setHoSoCua(null)}
+        footer={null}
+        destroyOnHidden
+        width={720}
+      >
+        {hoSoQuery.data ? (
+          <FormHoSo
+            hoSo={hoSoQuery.data}
+            cheDoHr
+            dangLuu={luuHoSo.isPending}
+            onLuu={(v) => luuHoSo.mutate(v)}
+            nutPhu={
+              <button type="button" className="qn-link" onClick={() => setHoSoCua(null)}>
+                Đóng
+              </button>
+            }
+          />
+        ) : (
+          <Skeleton active paragraph={{ rows: 6 }} />
+        )}
       </Modal>
 
       <TemporaryPasswordModal

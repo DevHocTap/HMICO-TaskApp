@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 63 + 76 + 82 + 159 + 104 + 76 + 42 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 79 + 76 + 82 + 159 + 104 + 76 + 42 kiểm tra curl.**
 
 ## Đang làm
 
@@ -577,6 +577,23 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   `.js` → `.ts`) — seed nay đọc từ `dist/`, phải `npm run build` trước.
   Script 5 nhận `KPI_DB` + `DATABASE_URL` để chạy trên database tạm seed
   sạch khi máy dev có dữ liệu thử tay (hướng dẫn ở đầu script).
+
+- **Menu tài khoản + Thông tin cá nhân (14/09):** bấm avatar/tên ở header
+  mở menu Thông tin cá nhân · Đổi mật khẩu · Đăng xuất (nút Đăng xuất rời
+  header; màn đổi mật khẩu có "Quay lại" khi tự vào, lần đầu bắt buộc thì
+  không). Bảng mới `EmployeeProfile` (1–1 `User`) + `EmployeeAssignmentHistory`
+  (migration `20260914100000_ho_so_nhan_su`) — lý do tách ghi ở
+  `mo-hinh-du-lieu.md`. Endpoint trong `org/` (`ProfileService`):
+  `GET/PATCH /users/me/profile` (mọi vai, chỉ 6 trường liên hệ),
+  `GET /users/:id/profile` (cùng phạm vi với `GET /users/:id`, CCCD che với
+  trưởng phòng), `PUT /users/:id/profile` (HR/ADMIN, thêm ngày vào làm /
+  nghỉ việc / CCCD; HR không đụng ADMIN). AuditLog `UPDATE_MY_PROFILE` /
+  `UPDATE_PROFILE`. Trang `/ho-so` (`HoSoPage` + `FormHoSo` dùng chung với
+  modal "Hồ sơ nhân sự" ở menu ⋯ màn Nhân viên). **Tiện thể sửa lỗi có sẵn
+  từ 10/09:** `AllExceptionsFilter` thay mảng lỗi `class-validator` bằng "Đã
+  xảy ra lỗi." — mọi lỗi nhập liệu DTO đều mất câu cụ thể; nay lấy câu đầu
+  làm `message`, cả mảng ở `errors`. `verify-org.sh` **79** (mục Hồ sơ nhân
+  sự 16 kiểm). Chuẩn bị cho chấm công giai đoạn 2 — xem `no-ky-thuat.md`.
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.

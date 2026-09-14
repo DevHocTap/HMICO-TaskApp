@@ -516,6 +516,25 @@ tự động rồi mới vỡ.
       lại — đó là dữ liệu người dùng; muốn bốn mẫu hoạt động lại thì bấm
       "Kích hoạt lại" hoặc `npx prisma db seed`.
 
+## Chuẩn bị cho chấm công giai đoạn 2 (14/09)
+
+Đã làm khi thêm hồ sơ nhân sự (rẻ bây giờ, đắt sau): `EmployeeProfile` tách
+khỏi `User`; `hireDate` / `terminationDate`; hai DTO tách "tự sửa" và "HR
+quản lý"; `EmployeeAssignmentHistory` ghi tự động. **Cố ý CHƯA làm**, hỏi
+HR khi tới giai đoạn 2: ca làm việc / lịch ca / máy chấm công / loại nghỉ
+(chưa biết công ty chấm kiểu gì), số phép năm (phụ thuộc chính sách), avatar
+(cần lưu file). Kỳ công sẽ là bảng riêng, KHÔNG dùng chung `Period` của KPI.
+
+- [ ] **Vô hiệu hoá tài khoản KHÔNG hỏi ngày nghỉ việc** — `terminationDate`
+      HR phải vào "Hồ sơ nhân sự" nhập tay. Khi làm chấm công thì thêm ô ngày
+      vào modal vô hiệu hoá (backend: `setActive` nhận thêm `terminationDate`).
+- [ ] `EmployeeAssignmentHistory.validFrom` lấy **ngày hôm nay** lúc HR bấm
+      sửa, không có ô "hiệu lực từ ngày". HR sửa muộn (quyết định 01/10, nhập
+      05/10) thì lịch sử ghi 05/10. Thêm ô ngày hiệu lực khi có màn hình đọc.
+- [ ] `verify-org.sh` đỏ 1 ca có sẵn trên máy dev ("STAFF HCM xem phòng Hà
+      Nội -> 401") vì `hcm.nhanvien1` đã bị vô hiệu hoá khi thử tay — không
+      phải lỗi code, `npx prisma db seed` là xanh lại.
+
 ## Giao diện theo bộ mẫu (11/09)
 
 - [ ] **"Việc của tôi" chưa có dòng phụ** dưới mỗi việc ("Cấp ngày 08/10",

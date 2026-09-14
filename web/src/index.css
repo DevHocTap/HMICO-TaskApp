@@ -1764,3 +1764,20 @@ th, .tq-nut, .tq-nut-nho, .tq-tag, .tq-huy-hieu, .tq-vien, .tq-chip, .tq-gd-pill
 .pt-nut, .pt-nut-nho, .pt-pill, .pt-huy-hieu, .pt-segment, .pt-stt, .pt-trong-so,
 .lp-nut, .lp-nut-nho, .lp-tt, .lp-so, .bc-nut, .bc-chip, .bc-pill, .bc-tt, .bc-hang-ten,
 .qn-nut, .qn-nut-nho, .qn-chip, .qn-pill, .qn-tk, .qn-huy-hieu, .cd-quay-lai, .cd-tag, .sidebar-thuong-hieu { user-select: none; }
+
+/* ---------- Thông tin cá nhân (14/09) ---------- */
+.hs-luoi-trang { display: grid; grid-template-columns: minmax(280px, 5fr) minmax(320px, 7fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .hs-luoi-trang { grid-template-columns: 1fr; } }
+.hs-the { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; }
+.hs-the-tieu-de { margin: 0 0 16px; font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+.hs-the-tieu-de .anticon { color: #2563eb; }
+.hs-dl { margin: 0; display: grid; gap: 10px; }
+.hs-dl > div { display: grid; grid-template-columns: 140px 1fr; gap: 12px; padding-bottom: 10px; border-bottom: 1px dashed #e2e8f0; }
+.hs-dl > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.hs-dl dt { margin: 0; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.02em; }
+.hs-dl dd { margin: 0; font-size: 14px; font-weight: 600; color: #0f172a; word-break: break-word; }
+.hs-luoi { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+@media (max-width: 600px) { .hs-luoi { grid-template-columns: 1fr; } }
+.hs-rong { grid-column: 1 / -1; }
+.hs-nhom { display: block; margin: 4px 0 12px; padding-top: 14px; border-top: 1px solid #e2e8f0; font-size: 12px; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.04em; }
+.hs-nut { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }

@@ -63,3 +63,47 @@ export interface ListUsersParams {
   mustChangePassword?: boolean;
   search?: string;
 }
+
+// ------------------------------------------------------------ hồ sơ nhân sự
+
+export type GioiTinh = 'MALE' | 'FEMALE' | 'OTHER';
+export const NHAN_GIOI_TINH: Record<GioiTinh, string> = { MALE: 'Nam', FEMALE: 'Nữ', OTHER: 'Khác' };
+
+/** Trả về của `GET /users/me/profile` và `GET /users/:id/profile`. Ngày là chuỗi `YYYY-MM-DD`. */
+export interface HoSoNhanSu {
+  userId: string;
+  employeeCode: string;
+  email: string;
+  fullName: string;
+  departmentName: string | null;
+  jobTitleName: string | null;
+  level: string | null;
+  managerName: string | null;
+  phone: string | null;
+  personalEmail: string | null;
+  address: string | null;
+  dateOfBirth: string | null;
+  gender: GioiTinh | null;
+  emergencyContact: string | null;
+  hireDate: string | null;
+  terminationDate: string | null;
+  nationalId: string | null;
+  canEditHrFields: boolean;
+}
+
+/** Phần nhân viên tự sửa — trùng `UpdateMyProfileDto` ở backend. */
+export interface HoSoTuSuaInput {
+  phone?: string | null;
+  personalEmail?: string | null;
+  address?: string | null;
+  dateOfBirth?: string | null;
+  gender?: GioiTinh | null;
+  emergencyContact?: string | null;
+}
+
+/** Phần HR sửa — trùng `UpdateEmployeeProfileDto`. */
+export interface HoSoHrInput extends HoSoTuSuaInput {
+  hireDate?: string | null;
+  terminationDate?: string | null;
+  nationalId?: string | null;
+}

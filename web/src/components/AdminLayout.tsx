@@ -18,6 +18,7 @@ import {
   FileTextOutlined,
   LogoutOutlined,
   KeyOutlined,
+  IdcardOutlined,
   DownOutlined,
   TeamOutlined,
   BarChartOutlined,
@@ -94,6 +95,7 @@ const TEN_TRANG: [string, string][] = [
   ['/admin/kpi-templates', 'Mẫu KPI'],
   ['/admin/audit-logs', 'Nhật ký thao tác'],
   ['/admin/settings', 'Cài đặt hệ thống'],
+  ['/ho-so', 'Thông tin cá nhân'],
 ];
 
 /** Khung chung cho mọi trang sau khi đăng nhập: thanh trên + menu trái. */
@@ -358,13 +360,18 @@ function KhungAdmin() {
             </Popover>
             {/* Tên, chức danh, phòng ban lấy từ GET /auth/me — không từ cây
                 phòng ban, vì STAFF nhận cây rỗng. */}
-            {/* Bấm vào avatar / tên mở menu tài khoản. Sau này thêm mục
-                "Thông tin cá nhân" vào đây khi có trang hồ sơ (14/09). */}
+            {/* Bấm vào avatar / tên mở menu tài khoản (14/09). */}
             <Dropdown
               trigger={['click']}
               placement="bottomRight"
               menu={{
                 items: [
+                  {
+                    key: 'ho-so',
+                    icon: <IdcardOutlined />,
+                    label: 'Thông tin cá nhân',
+                    onClick: () => navigate('/ho-so'),
+                  },
                   {
                     key: 'doi-mat-khau',
                     icon: <KeyOutlined />,

@@ -6,6 +6,8 @@ import { JobTitlesService } from './job-titles.service.js';
 import { JobTitlesController } from './job-titles.controller.js';
 import { UsersService } from './users.service.js';
 import { UsersController } from './users.controller.js';
+import { ProfileService } from './profile.service.js';
+import { ProfileController } from './profile.controller.js';
 import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
@@ -16,9 +18,12 @@ import { AuthModule } from '../auth/auth.module.js';
     DepartmentsService,
     JobTitlesService,
     UsersService,
+    ProfileService,
     DepartmentScopeService,
   ],
-  controllers: [DepartmentsController, JobTitlesController, UsersController],
+  // ProfileController TRƯỚC UsersController: cả hai ở /users, `me/profile`
+  // phải khớp trước `:id`.
+  controllers: [DepartmentsController, JobTitlesController, ProfileController, UsersController],
   // DepartmentScopeService là hàm phân quyền dùng chung — mọi module cần
   // lọc dữ liệu theo phòng ban đều import OrgModule để lấy nó.
   exports: [DepartmentScopeService],

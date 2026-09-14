@@ -143,6 +143,7 @@ export class UsersService {
       },
       include: INCLUDE_EXTRAS,
     });
+    await this.moDongLichSuPhanCong(created, actor.id);
 
     await this.audit.log({
       actorId: actor.id,
@@ -210,6 +211,13 @@ export class UsersService {
       },
       include: INCLUDE_EXTRAS,
     });
+    if (
+      updated.departmentId !== before.departmentId ||
+      updated.jobTitleId !== before.jobTitleId ||
+      updated.level !== before.level
+    ) {
+      await this.moDongLichSuPhanCong(updated, actor.id);
+    }
 
     await this.audit.log({
       actorId: actor.id,
@@ -311,6 +319,34 @@ export class UsersService {
     });
 
     return this.toResponse(updated);
+  }
+
+  /**
+   * Lịch sử phòng ban / chức danh — đóng dòng đang hiệu lực (nếu có) và mở
+   * dòng mới từ hôm nay. Chưa có màn hình đọc; tích luỹ cho chấm công giai
+   * đoạn 2 (người chuyển phòng giữa tháng thì nửa đầu tháng thuộc phòng nào).
+   */
+  private async moDongLichSuPhanCong(
+    u: Pick<User, 'id' | 'departmentId' | 'jobTitleId' | 'level'>,
+    changedById: string,
+  ): Promise<void> {
+    const homNay = new Date(new Date().toISOString().slice(0, 10));
+    await this.prisma.$transaction([
+      this.prisma.employeeAssignmentHistory.updateMany({
+        where: { userId: u.id, validTo: null },
+        data: { validTo: homNay },
+      }),
+      this.prisma.employeeAssignmentHistory.create({
+        data: {
+          userId: u.id,
+          departmentId: u.departmentId,
+          jobTitleId: u.jobTitleId,
+          level: u.level,
+          validFrom: homNay,
+          changedById,
+        },
+      }),
+    ]);
   }
 
   // ------------------------------------------------------------- ràng buộc

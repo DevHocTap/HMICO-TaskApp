@@ -96,6 +96,9 @@ describe('UsersService', () => {
               findMany: departmentFindMany,
             },
             jobTitle: { findUnique: vi.fn() },
+            // Lịch sử phân công ghi trong $transaction — mock nhận mảng và bỏ qua
+            employeeAssignmentHistory: { updateMany: vi.fn(), create: vi.fn() },
+            $transaction: vi.fn().mockResolvedValue([]),
           },
         },
         {

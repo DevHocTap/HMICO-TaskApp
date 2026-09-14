@@ -126,6 +126,10 @@ export function moTaBanGhi(r: BanGhiDeMoTa, tra: BangTra): string {
           }
           return `Sửa thông tin ${tk}`;
         }
+        case 'UPDATE_MY_PROFILE':
+          return `Tự cập nhật hồ sơ cá nhân`;
+        case 'UPDATE_PROFILE':
+          return `Sửa hồ sơ nhân sự của ${tk}`;
         case 'RESET_PASSWORD':
           return `Đặt lại mật khẩu cho ${tk}`;
         case 'DEACTIVATE':

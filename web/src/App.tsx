@@ -5,6 +5,7 @@ import { RoleRoute } from './routes/AdminOnlyRoute';
 import { AdminLayout } from './components/AdminLayout';
 import { LoginPage } from './pages/LoginPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { HoSoPage } from './pages/HoSoPage';
 import { HomePage } from './pages/HomePage';
 import { MyScorecardsPage } from './pages/kpi/MyScorecardsPage';
 import { AssignKpiPage } from './pages/kpi/AssignKpiPage';
@@ -44,6 +45,7 @@ export function App() {
 
         <Route element={<AdminLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/ho-so" element={<HoSoPage />} />
 
           {/* Phiếu KPI của chính mình — MỌI vai trò đều có, kể cả STAFF. */}
           <Route path="/kpi/my" element={<MyScorecardsPage />} />

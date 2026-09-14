@@ -89,6 +89,27 @@ Ba bảng ghi nhận, đừng nhầm vai:
 | `AuditLog` | Truy vết hệ thống, mọi bảng, tra khi có sự cố | không |
 | Cột dấu vết trên `Scorecard` | Đọc nhanh trạng thái hiện tại, không phải lịch sử | — |
 
+## Hồ sơ nhân sự tách khỏi tài khoản (14/09/2026)
+
+`User` là **tài khoản đăng nhập** (email, mật khẩu, vai trò, phòng, chức
+danh). `EmployeeProfile` (1–1, `userId` là khoá chính) là **hồ sơ**: điện
+thoại, email cá nhân, địa chỉ, ngày sinh, giới tính, liên hệ khẩn cấp
+(nhân viên tự sửa); ngày vào làm, ngày nghỉ việc, CCCD (chỉ HCNS/ADMIN).
+
+Tách ra vì giai đoạn 2 chấm công sẽ thêm nhiều trường nữa (hợp đồng, phép,
+ngân hàng…) — nhét vào `User` thì mọi truy vấn auth/KPI kéo theo, và
+`/auth/me` dễ rò trường nhạy cảm. **Trường nào ai sửa được quyết ở DTO**
+(`UpdateMyProfileDto` ⊂ `UpdateEmployeeProfileDto`), không ở schema;
+`forbidNonWhitelisted` chặn nhân viên gửi trường HR. CCCD che còn 4 số cuối
+khi trưởng phòng xem và trong `AuditLog`.
+
+`EmployeeAssignmentHistory` ghi **tự động** mỗi lần tạo tài khoản hoặc HR
+đổi phòng / chức danh / cấp bậc: đóng dòng đang hiệu lực (`validTo` = hôm
+nay), mở dòng mới. Chưa có màn hình đọc — tích luỹ để chấm công biết người
+chuyển phòng ngày 15 thì nửa đầu tháng thuộc phòng nào. Migration
+`20260914100000_ho_so_nhan_su` chèn sẵn một dòng cho mọi người đang có
+(từ ngày tạo tài khoản). Cột ngày dùng `@db.Date`, không có giờ.
+
 ## Vì sao `AuditLog` không có khoá ngoại
 
 `AuditLog` cố ý không ràng buộc tới bảng nghiệp vụ. Khi một KPI bị xoá,

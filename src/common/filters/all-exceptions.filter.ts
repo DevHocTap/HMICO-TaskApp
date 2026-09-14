@@ -62,7 +62,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // `than` luôn có `message`, nhưng kiểu của nó là Record nên TypeScript
       // không thấy được. Ghi lại tường minh để không bao giờ trả body thiếu
       // `message` — giao diện đọc đúng trường đó để hiện lỗi.
-      message: typeof than.message === 'string' ? than.message : 'Đã xảy ra lỗi.',
+      // class-validator trả MẢNG chuỗi — lấy câu đầu làm message, giữ cả
+      // mảng ở `errors` cho màn hình nào muốn hiện đủ. Trước 14/09 mảng bị
+      // thay bằng "Đã xảy ra lỗi." nên người dùng không thấy ô nào sai.
+      message:
+        typeof than.message === 'string'
+          ? than.message
+          : Array.isArray(than.message) && typeof than.message[0] === 'string'
+            ? than.message[0]
+            : 'Đã xảy ra lỗi.',
+      ...(Array.isArray(than.message) ? { errors: than.message } : {}),
       statusCode: status,
       path: duongDan,
       timestamp: new Date().toISOString(),

@@ -2,6 +2,9 @@ import { apiClient } from './client';
 import type {
   Department,
   DepartmentNode,
+  HoSoHrInput,
+  HoSoNhanSu,
+  HoSoTuSuaInput,
   JobTitle,
   ListUsersParams,
   OrgUser,
@@ -126,5 +129,28 @@ export async function doiTrangThaiNhanVien(
   const { data } = await apiClient.patch<OrgUser>(
     `/users/${id}/${hoatDong ? 'activate' : 'deactivate'}`,
   );
+  return data;
+}
+
+// ------------------------------------------------------------ hồ sơ nhân sự
+
+export async function layHoSoCuaToi(): Promise<HoSoNhanSu> {
+  const { data } = await apiClient.get<HoSoNhanSu>('/users/me/profile');
+  return data;
+}
+
+export async function capNhatHoSoCuaToi(input: HoSoTuSuaInput): Promise<HoSoNhanSu> {
+  const { data } = await apiClient.patch<HoSoNhanSu>('/users/me/profile', input);
+  return data;
+}
+
+export async function layHoSoNhanVien(userId: string): Promise<HoSoNhanSu> {
+  const { data } = await apiClient.get<HoSoNhanSu>(`/users/${userId}/profile`);
+  return data;
+}
+
+/** Chỉ HR / ADMIN — backend từ chối 403 với vai khác. */
+export async function capNhatHoSoNhanVien(userId: string, input: HoSoHrInput): Promise<HoSoNhanSu> {
+  const { data } = await apiClient.put<HoSoNhanSu>(`/users/${userId}/profile`, input);
   return data;
 }

@@ -436,6 +436,69 @@ else
   fail "không tạo được người dùng ZTEST-BOOL: ${R:0:150}"
 fi
 
+# ===================================================== HỒ SƠ NHÂN SỰ
+buoc "HỒ SƠ NHÂN SỰ (14/09) — tự sửa / HR sửa / che CCCD / lịch sử phân công"
+# Dùng tài khoản ZTEST tạo riêng để không đụng hồ sơ của tài khoản seed.
+R=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+  -d "{\"employeeCode\":\"ZTEST-HOSO\",\"email\":\"ztest.hoso@hmico.vn\",\"fullName\":\"ZTEST Hồ sơ\",\"role\":\"STAFF\",\"departmentId\":\"$(sql "SELECT id FROM \"Department\" WHERE code='KT';")\"}" "$API/users")
+U_HOSO=$(echo "$R" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+MK_HOSO=$(echo "$R" | python3 -c "import json,sys;print(json.load(sys.stdin).get('temporaryPassword',''))" 2>/dev/null)
+if [ -n "$U_HOSO" ]; then
+  AT_HOSO=$(curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"ztest.hoso@hmico.vn\",\"password\":\"$MK_HOSO\"}" | python3 -c "import json,sys;print(json.load(sys.stdin).get('accessToken',''))")
+  # Tạo tài khoản → có đúng 1 dòng lịch sử phân công đang hiệu lực
+  LS=$(sql "SELECT count(*) FROM \"EmployeeAssignmentHistory\" WHERE \"userId\"='$U_HOSO' AND \"validTo\" IS NULL;")
+  [ "$LS" = "1" ] && pass "tạo tài khoản mở 1 dòng lịch sử phân công" || fail "lịch sử phân công sau khi tạo: $LS dòng"
+
+  MA=$(ma -H "Authorization: Bearer $AT_HOSO" "$API/users/me/profile")
+  [ "$MA" = "200" ] && pass "STAFF đọc hồ sơ của mình -> 200" || fail "GET me/profile -> $MA"
+  MA=$(ma -X PATCH -H "Authorization: Bearer $AT_HOSO" -H 'Content-Type: application/json' \
+    -d '{"phone":"0912345678","gender":"FEMALE","dateOfBirth":"1996-02-29"}' "$API/users/me/profile")
+  [ "$MA" = "200" ] && pass "STAFF tự sửa điện thoại / giới tính / ngày sinh -> 200" || fail "PATCH me/profile -> $MA"
+  MA=$(ma -X PATCH -H "Authorization: Bearer $AT_HOSO" -H 'Content-Type: application/json' \
+    -d '{"hireDate":"2020-01-01"}' "$API/users/me/profile")
+  [ "$MA" = "400" ] && pass "STAFF gửi hireDate (trường HR) -> 400" || fail "PATCH hireDate -> $MA (mong 400)"
+  MA=$(ma -X PATCH -H "Authorization: Bearer $AT_HOSO" -H 'Content-Type: application/json' \
+    -d '{"fullName":"Đổi tên"}' "$API/users/me/profile")
+  [ "$MA" = "400" ] && pass "STAFF gửi fullName -> 400 (không tự đổi họ tên)" || fail "PATCH fullName -> $MA (mong 400)"
+  LOI=$(curl -s -X PATCH -H "Authorization: Bearer $AT_HOSO" -H 'Content-Type: application/json' \
+    -d '{"phone":"12"}' "$API/users/me/profile" | python3 -c "import json,sys;print(json.load(sys.stdin).get('message',''))")
+  echo "$LOI" | grep -q "điện thoại" && pass "lỗi DTO trả đúng câu: $LOI" || fail "lỗi DTO trả: $LOI"
+
+  MA=$(ma -X PUT -H "Authorization: Bearer $AT_HOSO" -H 'Content-Type: application/json' \
+    -d '{"hireDate":"2020-01-01"}' "$API/users/$U_HOSO/profile")
+  [ "$MA" = "403" ] && pass "STAFF PUT :id/profile -> 403" || fail "STAFF PUT -> $MA"
+  MA=$(ma -X PUT -H "Authorization: Bearer $AT_KT" -H 'Content-Type: application/json' \
+    -d '{"hireDate":"2020-01-01"}' "$API/users/$U_HOSO/profile")
+  [ "$MA" = "403" ] && pass "MANAGER PUT :id/profile -> 403" || fail "MANAGER PUT -> $MA"
+  MA=$(ma -X PUT -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' \
+    -d '{"hireDate":"2020-01-01","nationalId":"012345678901"}' "$API/users/$U_HOSO/profile")
+  [ "$MA" = "200" ] && pass "HR PUT ngày vào làm + CCCD -> 200" || fail "HR PUT -> $MA"
+  MA=$(ma -X PUT -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' \
+    -d '{"nationalId":"012345678902"}' "$API/users/$U_ADMIN/profile")
+  [ "$MA" = "403" ] && pass "HR sửa hồ sơ ADMIN -> 403" || fail "HR sửa hồ sơ ADMIN -> $MA"
+
+  CC=$(curl -s -H "Authorization: Bearer $AT_HOSO" "$API/users/me/profile" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['nationalId'],d['hireDate'],d['phone'])")
+  [ "$CC" = "012345678901 2020-01-01 0912345678" ] && pass "chủ hồ sơ thấy CCCD đầy đủ + ngày vào làm HR nhập" || fail "chủ hồ sơ thấy: $CC"
+  CC=$(curl -s -H "Authorization: Bearer $AT_KT" "$API/users/$U_HOSO/profile" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['nationalId'],d['canEditHrFields'])")
+  [ "$CC" = "********8901 False" ] && pass "trưởng phòng xem người trong phòng: CCCD che, không sửa được phần HR" || fail "trưởng phòng thấy: $CC"
+  MA=$(ma -H "Authorization: Bearer $AT_STAFF" "$API/users/$U_HOSO/profile")
+  [ "$MA" = "403" ] && pass "STAFF khác xem hồ sơ người khác -> 403" || fail "STAFF khác xem -> $MA"
+
+  # Đổi phòng → đóng dòng cũ, mở dòng mới
+  P_RND=$(sql "SELECT id FROM \"Department\" WHERE code='RND';")
+  curl -s -o /dev/null -X PATCH -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' \
+    -d "{\"departmentId\":\"$P_RND\"}" "$API/users/$U_HOSO"
+  LS=$(sql "SELECT count(*) FILTER (WHERE \"validTo\" IS NULL) || '/' || count(*) FROM \"EmployeeAssignmentHistory\" WHERE \"userId\"='$U_HOSO';")
+  [ "$LS" = "1/2" ] && pass "đổi phòng: 2 dòng lịch sử, 1 đang hiệu lực" || fail "lịch sử sau đổi phòng: $LS (mong 1/2)"
+  SO_AUDIT=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityId\"='$U_HOSO' AND action IN ('UPDATE_MY_PROFILE','UPDATE_PROFILE');")
+  [ "$SO_AUDIT" = "2" ] && pass "AuditLog: 1 UPDATE_MY_PROFILE + 1 UPDATE_PROFILE" || fail "AuditLog hồ sơ: $SO_AUDIT (mong 2)"
+  CC=$(sql "SELECT after->>'nationalId' FROM \"AuditLog\" WHERE \"entityId\"='$U_HOSO' AND action='UPDATE_PROFILE';")
+  [ "$CC" = "********8901" ] && pass "nhật ký che CCCD" || fail "nhật ký ghi CCCD: $CC"
+else
+  fail "không tạo được người dùng ZTEST-HOSO: ${R:0:150}"
+fi
+
 # ===================================================== TỔNG KẾT
 echo
 printf '%.0s=' {1..60}; echo
