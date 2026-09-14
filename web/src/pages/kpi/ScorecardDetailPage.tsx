@@ -723,7 +723,6 @@ function BangXem({ cuaMuc, info, chuan, moCon, doiMoCon }: BangXemProps) {
                       <span className="lp-stt lp-stt-con">{i + 1}.{j + 1}</span>
                     </td>
                     <td className="lp-td-con">
-                      <span className="lp-nhanh" />
                       <span className="lp-chu">{c.name || '—'}</span>
                     </td>
                     <td><span className="lp-chu">{c.measurementText || '—'}</span></td>

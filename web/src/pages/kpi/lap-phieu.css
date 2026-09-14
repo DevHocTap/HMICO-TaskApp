@@ -348,7 +348,7 @@
 .lp-mui-ten { display: inline-block; width: 14px; color: #64748b; font-size: 12px; transition: transform 0.15s; margin-right: 2px; }
 .lp-mui-ten-mo { transform: rotate(90deg); }
 .lp-so-con { margin-left: 8px; font-size: 11px; font-weight: 500; color: #0043ce; background: #edf5ff; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
-.lp-table-xem .lp-td-con { padding-left: 36px !important; }
+.lp-table-xem .lp-td-con { padding-left: 28px !important; }
 .lp-trong-so-con { background: transparent; color: #475569; font-weight: 500; }
 .lp-table-xem tfoot tr { background: #dbeafe; border-top: 2px solid #93c5fd; }
 .lp-table-xem tfoot td { padding: 12px 14px; font-weight: 700; color: #1e3a8a; border-bottom: 0; border-right: 1px solid #bfdbfe; }
