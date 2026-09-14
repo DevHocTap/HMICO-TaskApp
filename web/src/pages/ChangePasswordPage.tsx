@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, App, Button, Form, Input, Tag, Typography } from 'antd';
-import { CheckCircleFilled, MinusCircleOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckCircleFilled, MinusCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { doiMatKhau } from '../api/auth';
 import { layThongBaoLoi } from '../api/client';
@@ -19,6 +20,7 @@ interface ChangePasswordForm {
 export function ChangePasswordPage() {
   const { user, logoutAll } = useAuth();
   const { message } = App.useApp();
+  const navigate = useNavigate();
   const [form] = Form.useForm<ChangePasswordForm>();
   const [dangGui, setDangGui] = useState(false);
   const [loi, setLoi] = useState<string | null>(null);
@@ -175,6 +177,21 @@ export function ChangePasswordPage() {
           >
             {lanDau ? 'Đổi mật khẩu và vào hệ thống' : 'Đổi mật khẩu'}
           </Button>
+          {/* Lần đầu bắt buộc đổi thì KHÔNG có đường lui; tự vào từ menu tài
+              khoản thì cho quay lại chỗ đang đứng (14/09). */}
+          {!lanDau && (
+            <Button
+              type="text"
+              block
+              size="large"
+              icon={<ArrowLeftOutlined />}
+              disabled={dangGui}
+              style={{ marginTop: 8, borderRadius: 999 }}
+              onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+            >
+              Quay lại, không đổi nữa
+            </Button>
+          )}
         </Form>
       </div>
     </div>
