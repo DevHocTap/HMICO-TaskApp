@@ -1736,3 +1736,15 @@ a.ten-nhan-vien:hover {
 .cd-thanh-do > span { display: block; height: 100%; border-radius: 999px; background: #2563eb; }
 .cd-the-chan { margin-top: auto; padding-top: 10px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; font-size: 12px; color: #64748b; }
 .cd-the-chan b { color: #1e293b; font-weight: 600; }
+
+/* ---------- Chrome: bôi đen chữ (14/09) ----------
+   Kéo chuột bắt đầu từ chữ ĐÃ bôi đen, hoặc từ link/nút, là Chrome chuyển sang
+   thao tác kéo-thả (drag) thay vì bôi đen; thả ra ngoài cửa sổ hay giữa chừng
+   thì trang có vẻ "đơ" tới khi tải lại. Tắt kéo-thả trên link/nút/chip và
+   không cho bôi đen phần khung (nút, huy hiệu, tiêu đề bảng, menu). */
+a, button, .ant-btn, .ant-tag, .ant-menu, .ant-select, img, svg { -webkit-user-drag: none; user-drag: none; }
+button, .ant-btn, .ant-tag, .ant-menu, .ant-select-selector, .ant-pagination,
+th, .tq-nut, .tq-nut-nho, .tq-tag, .tq-huy-hieu, .tq-vien, .tq-chip, .tq-gd-pill, .tq-moc-nhan,
+.pt-nut, .pt-nut-nho, .pt-pill, .pt-huy-hieu, .pt-segment, .pt-stt, .pt-trong-so,
+.lp-nut, .lp-nut-nho, .lp-tt, .lp-so, .bc-nut, .bc-chip, .bc-pill, .bc-tt, .bc-hang-ten,
+.qn-nut, .qn-nut-nho, .qn-chip, .qn-pill, .qn-tk, .qn-huy-hieu, .cd-quay-lai, .cd-tag, .sidebar-thuong-hieu { user-select: none; }
