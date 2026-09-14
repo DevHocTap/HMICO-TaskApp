@@ -38,7 +38,6 @@ import {
 } from '../utils/period';
 import { mauChuDao } from '../config/theme';
 import { NHOM_TAB, loiVaoNhom } from './ThanhTab';
-import { ngayVN } from '../utils/format';
 import { KyDangXemProvider, useKyDangXem } from '../contexts/KyDangXem';
 
 /**
@@ -262,33 +261,6 @@ function KhungAdmin() {
             style={{ flex: 1, background: 'transparent', borderInlineEnd: 0 }}
           />
 
-          {/* Ba mốc của kỳ tháng chứa hôm nay — mọi vai đều đọc được /periods */}
-          {kyHienTai && giaiDoan && (
-            <div className="sidebar-ky">
-              <div className="sidebar-ky-dau">
-                <span className="sidebar-ky-nhan">
-                  <i className="sidebar-ky-cham" />
-                  Chu kỳ hiện tại
-                </span>
-                <span className="sidebar-ky-active">
-                  {kyHienTai.isLocked ? 'ĐÃ KHOÁ' : 'ACTIVE'}
-                </span>
-              </div>
-              <strong>{kyHienTai.name}</strong>
-              <div className="sidebar-ky-hang">
-                <span>Hạn chốt:</span>
-                <b>{ngayVN(kyHienTai.submitDeadline)}</b>
-              </div>
-              <div className="sidebar-ky-hang">
-                <span>
-                  {giaiDoan.so === 4 ? giaiDoan.ten : `GĐ ${giaiDoan.so} · ${giaiDoan.ten}`}
-                </span>
-                {giaiDoan.conNgay !== null && giaiDoan.so !== 4 && (
-                  <b>còn {giaiDoan.conNgay} ngày</b>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </Layout.Sider>
 
