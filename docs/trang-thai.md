@@ -595,6 +595,15 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   làm `message`, cả mảng ở `errors`. `verify-org.sh` **79** (mục Hồ sơ nhân
   sự 16 kiểm). Chuẩn bị cho chấm công giai đoạn 2 — xem `no-ky-thuat.md`.
 
+- **Đăng nhập — dựng lại theo mã HTML mẫu thẻ đôi (14/09):** `LoginPage.tsx`
+  + `dang-nhap.css` (`dn-*`, không antd Form): nền xanh/nhạt chia đôi, thẻ
+  bo 40px; trái = logo, form ô nhập bo 16px nền xám, nút hiện/ẩn mật khẩu,
+  ô lỗi đỏ dưới nút, chú ý vàng "sai 10 lần / 15 phút"; phải = minh hoạ
+  dựng bằng CSS (màn hình, checklist, donut, bóng đèn, bút — có hiệu ứng
+  bay), ẩn dưới 1024px. Giữ quyết định 11/09: **không** "Quên mật khẩu?"
+  (không có luồng tự đặt lại), **không** "Ghi nhớ đăng nhập" (refresh token
+  7 ngày đã ghi nhớ); font Inter tự phục vụ thay Plus Jakarta Sans của mẫu.
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 

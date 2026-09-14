@@ -21,54 +21,6 @@
   --font-serif: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
-.login-trang {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  font-family: var(--font-serif);
-}
-
-.login-cot-trai {
-  /* Mảng nền tối; màu lấy từ biến trong theme.ts, đặt lại qua style */
-  color: #fff;
-  padding: 24px;
-  display: flex;
-}
-
-/* Khung lưới 2×2 kẻ mờ — chỉ trang trí, cột phải và hai ô dưới để trống */
-.login-luoi {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-}
-.login-luoi > div {
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  padding: 40px 32px;
-}
-
-.login-cot-phai {
-  display: grid;
-  place-items: center;
-  padding: 32px 16px;
-}
-
-.login-form {
-  width: 100%;
-  max-width: 400px;
-}
-
-/* Màn hẹp (điện thoại, cửa sổ chia đôi): bỏ cột trái, chỉ còn form */
-@media (max-width: 900px) {
-  .login-trang {
-    grid-template-columns: 1fr;
-  }
-  .login-cot-trai {
-    display: none;
-  }
-}
-
 /* ---------- Màn đổi mật khẩu ---------- */
 
 .doi-mk-trang {
