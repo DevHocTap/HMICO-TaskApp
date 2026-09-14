@@ -209,6 +209,22 @@
   gap: 12px;
   line-height: 1.3;
 }
+/* Khối avatar + tên là nút mở menu tài khoản (14/09) */
+.thanh-tren-tai-khoan {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.thanh-tren-tai-khoan:hover,
+.thanh-tren-tai-khoan[aria-expanded='true'] { background: #f1f5f9; border-color: #e2e8f0; }
+.thanh-tren-mui { font-size: 11px; color: #94a3b8; }
 .thanh-tren-ten {
   display: flex;
   flex-direction: column;

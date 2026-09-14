@@ -3,6 +3,7 @@ import {
   Avatar,
   Badge,
   Button,
+  Dropdown,
   Layout,
   Menu,
   Popover,
@@ -16,6 +17,8 @@ import {
   SolutionOutlined,
   FileTextOutlined,
   LogoutOutlined,
+  KeyOutlined,
+  DownOutlined,
   TeamOutlined,
   BarChartOutlined,
   AppstoreOutlined,
@@ -355,33 +358,53 @@ function KhungAdmin() {
             </Popover>
             {/* Tên, chức danh, phòng ban lấy từ GET /auth/me — không từ cây
                 phòng ban, vì STAFF nhận cây rỗng. */}
-            {user && (
-              <Avatar
-                size={38}
-                style={{
-                  background: '#dbe6ff',
-                  color: mauChuDao,
-                  fontWeight: 700,
-                }}
-              >
-                {chuVietTat(user.fullName)}
-              </Avatar>
-            )}
-            <span className="thanh-tren-ten">
-              <Typography.Text strong>{user?.fullName}</Typography.Text>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {moTaViTri(user)}
-              </Typography.Text>
-            </span>
-            <Button
-              icon={<LogoutOutlined />}
-              onClick={onLogout}
-              loading={dangThoat}
-              shape="round"
-              style={{ fontWeight: 600 }}
+            {/* Bấm vào avatar / tên mở menu tài khoản. Sau này thêm mục
+                "Thông tin cá nhân" vào đây khi có trang hồ sơ (14/09). */}
+            <Dropdown
+              trigger={['click']}
+              placement="bottomRight"
+              menu={{
+                items: [
+                  {
+                    key: 'doi-mat-khau',
+                    icon: <KeyOutlined />,
+                    label: 'Đổi mật khẩu',
+                    onClick: () => navigate('/change-password'),
+                  },
+                  { type: 'divider' },
+                  {
+                    key: 'dang-xuat',
+                    icon: <LogoutOutlined />,
+                    label: dangThoat ? 'Đang đăng xuất…' : 'Đăng xuất',
+                    danger: true,
+                    disabled: dangThoat,
+                    onClick: () => void onLogout(),
+                  },
+                ],
+              }}
             >
-              Đăng xuất
-            </Button>
+              <button type="button" className="thanh-tren-tai-khoan" aria-label="Menu tài khoản">
+                {user && (
+                  <Avatar
+                    size={38}
+                    style={{
+                      background: '#dbe6ff',
+                      color: mauChuDao,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {chuVietTat(user.fullName)}
+                  </Avatar>
+                )}
+                <span className="thanh-tren-ten">
+                  <Typography.Text strong>{user?.fullName}</Typography.Text>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {moTaViTri(user)}
+                  </Typography.Text>
+                </span>
+                <DownOutlined className="thanh-tren-mui" />
+              </button>
+            </Dropdown>
           </div>
         </Layout.Header>
 

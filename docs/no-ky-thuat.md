@@ -605,8 +605,10 @@ tự động rồi mới vỡ.
 - [ ] Gói frontend 840 kB (276 kB gzip), gần hết là Ant Design. Chấp nhận
       được với phần mềm nội bộ chạy trong mạng công ty; nếu cần giảm thì
       tách chunk theo route.
-- [ ] Chưa có màn hình nào dẫn tới `/change-password` cho người muốn tự
-      đổi mật khẩu. Route đã cho vào, chỉ thiếu đường dẫn trên giao diện.
+- [x] ~~Chưa có màn hình nào dẫn tới `/change-password`~~ — **đã thêm
+      14/09:** menu tài khoản (bấm avatar / tên ở header) có "Đổi mật khẩu"
+      và "Đăng xuất"; nút Đăng xuất rời khỏi header. Menu này là chỗ sẽ
+      thêm "Thông tin cá nhân" khi có trang hồ sơ.
 - [x] ~~Trang chủ là chỗ giữ chỗ~~ — đã dựng "Việc của tôi" (04/09), đọc từ
       `GET /scorecards/pending-my-action`. Chưa có dashboard tổng hợp cho BGĐ.
 - [ ] Màn nhân viên chưa cho sửa `managerId` (người quản lý trực tiếp).
