@@ -3,6 +3,7 @@ import { App, Input, Modal } from 'antd';
 import {
   CheckCircleFilled,
   CheckOutlined,
+  DownloadOutlined,
   ExportOutlined,
   EyeOutlined,
   QuestionCircleOutlined,
@@ -16,7 +17,9 @@ import {
   layPhieuChamDiem,
   layPhieuCuaToi,
   neuYKienPhieu,
+  taiPhieuExcel,
 } from '../../api/scorecard';
+import { docLoiBlob } from '../../api/report';
 import { layThongBaoLoi } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { useCaiDat, useTrongSo } from '../../auth/useTrongSo';
@@ -126,6 +129,11 @@ export function MyScorecardsPage() {
       lamMoi();
     },
     onError: (e) => message.error(layThongBaoLoi(e)),
+  });
+  const taiExcel = useMutation({
+    mutationFn: (id: string) => taiPhieuExcel(id),
+    onSuccess: (ten) => message.success(`Đã tải ${ten}`),
+    onError: async (e) => message.error((await docLoiBlob(e)) ?? layThongBaoLoi(e)),
   });
   const neuYKien = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => neuYKienPhieu(id, reason),
@@ -655,6 +663,15 @@ export function MyScorecardsPage() {
               )}
             </div>
             <div className="pt-dau-nut">
+              <button
+                type="button"
+                className="pt-nut pt-nut-trang"
+                disabled={taiExcel.isPending}
+                title="Tải phiếu này ra Excel theo biểu mẫu BM.01"
+                onClick={() => taiExcel.mutate(phieuChon.id)}
+              >
+                <DownloadOutlined /> Tải phiếu (.xlsx)
+              </button>
               {phieuChon.assignStatus === 'PROPOSED' ? (
                 <>
                   <button type="button" className="pt-nut pt-nut-trang" onClick={() => setMoNeuYKien(true)}>

@@ -14,7 +14,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import { ArrowLeftOutlined, SafetyCertificateOutlined, SwapOutlined, TrophyOutlined, UserOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, DownloadOutlined, SafetyCertificateOutlined, SwapOutlined, TrophyOutlined, UserOutlined } from '@ant-design/icons';
 import { chuVietTat } from '../../utils/period';
 import { phanTram } from '../../utils/format';
 import dayjs from 'dayjs';
@@ -28,9 +28,11 @@ import {
   luuDiemQuanLy,
   luuDiemTuCham,
   nopDiemTuCham,
+  taiPhieuExcel,
   tiepNhanPhieu,
   traLaiPhieu,
 } from '../../api/scorecard';
+import { docLoiBlob } from '../../api/report';
 import { layThongBaoLoi } from '../../api/client';
 import {
   NHAN_XEP_LOAI,
@@ -220,6 +222,11 @@ export function ScoringPage() {
     onError: (e) => message.error(layThongBaoLoi(e)),
   });
 
+  const taiExcel = useMutation({
+    mutationFn: () => taiPhieuExcel(id!),
+    onSuccess: (ten) => message.success(`Đã tải ${ten}`),
+    onError: async (e) => message.error((await docLoiBlob(e)) ?? layThongBaoLoi(e)),
+  });
   const tiepNhan = useMutation({
     mutationFn: () => tiepNhanPhieu(id),
     onSuccess: (moi) => sauKhiGhi(moi, 'Đã tiếp nhận phiếu'),
@@ -606,6 +613,17 @@ export function ScoringPage() {
 
   const nutHanhDong = (
     <>
+      <Tooltip title="Tải phiếu này ra Excel theo biểu mẫu BM.01 (kèm sheet KPI con)">
+        <Button
+          shape="round"
+          size="large"
+          icon={<DownloadOutlined />}
+          loading={taiExcel.isPending}
+          onClick={() => taiExcel.mutate()}
+        >
+          Tải phiếu (.xlsx)
+        </Button>
+      </Tooltip>
       {quyen?.canReject && (
         <Button
           shape="round"

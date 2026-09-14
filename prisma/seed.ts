@@ -9,12 +9,16 @@ import * as argon2 from 'argon2';
 // Đuôi .ts (không phải .js): file này chỉ do node chạy trực tiếp bằng cơ chế
 // bóc kiểu của Node 22, không đi qua tsc nên không có bản .js được sinh ra.
 import { MAU_KPI_PHONG_KY_THUAT } from './kpi-templates.data.ts';
+// Đọc từ bản build chứ không từ `src/`: `period-calendar.ts` import
+// `cai-dat-mac-dinh.js` (đuôi .js theo chuẩn ESM của dự án), mà Node bóc
+// kiểu TypeScript không đổi `.js` thành `.ts` — seed đã hỏng vì thế từ 11/09.
+// Chạy `npm run build` trước khi seed.
 import {
   kyNam,
   kyQuy,
   kyThang,
   type KyCanTao,
-} from '../src/modules/period/period-calendar.ts';
+} from '../dist/modules/period/period-calendar.js';
 
 const prisma = new PrismaClient();
 

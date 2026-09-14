@@ -105,6 +105,8 @@ export function moTaBanGhi(r: BanGhiDeMoTa, tra: BangTra): string {
           return `Tiếp nhận ${phieu}`;
         case 'REOPEN':
           return `Mở lại ${phieu}`;
+        case 'EXPORT':
+          return `Tải ${phieu} ra Excel${chuoi(sau.tenFile) ? ` (${chuoi(sau.tenFile)})` : ''}`;
         default:
           return `${r.action} ${phieu}`;
       }

@@ -12,20 +12,29 @@ export async function layTienDoNop(periodId: string): Promise<BaoCaoTienDo> {
  * Tải file Excel tổng hợp và lưu xuống máy.
  *
  * Trả về tên file đã lưu để màn hình báo lại cho người dùng.
- *
- * Lấy tên file từ header `Content-Disposition` chứ không tự ghép ở đây:
- * backend đã đặt tên kèm mốc thời gian, ghép lại lần nữa là hai chỗ cùng
- * quyết định một thứ và sẽ có lúc lệch.
  */
 export async function taiExcelTongHop(periodId: string): Promise<string> {
   const res = await apiClient.get('/reports/export', {
     params: { periodId },
     responseType: 'blob',
   });
+  return luuBlobXuongMay(res, 'KPI.xlsx');
+}
 
+/**
+ * Lưu thân phản hồi dạng `Blob` xuống máy người dùng, trả về tên file.
+ *
+ * Lấy tên file từ header `Content-Disposition` chứ không tự ghép ở đây:
+ * backend đã đặt tên (kèm mốc thời gian hoặc mã nhân viên), ghép lại lần nữa
+ * là hai chỗ cùng quyết định một thứ và sẽ có lúc lệch.
+ */
+export function luuBlobXuongMay(
+  res: { data: unknown; headers: Record<string, unknown> },
+  tenMacDinh: string,
+): string {
   const ten =
     /filename="([^"]+)"/.exec(String(res.headers['content-disposition'] ?? ''))?.[1] ??
-    'KPI.xlsx';
+    tenMacDinh;
 
   // Tạo link tạm rồi bấm hộ. Thu hồi URL ngay sau đó, nếu không blob nằm lại
   // trong bộ nhớ tab cho tới lúc đóng trang.

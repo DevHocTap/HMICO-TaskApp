@@ -4,7 +4,7 @@
 > Đây là trí nhớ của Claude Code giữa các phiên — để lạc hậu là nó sẽ
 > làm lại thứ đã có hoặc bỏ sót thứ đang dở.
 
-Cập nhật lần cuối: 13/09/2026
+Cập nhật lần cuối: 14/09/2026
 
 **Mốc bàn giao: một phòng Kỹ thuật chạy thật tháng 11/2026.**
 Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 63 + 76 + 82 + 159 + 96 + 76 + 42 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 63 + 76 + 82 + 159 + 104 + 76 + 42 kiểm tra curl.**
 
 ## Đang làm
 
@@ -552,6 +552,31 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   phải: `MocTienDoThang` (tách từ Tổng quan quản lý thành component dùng
   chung) + "Việc của tôi". `HomePage.tsx` giờ chỉ chọn trang theo vai. Gỡ
   `PhieuKyNayCuaToi`, `TheSoLieu`, `bieu-do/Duong` (không còn ai dùng).
+
+- **Tải MỘT phiếu KPI ra Excel theo biểu mẫu BM.01 (14/09):**
+  `GET /scorecards/:id/export` (`ScorecardExcelService`, quyền xem = quyền
+  vào màn Chấm điểm qua `getScoring`). Sheet **BM.01**: đầu trang công ty /
+  quốc hiệu, mã biểu mẫu, "Tháng: MM/YYYY", khối thông tin (họ tên, mã NV,
+  phòng, chức danh, cấp bậc, người đánh giá; **"Ngày đánh giá" để trống** —
+  chốt 14/09), Mục 1 / Mục 2 mỗi tiêu chí cấp 1 một dòng (STT, chỉ tiêu,
+  trọng số %, thang, ba cột NLĐ và ba cột TBP: điểm · % đạt · % đóng góp),
+  "Cộng Mục", TỔNG hai cột, XẾP LOẠI, thang xếp loại đọc từ Cài đặt, 4 ô ký,
+  dòng "Gửi kết quả… trước ngày" theo `submitDeadline`. Sheet **Chi tiết**:
+  KPI con theo từng tiêu chí (cách đo, mục tiêu, trọng số nhóm, thang, điểm
+  hai cột, ghi chú / nhận xét). Ghi GIÁ TRỊ đã tính từ engine, không ghi công
+  thức; tỉ lệ làm tròn 6 chữ số để không lặp lỗi `0.70000000000000007` của
+  file gốc. Tên file **`KPI_<mã NV>_<YYYY-MM>.xlsx`** (chốt 14/09). Mỗi lần
+  tải một dòng `AuditLog Scorecard/EXPORT`. Nút "Tải phiếu (.xlsx)" ở đầu
+  màn Chấm điểm, chân bảng kê Phiếu đánh giá của tôi, và nút tải trên từng
+  dòng bảng nhân sự ở Báo cáo kỳ (`taiPhieuExcel()`, `luuBlobXuongMay()`
+  dùng chung với bản tổng hợp). `kiem-chung-lat-cat-5.sh` **104** (mục 29b
+  đọc lại file, so từng ô với `/scoring`). Đóng nợ "Bản in TỪNG PHIẾU".
+
+- **Sửa tiện thể (14/09):** `prisma/seed.ts` hỏng từ 11/09 vì
+  `period-calendar.ts` import `cai-dat-mac-dinh.js` (Node bóc kiểu không đổi
+  `.js` → `.ts`) — seed nay đọc từ `dist/`, phải `npm run build` trước.
+  Script 5 nhận `KPI_DB` + `DATABASE_URL` để chạy trên database tạm seed
+  sạch khi máy dev có dữ liệu thử tay (hướng dẫn ở đầu script).
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.

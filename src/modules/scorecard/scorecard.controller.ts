@@ -10,12 +10,15 @@ import {
   Put,
   Query,
   Req,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { ScorecardService } from './scorecard.service.js';
 import { ScorecardQueryService } from './scorecard-query.service.js';
 import { ScorecardAssignService } from './scorecard-assign.service.js';
 import { ScorecardScoringService } from './scorecard-scoring.service.js';
+import { ScorecardExcelService } from './scorecard-excel.service.js';
 import {
   AssignmentBoardQuery,
   BatchCreateScorecardDto,
@@ -71,6 +74,7 @@ export class ScorecardController {
     private readonly queries: ScorecardQueryService,
     private readonly assign: ScorecardAssignService,
     private readonly scoring: ScorecardScoringService,
+    private readonly excel: ScorecardExcelService,
   ) {}
 
   // ------------------------------------------------------------------ đọc
@@ -254,6 +258,26 @@ export class ScorecardController {
   @Get(':id/scoring')
   getScoring(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.scoring.getScoring(id, user);
+  }
+
+  /**
+   * Tải MỘT phiếu ra Excel theo biểu mẫu BM.01 (14/09). Cùng luật xem với
+   * `:id/scoring` (STAFF tải được phiếu của mình), ghi AuditLog mỗi lần.
+   */
+  @Get(':id/export')
+  async exportExcel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: { ip?: string },
+    @Res({ passthrough: true }) res: { set: (h: Record<string, string>) => void },
+  ): Promise<StreamableFile> {
+    const { file, tenFile } = await this.excel.export(id, user, req.ip);
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${tenFile}"`,
+      'Content-Length': String(file.length),
+    });
+    return new StreamableFile(file);
   }
 
   /** Lưu nháp cột tự chấm. Chỉ chủ phiếu — không gắn `@Roles` vì STAFF phải vào được. */

@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { luuBlobXuongMay } from './report';
 import type {
   DongBangGiaoKpi,
   KetQuaHangLoat,
@@ -261,4 +262,14 @@ export async function traLaiPhieu(id: string, reason: string): Promise<PhieuCham
 export async function tiepNhanPhieu(id: string): Promise<PhieuChamDiem> {
   const { data } = await apiClient.post<PhieuChamDiem>(`/scorecards/${id}/receive`);
   return data;
+}
+
+/**
+ * Tải MỘT phiếu KPI ra Excel theo biểu mẫu BM.01 và lưu xuống máy.
+ * Backend đặt tên `KPI_<mã NV>_<YYYY-MM>.xlsx`; quyền xem như màn Chấm điểm.
+ * Lỗi trả về là Blob — đọc bằng `docLoiBlob()` của `api/report`.
+ */
+export async function taiPhieuExcel(id: string): Promise<string> {
+  const res = await apiClient.get(`/scorecards/${id}/export`, { responseType: 'blob' });
+  return luuBlobXuongMay(res, 'KPI.xlsx');
 }

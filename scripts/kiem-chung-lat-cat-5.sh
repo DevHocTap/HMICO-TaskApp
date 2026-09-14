@@ -12,6 +12,12 @@
 #   nhất cứu được nếu script chết giữa chừng.
 #
 # Tự khởi động API ở cổng 3195, tự tắt và TỰ DỌN dữ liệu thử khi xong.
+#
+# Máy dev có phiếu / mẫu thử tay làm script đỏ? Chạy trên database tạm:
+#     docker exec kpi-postgres psql -U kpi_dev -d kpi_db -c 'CREATE DATABASE kpi_kiemchung'
+#     URL=$(grep -m1 '^DATABASE_URL=' .env | cut -d= -f2- | tr -d '"' | sed 's#/kpi_db?#/kpi_kiemchung?#')
+#     DATABASE_URL=$URL npx prisma migrate deploy && DATABASE_URL=$URL npx prisma db seed
+#     KPI_DB=kpi_kiemchung DATABASE_URL=$URL ./scripts/kiem-chung-lat-cat-5.sh
 
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -36,7 +42,10 @@ pass() { SO_PASS=$((SO_PASS+1)); printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
 fail() { SO_FAIL=$((SO_FAIL+1)); printf '  \033[31mFAIL\033[0m  %s\n' "$1"; }
 buoc() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
-sql() { docker exec kpi-postgres psql -U kpi_dev -d kpi_db -t -A -c "$1" 2>/dev/null; }
+# KPI_DB: tên database trong container — đặt sang một database seed sạch
+# (kèm DATABASE_URL tương ứng) khi máy dev có dữ liệu thử tay làm script đỏ.
+KPI_DB="${KPI_DB:-kpi_db}"
+sql() { docker exec kpi-postgres psql -U kpi_dev -d "$KPI_DB" -t -A -c "$1" 2>/dev/null; }
 
 . "$(dirname "$0")/_moc-du-lieu.sh"
 
@@ -62,7 +71,7 @@ don_du_lieu_thu() {
   xoa_auditlog_cua_script
   khoi_phuc_khoa_ky
   khoi_phuc_tai_khoan
-  docker exec kpi-postgres psql -U kpi_dev -d kpi_db -c "
+  docker exec kpi-postgres psql -U kpi_dev -d "$KPI_DB" -c "
     DELETE FROM \"Period\" WHERE code LIKE 'ZTEST%';
     DELETE FROM \"RefreshToken\" WHERE \"userId\" IN (SELECT id FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%');
     DELETE FROM \"User\" WHERE \"employeeCode\" LIKE 'ZTEST%';
@@ -651,6 +660,115 @@ print(','.join(str(float(i['managerComputed']['dongGop'])) for i in bsc))" 2>/de
 [ "$DONG_GOP" = "15.0,15.0,10.0,10.0,10.0,10.0" ] \
   && pass "    đóng góp Mục 1 khớp Excel: $DONG_GOP" \
   || fail "    đóng góp = $DONG_GOP (Excel: 15,15,10,10,10,10)"
+
+# ================================================= 29b TẢI MỘT PHIẾU RA EXCEL (BM.01)
+buoc "29b TẢI MỘT PHIẾU RA EXCEL theo biểu mẫu BM.01 — đọc lại file, so từng ô với API"
+#
+# Dùng chính phiếu Shop Drawing vừa chốt ở mục 29 (100/100, HOÀN THÀNH).
+# Không tin "tải thành công": bóc file .xlsx bằng zipfile, đọc sheet BM.01 và
+# so tổng hai cột, xếp loại, đóng góp Mục 1 với `GET :id/scoring`.
+
+MA_SD=$(sql "SELECT \"employeeCode\" FROM \"User\" WHERE id='$U_SD';")
+TAI_PHIEU="$TMP/phieu-sd.xlsx"
+MA=$(curl -s -o "$TAI_PHIEU" -D "$TMP/header-phieu.txt" -w '%{http_code}' \
+  -H "Authorization: Bearer $AT_SD" "$API/scorecards/$SC_SD/export")
+mong "$MA" 200 "29b. chủ phiếu (STAFF) tải phiếu của mình"
+TEN_PHIEU=$(grep -oiP 'filename="\K[^"]+' "$TMP/header-phieu.txt" | tr -d '\r')
+[ "$TEN_PHIEU" = "KPI_${MA_SD}_2026-08.xlsx" ] \
+  && pass "    tên file theo mã nhân viên + tháng: $TEN_PHIEU" \
+  || fail "    tên file: $TEN_PHIEU (mong đợi KPI_${MA_SD}_2026-08.xlsx)"
+grep -qi 'content-type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' "$TMP/header-phieu.txt" \
+  && pass "    Content-Type là .xlsx" || fail "    Content-Type sai"
+
+# Đóng góp và tổng theo API, để so với file
+API_SD=$(goi GET "$AT_KT" "/scorecards/$SC_SD/scoring" | cut -d'|' -f2-)
+cat > "$TMP/doc-phieu.py" <<'PY'
+import sys, zipfile, re, json
+import xml.etree.ElementTree as ET
+NS='{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
+NSR='{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
+z=zipfile.ZipFile(sys.argv[1]); ma_nv=sys.argv[2]
+api=json.loads(sys.stdin.read())
+shared=[]
+if 'xl/sharedStrings.xml' in z.namelist():
+    r=ET.fromstring(z.read('xl/sharedStrings.xml'))
+    shared=[''.join(t.text or '' for t in si.iter(f'{NS}t')) for si in r.findall(f'{NS}si')]
+wb=ET.fromstring(z.read('xl/workbook.xml'))
+ten_sheet=[s.get('name') for s in wb.iter(f'{NS}sheet')]
+def doc(sheet):
+    ws=ET.fromstring(z.read(f'xl/worksheets/{sheet}.xml'))
+    rows={}
+    for row in ws.iter(f'{NS}row'):
+        cells={}
+        for c in row.findall(f'{NS}c'):
+            ref=re.match(r'([A-Z]+)', c.get('r')).group(1)
+            t=c.get('t'); v=c.find(f'{NS}v')
+            if t=='s' and v is not None: val=shared[int(v.text)]
+            elif t=='inlineStr': val=''.join(x.text or '' for x in c.iter(f'{NS}t'))
+            elif v is not None: val=float(v.text)
+            else: val=None
+            cells[ref]=val
+        rows[int(row.get('r'))]=cells
+    return rows
+bm=doc('sheet1'); ct=doc('sheet2')
+def tim(cot, chuoi):
+    for n,c in sorted(bm.items()):
+        if isinstance(c.get(cot),str) and c[cot].strip().upper().startswith(chuoi): return n,c
+    return None,None
+loi=[]
+if ten_sheet!=['BM.01','Chi tiết']: loi.append(f'sheet={ten_sheet}')
+# Thông tin nhân viên
+_,dong_ma=tim('A','MÃ NHÂN VIÊN')
+if not dong_ma or dong_ma.get('C')!=ma_nv: loi.append(f'ma_nv={dong_ma and dong_ma.get("C")}')
+_,dong_ngay=tim('F','NGÀY ĐÁNH GIÁ')
+if not dong_ngay or dong_ngay.get('I') not in (None,''): loi.append('ngay_danh_gia_khong_trong')
+_,dong_thang=tim('A','THÁNG:')
+if not dong_thang or 'Tháng: 08/2026' not in str(dong_thang.get('A')): loi.append(f'thang={dong_thang and dong_thang.get("A")}')
+# Đóng góp Mục 1: cột H (NLĐ) và K (TBP) của các dòng STT 1..n dưới tiêu đề "MỤC 1"
+n_muc1,_=tim('A','MỤC 1')
+bsc=sorted([i for i in api['items'] if i['parentId'] is None and i['section']=='BSC_WORK'], key=lambda i:i['displayOrder'])
+dong=[bm[k] for k in sorted(bm) if k>n_muc1 and isinstance(bm[k].get('A'),(int,float))][:len(bsc)]
+if len(dong)!=len(bsc): loi.append(f'so_dong_muc1={len(dong)}/{len(bsc)}')
+for d,i in zip(dong,bsc):
+    if d.get('B')!=i['name']: loi.append(f'ten:{d.get("B")}!={i["name"]}')
+    if abs((d.get('D') or 0)*100-float(i['weight']))>1e-6: loi.append(f'trong_so:{d.get("D")}')
+    for cot,khoa in (('H','selfComputed'),('K','managerComputed')):
+        mong=float(i[khoa]['dongGop'])/100
+        if abs((d.get(cot) or 0)-mong)>1e-6: loi.append(f'{cot}:{d.get(cot)}!={mong}')
+# Tổng và xếp loại
+_,tong=tim('A','TỔNG')
+if not tong: loi.append('thieu_TONG')
+else:
+    if abs((tong.get('H') or 0)-float(api['selfPreview']['tongDiem'])/100)>1e-6: loi.append(f'tong_nld={tong.get("H")}')
+    if abs((tong.get('K') or 0)-float(api['managerPreview']['tongDiem'])/100)>1e-6: loi.append(f'tong_tbp={tong.get("K")}')
+_,xl=tim('A','XẾP LOẠI')
+if not xl or str(xl.get('F')).strip()!='HOÀN THÀNH': loi.append(f'xep_loai={xl and xl.get("F")}')
+# Bốn ô ký và sheet Chi tiết có đủ KPI con
+chu=' '.join(str(v) for c in bm.values() for v in c.values() if isinstance(v,str)).upper()
+for o in ('NGƯỜI LAO ĐỘNG','TRƯỞNG BỘ PHẬN','PHÒNG HCNS','BAN GIÁM ĐỐC'):
+    if o not in chu: loi.append(f'thieu_o_ky:{o}')
+so_con=len([i for i in api['items'] if i['parentId'] is not None])
+so_con_file=len([1 for c in ct.values() if isinstance(c.get('A'),str) and re.match(r'^\d+\.\d+$',c['A'].strip())])
+if so_con_file!=so_con: loi.append(f'kpi_con={so_con_file}/{so_con}')
+print('OK' if not loi else 'LOI:'+';'.join(loi[:6]))
+PY
+DOC_PHIEU=$(python3 "$TMP/doc-phieu.py" "$TAI_PHIEU" "$MA_SD" <<<"$API_SD" 2>&1 | tail -1)
+[ "$DOC_PHIEU" = "OK" ] \
+  && pass "    sheet BM.01: mã NV, tháng 08/2026, ngày trống, trọng số + đóng góp Mục 1 hai cột, TỔNG, XẾP LOẠI, 4 ô ký; sheet Chi tiết đủ KPI con" \
+  || fail "    đọc lại file: $DOC_PHIEU"
+
+MA=$(ma -H "Authorization: Bearer $AT_NV1" "$API/scorecards/$SC_SD/export")
+mong "$MA" 403 "    STAFF khác tải phiếu không phải của mình"
+MA=$(ma -H "Authorization: Bearer $AT_HR" "$API/scorecards/$SC_SD/export")
+mong "$MA" 200 "    HCNS tải được"
+TRUOC=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Scorecard' AND action='EXPORT' AND \"entityId\"='$SC_SD';")
+curl -s -o /dev/null -H "Authorization: Bearer $AT_BGD" "$API/scorecards/$SC_SD/export"
+SAU=$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Scorecard' AND action='EXPORT' AND \"entityId\"='$SC_SD';")
+[ "$SAU" = "$((TRUOC + 1))" ] \
+  && pass "    mỗi lần tải ghi 1 dòng AuditLog Scorecard/EXPORT ($TRUOC -> $SAU)" \
+  || fail "    AuditLog $TRUOC -> $SAU"
+GHI=$(sql "SELECT after->>'tenFile' FROM \"AuditLog\" WHERE \"entityType\"='Scorecard' AND action='EXPORT' AND \"entityId\"='$SC_SD' ORDER BY \"createdAt\" DESC LIMIT 1;")
+[ "$GHI" = "$TEN_PHIEU" ] && pass "    nhật ký ghi tên file: $GHI" || fail "    nhật ký ghi: $GHI"
 
 # ================================================= 30 NHẬT KÝ THAO TÁC
 buoc "30  NHẬT KÝ THAO TÁC — phân quyền và nội dung"

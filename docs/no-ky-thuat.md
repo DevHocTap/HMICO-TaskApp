@@ -453,19 +453,20 @@ tự động rồi mới vỡ.
 
 ## Lát cắt 6 — báo cáo
 
-- [ ] **Bản in TỪNG PHIẾU theo biểu mẫu công ty (BM.01-KPI.KYTHUAT) CHƯA LÀM.**
+- [x] ~~Bản in TỪNG PHIẾU theo biểu mẫu công ty (BM.01-KPI.KYTHUAT)~~ —
+      **đã làm 14/09** bằng `exceljs` theo bố cục biểu mẫu:
+      `GET /scorecards/:id/export` (`scorecard-excel.service.ts`), sheet
+      BM.01 có bốn ô ký + sheet Chi tiết KPI con. Chốt: "Ngày đánh giá" để
+      trống cho người ký điền tay; tên file `KPI_<mã NV>_<YYYY-MM>.xlsx`.
+      Còn để ngỏ: chưa xuất PDF (Excel in được ngay, khổ A4 ngang, vừa một
+      trang bề rộng); chưa có nút tải hàng loạt cả phòng — mỗi lần một
+      phiếu, HCNS cần cả phòng thì tải từng dòng ở Báo cáo kỳ.
 
-      Lát cắt 6 chỉ làm bản TỔNG HỢP: một kỳ, mỗi người một dòng, để HCNS
-      lọc và cộng. Thứ còn thiếu là bản in một phiếu ra đúng bố cục tờ giấy
-      đang dùng — có ô ký tên bốn bên (người lao động, trưởng bộ phận, HCNS,
-      ban giám đốc), có cây tiêu chí hai cấp, có hai cột điểm.
-
-      **Vì sao cần:** quy trình thật vẫn ký giấy. Không có bản in thì HCNS
-      phải tự gõ lại vào file Excel cũ để in, và hệ thống chỉ thay được một
-      nửa việc.
-
-      Chưa chốt in bằng gì: `exceljs` theo bố cục biểu mẫu, hay xuất PDF.
-      Bàn khi có phản hồi từ đợt chạy thật tháng 11.
+- [ ] **`prisma/seed.ts` đọc `period-calendar` từ `dist/`** (14/09) nên
+      seed PHẢI chạy sau `npm run build`; sửa `period-calendar.ts` mà quên
+      build thì seed sinh kỳ theo mã cũ. Lý do: file đó import
+      `cai-dat-mac-dinh.js` theo chuẩn ESM của dự án, Node bóc kiểu không
+      đổi `.js` → `.ts` — seed đã hỏng âm thầm từ 11/09 mà không ai chạy.
 
 - [ ] **Mốc hạn cho bảng theo dõi tiến độ vẫn để `null`** — chờ HCNS chốt,
       cùng chỗ với mốc hạn chấm điểm ở mục "Lát cắt 5". `submissionProgress()`

@@ -21,7 +21,7 @@ import {
   layTienDoNop,
   taiExcelTongHop,
 } from '../../api/report';
-import { khoaKy, layDanhSachPhieu } from '../../api/scorecard';
+import { khoaKy, layDanhSachPhieu, taiPhieuExcel } from '../../api/scorecard';
 import { layCayPhongBan } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import type { XepLoaiKpi } from '../../types/report';
@@ -128,6 +128,12 @@ export function DashboardPage() {
 
   const xuat = useMutation({
     mutationFn: () => taiExcelTongHop(kyDangXem!),
+    onSuccess: (ten) => message.success(`Đã tải ${ten}`),
+    onError: async (e) =>
+      message.error((await docLoiBlob(e)) ?? layThongBaoLoi(e)),
+  });
+  const taiPhieu = useMutation({
+    mutationFn: (id: string) => taiPhieuExcel(id),
     onSuccess: (ten) => message.success(`Đã tải ${ten}`),
     onError: async (e) =>
       message.error((await docLoiBlob(e)) ?? layThongBaoLoi(e)),
@@ -538,7 +544,16 @@ export function DashboardPage() {
                             <span className={`bc-pill ${th.lop}`}>{th.ten}</span>
                           </td>
                           <td className="bc-td-ql">{r.evaluatorName ?? <span className="bc-td-trong">—</span>}</td>
-                          <td style={{ textAlign: 'right' }}>
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <button
+                              type="button"
+                              className="bc-xem"
+                              title="Tải phiếu ra Excel (BM.01)"
+                              disabled={taiPhieu.isPending && taiPhieu.variables === r.id}
+                              onClick={() => taiPhieu.mutate(r.id)}
+                            >
+                              <DownloadOutlined />
+                            </button>
                             <Link to={`/kpi/scorecards/${r.id}/scoring`} className="bc-xem" title="Xem chi tiết">
                               <EyeOutlined />
                             </Link>
