@@ -842,3 +842,16 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ---------- Tổng quan nhân viên (14/09): ba ô điểm dưới ba bước */
+.tqn-diem-luoi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+@media (max-width: 640px) { .tqn-diem-luoi { grid-template-columns: 1fr; } }
+.tqn-diem { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #f1f5f9; }
+.tqn-diem b { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.1; }
+.tqn-diem b small { font-size: 12px; font-weight: 500; color: #94a3b8; }
+.tqn-diem-xanh b { color: #1d4ed8; }
+.tqn-diem-xanh-la { background: #ecfdf5; border-color: #a7f3d0; }
+.tqn-diem-xanh { background: #eff6ff; border-color: #bfdbfe; }
+.tqn-diem-cam { background: #fffbeb; border-color: #fde68a; }
+.tqn-diem-do { background: #fff1f2; border-color: #fecdd3; }
+.tq-so-do { color: #e11d48; }

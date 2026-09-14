@@ -541,6 +541,18 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   mẫu đã ngừng" và nút "Kích hoạt lại" chỉ ADMIN thấy. `verify-kpi-template.sh`
   **76**. Ghi ở quy-tac mục 7.
 
+- **Tổng quan nhân viên (14/09):** `pages/TongQuanNhanVien.tsx` cùng bộ kiểu
+  `tong-quan.css` với bảng điều hành quản lý. Thanh tiêu đề "Xin chào, {tên
+  gọi}" + tag tháng / hạn tự chấm + nút đúng việc đến lượt (ký nhận / tự chấm
+  / chấm lại / xem phiếu); 4 thẻ (điểm tháng trước + hạng, trung bình gần
+  đây so chỉ tiêu, tự chấm kỳ này x/y tiêu chí có thanh, hạn tự chấm đếm
+  ngày); trái: **phiếu kỳ này** 3 bước (dùng lại kiểu `pt-buoc`) + ba ô
+  điểm (NV tự chấm — dự kiến từ `/scoring` khi chưa nộp, Trưởng BP, Xếp loại
+  tô màu hạng) và **lịch sử điểm ≤ 6 kỳ** (`DuongVung`, vạch chỉ tiêu);
+  phải: `MocTienDoThang` (tách từ Tổng quan quản lý thành component dùng
+  chung) + "Việc của tôi". `HomePage.tsx` giờ chỉ chọn trang theo vai. Gỡ
+  `PhieuKyNayCuaToi`, `TheSoLieu`, `bieu-do/Duong` (không còn ai dùng).
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 

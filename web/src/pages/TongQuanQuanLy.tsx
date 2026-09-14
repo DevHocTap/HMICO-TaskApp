@@ -3,7 +3,6 @@ import {
   ApartmentOutlined,
   ArrowRightOutlined,
   BookOutlined,
-  CalendarOutlined,
   CheckCircleFilled,
   CheckCircleOutlined,
   CheckOutlined,
@@ -38,6 +37,7 @@ import { useCaiDat } from '../auth/useTrongSo';
 import { useKyDangXem } from '../contexts/KyDangXem';
 import { PhieuCanXuLyGap } from '../components/PhieuCanXuLyGap';
 import { DuongVung } from '../components/bieu-do/DuongVung';
+import { MocTienDoThang } from '../components/MocTienDoThang';
 import { NHAN_XEP_LOAI } from '../types/scorecard';
 import type { KyDanhGia } from '../types/scorecard';
 import type { XepLoaiKpi } from '../types/report';
@@ -139,14 +139,6 @@ export function TongQuanQuanLy() {
     { so: 2, ten: 'Trưởng bộ phận', xong: daChot, donVi: 'phiếu', han: ky.managerScoreDeadline, phu: 'Chờ nộp tiếp' },
     { so: 3, ten: 'Nghiệm thu HCNS', xong: tt.RECEIVED, donVi: 'phiếu', han: ky.submitDeadline, phu: 'Lưu trữ & Xếp hạng' },
   ];
-
-  const moc = [
-    { ngay: kySau?.assignDeadline ?? null, ten: `Giao KPI tháng mới (${nhanThang(kySau)})`, phu: 'Phân bổ chỉ tiêu cho từng người', nhan: 'Ưu tiên', lop: 'xanh' },
-    { ngay: ky.selfScoreDeadline, ten: 'Nhân viên tự chấm hoàn tất', phu: 'Khoá quyền chỉnh sửa tự đánh giá', nhan: 'Hạn nộp', lop: 'cam' },
-    { ngay: ky.managerScoreDeadline, ten: 'Duyệt & chốt điểm chính thức', phu: 'Trưởng bộ phận chấm cột thứ hai', nhan: 'Trưởng phòng', lop: 'tim' },
-    { ngay: ky.submitDeadline, ten: 'Nghiệm thu & lưu hồ sơ', phu: 'Tổng kết thi đua toàn công ty', nhan: 'HCNS', lop: 'xanh-la' },
-  ].sort((a, b) => (a.ngay ?? '').localeCompare(b.ngay ?? ''));
-  const mocSapToi = moc.find((m) => m.ngay && !homNay.isAfter(dayjs(m.ngay), 'day'));
 
   const nhom = (laPhong
     ? data.diemTrungBinhTheoChucDanh.map((c) => ({ ten: c.jobTitleName, diem: c.diemTrungBinh }))
@@ -542,36 +534,7 @@ export function TongQuanQuanLy() {
 
         {/* ===== Cột phải */}
         <div className="tq-phai">
-          <div className="tq-khoi">
-            <div className="tq-khoi-dau tq-khoi-dau-ke-nho">
-              <h3 className="tq-h3">
-                <CalendarOutlined className="tq-icon-xanh" /> Mốc tiến độ tháng {thangKy}
-              </h3>
-              <span className="tq-nhan-xanh">{moc.length} mốc</span>
-            </div>
-            <div className="tq-moc">
-              {moc.map((m) => {
-                const daQua = m.ngay ? homNay.isAfter(dayjs(m.ngay), 'day') : false;
-                const noiBat = m === mocSapToi;
-                // Mỗi mốc một màu theo vai (xanh giao KPI · cam hạn nộp · tím trưởng
-                // phòng · xanh lá HCNS); mốc sắp tới gần nhất viền đậm; đã qua mờ đi.
-                const lop = daQua ? 'qua' : m.lop;
-                return (
-                  <div key={m.ten} className={`tq-moc-dong tq-moc-${lop}${noiBat ? ' tq-moc-noi' : ''}`}>
-                    <span className="tq-moc-cham" />
-                    <div className="tq-moc-the">
-                      <div className="tq-the-hang">
-                        <span className="tq-moc-ngay">{ngayVN(m.ngay)}</span>
-                        <span className="tq-moc-nhan">{daQua ? 'Đã qua' : m.nhan}</span>
-                      </div>
-                      <p className="tq-moc-ten">{m.ten}</p>
-                      <p className="tq-ghi-chu">{m.phu}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <MocTienDoThang ky={ky} kySau={kySau} />
 
           <div className="tq-khoi">
             <div className="tq-khoi-dau tq-khoi-dau-ke-nho">
