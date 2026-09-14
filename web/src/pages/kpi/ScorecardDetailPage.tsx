@@ -94,6 +94,16 @@ export function ScorecardDetailPage() {
   const [coThayDoi, setCoThayDoi] = useState(false);
   const [moGuiLai, setMoGuiLai] = useState(false);
   const [ghiChu, setGhiChu] = useState('');
+  // Chế độ xem: KPI con gập mặc định, bấm dòng cha để mở (cùng kiểu bảng kê
+  // ở Phiếu đánh giá của tôi, 14/09)
+  const [moCon, setMoCon] = useState<Set<string>>(new Set());
+  const doiMoCon = (key: string) =>
+    setMoCon((cu) => {
+      const moi = new Set(cu);
+      if (moi.has(key)) moi.delete(key);
+      else moi.add(key);
+      return moi;
+    });
 
   const { data: phieu, isLoading } = useQuery({
     queryKey: ['scorecards', 'detail', id],
@@ -435,117 +445,148 @@ export function ScorecardDetailPage() {
                   </p>
                 </div>
               </div>
-              {suaDuoc && (
+              {suaDuoc ? (
                 <button type="button" className="lp-nut lp-nut-trang" onClick={() => themDong(muc, null)}>
                   <PlusOutlined /> Thêm tiêu chí lớn
                 </button>
+              ) : (
+                cuaMuc.some((d) => d.parentKey) && (
+                  <button
+                    type="button"
+                    className="lp-nut lp-nut-trang"
+                    onClick={() => {
+                      const cha = cuaMuc.filter((d) => !d.parentKey && cuaMuc.some((c) => c.parentKey === d.key)).map((d) => d.key);
+                      const moHet = cha.every((k) => moCon.has(k));
+                      setMoCon((cu) => {
+                        const moi = new Set(cu);
+                        cha.forEach((k) => (moHet ? moi.delete(k) : moi.add(k)));
+                        return moi;
+                      });
+                    }}
+                  >
+                    {cuaMuc.filter((d) => !d.parentKey && cuaMuc.some((c) => c.parentKey === d.key)).every((d) => moCon.has(d.key))
+                      ? 'Gập tất cả'
+                      : 'Mở tất cả KPI con'}
+                  </button>
+                )
               )}
             </div>
+            {suaDuoc ? (
             <div className="lp-cuon">
-              <table className="lp-table">
-                <colgroup>
-                  <col style={{ width: '40%' }} />
-                  <col style={{ width: '17%' }} />
-                  <col style={{ width: '23%' }} />
-                  <col style={{ width: 110 }} />
-                  {suaDuoc && <col style={{ width: 210 }} />}
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>{info.cotTen}</th>
-                    <th>Mục tiêu (Target)</th>
-                    <th>{info.cotDo}</th>
-                    <th style={{ textAlign: 'center' }}>Trọng số</th>
-                    {suaDuoc && <th style={{ textAlign: 'right' }}>Thao tác</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {cuaMuc.length === 0 ? (
+                <table className="lp-table">
+                  <colgroup>
+                    <col style={{ width: '40%' }} />
+                    <col style={{ width: '17%' }} />
+                    <col style={{ width: '23%' }} />
+                    <col style={{ width: 110 }} />
+                    {suaDuoc && <col style={{ width: 210 }} />}
+                  </colgroup>
+                  <thead>
                     <tr>
-                      <td colSpan={suaDuoc ? 5 : 4} className="lp-rong">
-                        {suaDuoc ? 'Chưa có tiêu chí nào. Bấm “Thêm tiêu chí lớn” để bắt đầu.' : 'Mục này chưa có tiêu chí.'}
-                      </td>
+                      <th>{info.cotTen}</th>
+                      <th>Mục tiêu (Target)</th>
+                      <th>{info.cotDo}</th>
+                      <th style={{ textAlign: 'center' }}>Trọng số</th>
+                      {suaDuoc && <th style={{ textAlign: 'right' }}>Thao tác</th>}
                     </tr>
-                  ) : (
-                    cuaMuc.map((d) => {
-                      const laCon = Boolean(d.parentKey);
-                      const soCon = dong.filter((c) => c.parentKey === d.key).length;
-                      return (
-                        <tr key={d.key} className={laCon ? 'lp-dong-con' : 'lp-dong-cha'}>
-                          <td className={laCon ? 'lp-td-con' : ''}>
-                            {laCon && <span className="lp-nhanh" />}
-                            {suaDuoc ? (
-                              <input
-                                className={`lp-input${laCon ? '' : ' lp-input-dam'}`}
-                                value={d.name}
-                                placeholder={laCon ? 'Tên KPI con (vd: Hoàn thành cấu hình Server và Switch tại cơ quan đối tác)…' : 'Nhập tên tiêu chí lớn (vd: Tiến độ & Chất lượng Triển khai hạ tầng)…'}
-                                onChange={(e) => doiDong(d.key, { name: e.target.value })}
-                              />
-                            ) : (
-                              <span className={laCon ? 'lp-chu' : 'lp-chu lp-chu-dam'}>{d.name || '—'}</span>
-                            )}
-                          </td>
-                          <td>
-                            {suaDuoc ? (
-                              <input className="lp-input" value={d.measurementText} placeholder={muc === 'BSC_WORK' ? '≥ 95%' : '0 lần'} onChange={(e) => doiDong(d.key, { measurementText: e.target.value })} />
-                            ) : (
-                              <span className="lp-chu">{d.measurementText || '—'}</span>
-                            )}
-                          </td>
-                          <td>
-                            {suaDuoc ? (
-                              <input className="lp-input" value={d.measureMethod} placeholder="Cách tính điểm tiêu chí này…" onChange={(e) => doiDong(d.key, { measureMethod: e.target.value })} />
-                            ) : (
-                              <span className="lp-chu">{d.measureMethod || '—'}</span>
-                            )}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {suaDuoc ? (
-                              <span className="lp-trong-so-o">
+                  </thead>
+                  <tbody>
+                    {cuaMuc.length === 0 ? (
+                      <tr>
+                        <td colSpan={suaDuoc ? 5 : 4} className="lp-rong">
+                          {suaDuoc ? 'Chưa có tiêu chí nào. Bấm “Thêm tiêu chí lớn” để bắt đầu.' : 'Mục này chưa có tiêu chí.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      cuaMuc.map((d) => {
+                        const laCon = Boolean(d.parentKey);
+                        const soCon = dong.filter((c) => c.parentKey === d.key).length;
+                        return (
+                          <tr key={d.key} className={laCon ? 'lp-dong-con' : 'lp-dong-cha'}>
+                            <td className={laCon ? 'lp-td-con' : ''}>
+                              {laCon && <span className="lp-nhanh" />}
+                              {suaDuoc ? (
                                 <input
-                                  className="lp-input lp-input-so"
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  step={1}
-                                  value={d.weight}
-                                  placeholder="0"
-                                  onChange={(e) => doiDong(d.key, { weight: e.target.value })}
+                                  className={`lp-input${laCon ? '' : ' lp-input-dam'}`}
+                                  value={d.name}
+                                  placeholder={laCon ? 'Tên KPI con (vd: Hoàn thành cấu hình Server và Switch tại cơ quan đối tác)…' : 'Nhập tên tiêu chí lớn (vd: Tiến độ & Chất lượng Triển khai hạ tầng)…'}
+                                  onChange={(e) => doiDong(d.key, { name: e.target.value })}
                                 />
-                                <i>%</i>
-                              </span>
-                            ) : (
-                              <span className="lp-trong-so">{d.weight || 0}%</span>
-                            )}
-                          </td>
-                          {suaDuoc && (
-                            <td style={{ textAlign: 'right' }}>
-                              {laCon ? (
-                                <button type="button" className="lp-nut-nho lp-nut-nho-do" title="Xoá KPI con" onClick={() => xoaDong(d.key)}>
-                                  <DeleteOutlined /> Xoá
-                                </button>
                               ) : (
-                                <span className="lp-thao-tac">
-                                  <button type="button" className="lp-nut-nho" title="Thêm KPI con" onClick={() => themDong(muc, d.key)}>
-                                    + KPI con
-                                  </button>
-                                  <button type="button" className="lp-nut-nho" title="Chia đều trọng số cho KPI con" disabled={soCon === 0} onClick={() => chiaDeuCon(d.key)}>
-                                    Chia đều
-                                  </button>
-                                  <button type="button" className="lp-nut-xoa" title="Xoá tiêu chí" onClick={() => xoaDong(d.key)}>
-                                    <DeleteOutlined />
-                                  </button>
-                                </span>
+                                <span className={laCon ? 'lp-chu' : 'lp-chu lp-chu-dam'}>{d.name || '—'}</span>
                               )}
                             </td>
-                          )}
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                            <td>
+                              {suaDuoc ? (
+                                <input className="lp-input" value={d.measurementText} placeholder={muc === 'BSC_WORK' ? '≥ 95%' : '0 lần'} onChange={(e) => doiDong(d.key, { measurementText: e.target.value })} />
+                              ) : (
+                                <span className="lp-chu">{d.measurementText || '—'}</span>
+                              )}
+                            </td>
+                            <td>
+                              {suaDuoc ? (
+                                <input className="lp-input" value={d.measureMethod} placeholder="Cách tính điểm tiêu chí này…" onChange={(e) => doiDong(d.key, { measureMethod: e.target.value })} />
+                              ) : (
+                                <span className="lp-chu">{d.measureMethod || '—'}</span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {suaDuoc ? (
+                                <span className="lp-trong-so-o">
+                                  <input
+                                    className="lp-input lp-input-so"
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    value={d.weight}
+                                    placeholder="0"
+                                    onChange={(e) => doiDong(d.key, { weight: e.target.value })}
+                                  />
+                                  <i>%</i>
+                                </span>
+                              ) : (
+                                <span className="lp-trong-so">{d.weight || 0}%</span>
+                              )}
+                            </td>
+                            {suaDuoc && (
+                              <td style={{ textAlign: 'right' }}>
+                                {laCon ? (
+                                  <button type="button" className="lp-nut-nho lp-nut-nho-do" title="Xoá KPI con" onClick={() => xoaDong(d.key)}>
+                                    <DeleteOutlined /> Xoá
+                                  </button>
+                                ) : (
+                                  <span className="lp-thao-tac">
+                                    <button type="button" className="lp-nut-nho" title="Thêm KPI con" onClick={() => themDong(muc, d.key)}>
+                                      + KPI con
+                                    </button>
+                                    <button type="button" className="lp-nut-nho" title="Chia đều trọng số cho KPI con" disabled={soCon === 0} onClick={() => chiaDeuCon(d.key)}>
+                                      Chia đều
+                                    </button>
+                                    <button type="button" className="lp-nut-xoa" title="Xoá tiêu chí" onClick={() => xoaDong(d.key)}>
+                                      <DeleteOutlined />
+                                    </button>
+                                  </span>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+  
+            ) : (
+              <BangXem
+                cuaMuc={cuaMuc}
+                info={info}
+                chuan={TONG_TRONG_SO[muc]}
+                moCon={moCon}
+                doiMoCon={doiMoCon}
+              />
+            )}
           </section>
         );
       })}
@@ -595,6 +636,122 @@ export function ScorecardDetailPage() {
           placeholder="Ví dụ: đã giảm trọng số tiêu chí 2 từ 30% xuống 20% theo góp ý."
         />
       </Modal>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------ bảng chế độ xem
+
+interface BangXemProps {
+  cuaMuc: DongSoan[];
+  info: { cotTen: string; cotDo: string; so: number };
+  chuan: number;
+  moCon: Set<string>;
+  doiMoCon: (key: string) => void;
+}
+
+/**
+ * Bảng chỉ đọc cùng kiểu với bảng kê ở "Phiếu đánh giá của tôi": STT, KPI
+ * con gập mặc định (bấm dòng cha để mở), trọng số (%) căn giữa, dòng "Cộng
+ * Mục" tô xanh nhạt. Chế độ soạn giữ bảng có ô nhập vì cần thấy mọi dòng.
+ */
+function BangXem({ cuaMuc, info, chuan, moCon, doiMoCon }: BangXemProps) {
+  const cha = cuaMuc.filter((d) => !d.parentKey);
+  const tong = tongTrongSo(cha.map((d) => d.weight));
+  const tongSo = Number(hienSo(tong));
+  return (
+    <div className="lp-cuon">
+      <table className="lp-table lp-table-xem">
+        <colgroup>
+          <col style={{ width: 64 }} />
+          <col style={{ width: '40%' }} />
+          <col style={{ width: '17%' }} />
+          <col style={{ width: '25%' }} />
+          <col style={{ width: 130 }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'center' }}>STT</th>
+            <th>{info.cotTen}</th>
+            <th>Mục tiêu (Target)</th>
+            <th>{info.cotDo}</th>
+            <th style={{ textAlign: 'center' }}>Trọng số (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cha.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="lp-rong">Mục này chưa có tiêu chí.</td>
+            </tr>
+          ) : (
+            cha.flatMap((d, i) => {
+              const con = cuaMuc.filter((c) => c.parentKey === d.key);
+              const mo = moCon.has(d.key);
+              const dongCha = (
+                <tr
+                  key={d.key}
+                  className={`lp-dong-cha${con.length > 0 ? ' lp-dong-bam' : ''}${mo ? ' lp-dong-mo' : ''}`}
+                  onClick={con.length > 0 ? () => doiMoCon(d.key) : undefined}
+                >
+                  <td style={{ textAlign: 'center' }}>
+                    <span className="lp-stt">{i + 1}</span>
+                  </td>
+                  <td>
+                    <span className="lp-chu lp-chu-dam">
+                      {con.length > 0 && <span className={`lp-mui-ten${mo ? ' lp-mui-ten-mo' : ''}`}>▸</span>}
+                      {d.name || '—'}
+                      {con.length > 0 && (
+                        <span className="lp-so-con">
+                          {con.length} KPI con{mo ? '' : ' · bấm để xem'}
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                  <td><span className="lp-chu">{d.measurementText || '—'}</span></td>
+                  <td><span className="lp-chu">{d.measureMethod || '—'}</span></td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span className="lp-trong-so">{d.weight || 0}%</span>
+                  </td>
+                </tr>
+              );
+              if (!mo) return [dongCha];
+              return [
+                dongCha,
+                ...con.map((c, j) => (
+                  <tr key={c.key} className="lp-dong-con">
+                    <td style={{ textAlign: 'center' }}>
+                      <span className="lp-stt lp-stt-con">{i + 1}.{j + 1}</span>
+                    </td>
+                    <td className="lp-td-con">
+                      <span className="lp-nhanh" />
+                      <span className="lp-chu">{c.name || '—'}</span>
+                    </td>
+                    <td><span className="lp-chu">{c.measurementText || '—'}</span></td>
+                    <td><span className="lp-chu">{c.measureMethod || '—'}</span></td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className="lp-trong-so lp-trong-so-con">{c.weight || 0}%</span>
+                    </td>
+                  </tr>
+                )),
+              ];
+            })
+          )}
+        </tbody>
+        {cha.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={2} className="lp-tfoot-nhan">Cộng Mục {info.so}</td>
+              <td colSpan={2} className="lp-tfoot-mo">
+                {cha.length} tiêu chí cấp 1 · chuẩn {chuan}%
+                {tongSo !== chuan && <b className="lp-chu-do"> — {tongSo < chuan ? `thiếu ${hienSo(chuan - tongSo)}` : `thừa ${hienSo(tongSo - chuan)}`}%</b>}
+              </td>
+              <td style={{ textAlign: 'center' }}>
+                <span className={`lp-trong-so lp-trong-so-dam${tongSo === chuan ? '' : ' lp-trong-so-sai'}`}>{hienSo(tong)}%</span>
+              </td>
+            </tr>
+          </tfoot>
+        )}
+      </table>
     </div>
   );
 }

@@ -335,3 +335,26 @@
 .lp-table th:last-child, .lp-table td:last-child { border-right: 0; }
 .lp-table td { border-bottom: 1px solid #cbd5e1; }
 .lp-table tbody tr:last-child td { border-bottom: 0; }
+
+/* ---------- bảng chế độ xem (14/09) — cùng kiểu bảng kê ở Phiếu đánh giá của tôi */
+.lp-table-xem { font-size: 13px; }
+.lp-table-xem th, .lp-table-xem td { padding: 12px 14px; }
+.lp-stt { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 6px; background: #d0e2ff; color: #002d9c; font-size: 12px; font-weight: 700; }
+.lp-stt-con { background: transparent; color: #64748b; font-weight: 500; }
+.lp-dong-bam { cursor: pointer; }
+.lp-dong-bam:hover td { background: #f1f5f9; }
+.lp-table-xem .lp-dong-mo td { background: #eff6ff; }
+.lp-table-xem .lp-dong-con td { background: #f8fafc; }
+.lp-mui-ten { display: inline-block; width: 14px; color: #64748b; font-size: 12px; transition: transform 0.15s; margin-right: 2px; }
+.lp-mui-ten-mo { transform: rotate(90deg); }
+.lp-so-con { margin-left: 8px; font-size: 11px; font-weight: 500; color: #0043ce; background: #edf5ff; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.lp-table-xem .lp-td-con { padding-left: 36px !important; }
+.lp-trong-so-con { background: transparent; color: #475569; font-weight: 500; }
+.lp-table-xem tfoot tr { background: #dbeafe; border-top: 2px solid #93c5fd; }
+.lp-table-xem tfoot td { padding: 12px 14px; font-weight: 700; color: #1e3a8a; border-bottom: 0; border-right: 1px solid #bfdbfe; }
+.lp-table-xem tfoot td:last-child { border-right: 0; }
+.lp-table-xem .lp-tfoot-nhan { text-align: center; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.lp-table-xem .lp-tfoot-mo { font-size: 12px; font-weight: 500; color: #1e40af; }
+.lp-trong-so-dam { background: #1d4ed8; color: #fff; }
+.lp-trong-so-sai { background: #e11d48; }
+.lp-table-xem tbody tr:last-child td { border-bottom: 1px solid #cbd5e1; }
