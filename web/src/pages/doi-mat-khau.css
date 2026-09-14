@@ -21,10 +21,7 @@
 .dm-trai { padding: 36px; display: flex; flex-direction: column; justify-content: space-between; }
 @media (min-width: 900px) { .dm-trai { padding: 44px; } }
 .dm-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-.dm-logo-o {
-  width: 40px; height: 40px; border-radius: 12px; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 20px; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
-}
+.dm-logo-o { width: 44px; height: 44px; object-fit: contain; display: block; }
 .dm-logo-chu b { display: block; font-size: 14px; font-weight: 800; letter-spacing: 0.025em; color: #1e293b; text-transform: uppercase; line-height: 1; }
 .dm-logo-chu span { display: block; font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 2px; }
 .dm-tag { display: inline-block; margin-bottom: 8px; padding: 2px 10px; border-radius: 999px; background: #eef3ff; color: #1d4ed8; font-size: 11px; font-weight: 700; }

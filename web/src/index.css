@@ -778,15 +778,11 @@
   border-right: 1px solid #e5e7eb;
 }
 .sidebar-logo {
-  display: inline-grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--mau-chu-dao);
-  color: #fff;
-  font-weight: 800;
-  font-size: 18px;
+  /* Biểu tượng Hoàng Minh (14/09) — SVG tách từ brand/, nền trắng của sidebar */
+  display: block;
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
 }
 .sidebar .ant-menu-item-group-title {
   letter-spacing: 0.12em;

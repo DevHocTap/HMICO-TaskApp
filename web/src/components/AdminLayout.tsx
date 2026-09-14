@@ -30,6 +30,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import bieuTuong from '../assets/brand/bieu-tuong.svg';
 import { coTheGiaoKpi, coTheXemBaoCao, coTheXemNhanVien } from '../auth/permissions';
 import { layKyDanhGia, layViecCuaToi } from '../api/scorecard';
 import { laySoLieuDashboard } from '../api/report';
@@ -252,7 +253,7 @@ function KhungAdmin() {
       >
         <div className="sidebar">
           <Link to="/" className="sidebar-thuong-hieu">
-            <span className="sidebar-logo">H</span>
+            <img className="sidebar-logo" src={bieuTuong} alt="Hoàng Minh" />
             <span>
               <strong>HMICO KPI</strong>
               <small>Quản lý hiệu suất</small>

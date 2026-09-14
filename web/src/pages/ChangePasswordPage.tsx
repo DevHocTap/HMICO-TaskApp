@@ -19,6 +19,7 @@ import { useAuth } from '../auth/useAuth';
 import { doiMatKhau } from '../api/auth';
 import { layThongBaoLoi } from '../api/client';
 import { danhGiaMatKhau } from '../auth/password-strength';
+import bieuTuong from '../assets/brand/bieu-tuong.svg';
 import './dang-nhap.css';
 import './doi-mat-khau.css';
 
@@ -129,10 +130,10 @@ export function ChangePasswordPage() {
         <section className="dm-trai">
           <div>
             <div className="dm-logo">
-              <div className="dm-logo-o">H</div>
+              <img className="dm-logo-o" src={bieuTuong} alt="Hoàng Minh" />
               <div className="dm-logo-chu">
                 <b>HMICO KPI</b>
-                <span>Enterprise Performance System</span>
+                <span>Công ty Cổ phần Đầu tư Công nghệ Hoàng Minh</span>
               </div>
             </div>
             {lanDau && <span className="dm-tag">Đăng nhập lần đầu</span>}

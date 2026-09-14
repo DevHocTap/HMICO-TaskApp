@@ -615,6 +615,14 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   đường lui duy nhất là "Đăng xuất, quay lại trang Đăng nhập"; tự vào từ
   menu tài khoản: "Quay lại, không đổi nữa".
 
+- **Logo Hoàng Minh (14/09):** file gốc `brand/Artboard 1.svg` (biểu tượng
+  + chữ HOANG MINH + slogan). Tách **biểu tượng** (vòng tròn + chữ HM) ra
+  `web/src/assets/brand/bieu-tuong.svg` — dùng ở sidebar, đăng nhập, đổi mật
+  khẩu (thay ô chữ "H" xanh) và `web/public/favicon.svg`; bản đầy đủ ở
+  `web/public/brand/hoang-minh.svg` (chưa chỗ nào dùng — chữ nhỏ dưới 120px
+  không đọc được). Dòng phụ dưới "HMICO KPI" ở hai màn đăng nhập / đổi mật
+  khẩu đổi thành tên công ty đầy đủ.
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 

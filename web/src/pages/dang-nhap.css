@@ -41,11 +41,7 @@
 @media (min-width: 1024px) { .dn-trai { padding: 48px; } }
 
 .dn-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
-.dn-logo-o {
-  width: 32px; height: 32px; border-radius: 8px; background: #2563eb; color: #fff;
-  display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
+.dn-logo-o { width: 40px; height: 40px; object-fit: contain; display: block; }
 .dn-logo-chu { line-height: 1.2; }
 .dn-logo-chu b { display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: #0f172a; text-transform: uppercase; }
 .dn-logo-chu span { display: block; font-size: 10px; color: #94a3b8; font-weight: 500; letter-spacing: -0.01em; }

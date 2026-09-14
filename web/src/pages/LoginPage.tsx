@@ -3,6 +3,7 @@ import { EyeInvisibleOutlined, EyeOutlined, ExclamationCircleFilled, WarningFill
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { layThongBaoLoi } from '../api/client';
+import bieuTuong from '../assets/brand/bieu-tuong.svg';
 import './dang-nhap.css';
 
 /**
@@ -46,10 +47,10 @@ export function LoginPage() {
         <section className="dn-trai">
           <div>
             <div className="dn-logo">
-              <div className="dn-logo-o">H</div>
+              <img className="dn-logo-o" src={bieuTuong} alt="Hoàng Minh" />
               <div className="dn-logo-chu">
                 <b>HMICO KPI</b>
-                <span>Enterprise Performance System</span>
+                <span>Công ty Cổ phần Đầu tư Công nghệ Hoàng Minh</span>
               </div>
             </div>
             <h1>Đăng nhập</h1>
