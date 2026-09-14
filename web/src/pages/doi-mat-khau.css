@@ -1,0 +1,117 @@
+/* Trang đổi mật khẩu — dịch từ mẫu Tailwind 14/09, cùng khung với trang đăng nhập (dn-*). */
+.dm-trang {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  font-family: var(--font-serif);
+  color: #1e293b;
+  background: linear-gradient(to bottom, #3864fd 0%, #3864fd 50%, #e3edfe 50%, #e3edfe 100%);
+  -webkit-font-smoothing: antialiased;
+}
+.dm-khung {
+  position: relative; z-index: 10; width: 100%; max-width: 1060px; background: #fff; border-radius: 40px;
+  box-shadow: 0 25px 60px -15px rgba(26, 54, 126, 0.18); overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.6);
+  display: grid; grid-template-columns: 1fr; min-height: 640px;
+}
+@media (min-width: 900px) { .dm-khung { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- trái: form */
+.dm-trai { padding: 36px; display: flex; flex-direction: column; justify-content: space-between; }
+@media (min-width: 900px) { .dm-trai { padding: 44px; } }
+.dm-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.dm-logo-o {
+  width: 40px; height: 40px; border-radius: 12px; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 20px; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+.dm-logo-chu b { display: block; font-size: 14px; font-weight: 800; letter-spacing: 0.025em; color: #1e293b; text-transform: uppercase; line-height: 1; }
+.dm-logo-chu span { display: block; font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 2px; }
+.dm-tag { display: inline-block; margin-bottom: 8px; padding: 2px 10px; border-radius: 999px; background: #eef3ff; color: #1d4ed8; font-size: 11px; font-weight: 700; }
+.dm-trai h1 { font-size: 30px; font-weight: 800; color: #0f172a; letter-spacing: -0.025em; margin: 0; }
+.dm-dan { font-size: 13px; color: #64748b; margin: 6px 0 0; line-height: 1.6; }
+
+.dm-form { margin-top: 24px; display: flex; flex-direction: column; gap: 14px; }
+.dm-nhom label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px; }
+.dm-o { position: relative; }
+.dm-o-icon { position: absolute; top: 0; bottom: 0; left: 14px; display: flex; align-items: center; color: #94a3b8; pointer-events: none; font-size: 15px; }
+.dm-input {
+  box-sizing: border-box; width: 100%; padding: 11px 40px; border-radius: 12px; background: #f1f4f9; border: 1.5px solid transparent;
+  font: inherit; font-size: 14px; font-weight: 500; color: #1e293b; outline: none; transition: all 0.2s ease-in-out;
+}
+.dm-input::placeholder { color: #94a3b8; }
+.dm-input:focus { background: #fff; border-color: #3864fd; box-shadow: 0 0 0 4px rgba(56, 100, 253, 0.12); }
+.dm-input-loi { border-color: #fb7185; }
+.dm-mat { position: absolute; top: 0; bottom: 0; right: 14px; display: flex; align-items: center; border: 0; background: none; color: #94a3b8; cursor: pointer; font-size: 15px; padding: 0; }
+.dm-mat:hover { color: #475569; }
+.dm-loi-o { font-size: 11px; color: #e11d48; margin-top: 4px; }
+
+.dm-quy-tac { background: rgba(239, 246, 255, 0.7); border: 1px solid rgba(219, 234, 254, 0.8); border-radius: 12px; padding: 10px 14px; margin-top: 4px; }
+.dm-quy-tac > span { display: block; font-size: 11px; font-weight: 600; color: #1e3a8a; margin-bottom: 4px; }
+.dm-quy-tac-luoi { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px; color: #475569; }
+.dm-quy-tac-luoi div { display: flex; align-items: center; gap: 6px; }
+.dm-quy-tac-luoi .anticon { font-size: 14px; color: #cbd5e1; }
+.dm-quy-tac-luoi .dm-dat { color: #1e293b; }
+.dm-quy-tac-luoi .dm-dat .anticon { color: #2563eb; }
+
+.dm-nut {
+  width: 100%; margin-top: 8px; padding: 12px 16px; border: 0; border-radius: 12px; background: #2563eb; color: #fff; font: inherit; font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.25); transition: all 0.2s;
+}
+.dm-nut:hover { background: #1d4ed8; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.35); }
+.dm-nut:active { transform: scale(0.99); }
+.dm-nut:disabled { opacity: 0.7; cursor: default; }
+.dm-loi { margin-top: 4px; padding: 10px 12px; border-radius: 12px; background: #fff1f2; border: 1px solid #fecdd3; color: #9f1239; font-size: 12px; display: flex; gap: 8px; align-items: flex-start; }
+
+.dm-chan { margin-top: 24px; padding-top: 16px; text-align: center; border-top: 1px solid #f1f5f9; }
+.dm-chan button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 500; color: #64748b; cursor: pointer; }
+.dm-chan button:hover { color: #2563eb; }
+.dm-chan button .anticon { color: #94a3b8; }
+
+/* ---------- phải: minh hoạ bảo mật */
+.dm-phai { background: #fcfdfe; border-left: 1px solid rgba(241, 245, 249, 0.9); padding: 44px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; position: relative; overflow: hidden; }
+@media (max-width: 899px) { .dm-phai { display: none; } }
+.dm-sao { position: absolute; top: 40px; right: 40px; width: 48px; height: 48px; border-radius: 16px; background: rgba(251, 191, 36, 0.2); color: #f59e0b; display: flex; align-items: center; justify-content: center; transform: rotate(12deg); font-size: 22px; }
+.dm-cong { position: absolute; bottom: 112px; left: 32px; width: 32px; height: 32px; border-radius: 12px; background: rgba(59, 130, 246, 0.15); color: #2563eb; display: flex; align-items: center; justify-content: center; transform: rotate(-6deg); font-size: 16px; font-weight: 700; }
+.dm-giua { width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: auto 0; position: relative; }
+.dm-lap { position: relative; width: 100%; max-width: 280px; }
+.dm-pill-tich {
+  position: absolute; top: -24px; left: -24px; z-index: 20; background: rgba(255, 255, 255, 0.95); border-radius: 16px; padding: 10px; display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 20px 25px -5px rgba(30, 58, 138, 0.1); border: 1px solid #f1f5f9; animation: dn-nhay 2s ease-in-out infinite;
+}
+.dm-pill-tich i { width: 24px; height: 24px; border-radius: 8px; background: #10b981; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.dm-pill-tich span { font-size: 11px; font-weight: 700; color: #334155; padding-right: 4px; }
+.dm-hop { background: #fff; border-radius: 24px; border: 2px solid #1e293b; box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.15); overflow: hidden; }
+.dm-hop-dau { background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+.dm-hop-cham { display: flex; gap: 6px; }
+.dm-hop-cham i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+.dm-hop-thanh { height: 8px; width: 64px; background: #e2e8f0; border-radius: 999px; }
+.dm-hop-than { padding: 24px; background: linear-gradient(to bottom, rgba(248, 250, 252, 0.5), #fff); display: flex; flex-direction: column; align-items: center; }
+.dm-khien { position: relative; margin-bottom: 16px; }
+.dm-khien-o {
+  width: 80px; height: 80px; border-radius: 16px; background: linear-gradient(to top right, #2563eb, #4f46e5, #38bdf8); color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 40px; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3); transform: rotate(-1deg);
+}
+.dm-khoa {
+  position: absolute; bottom: -8px; right: -8px; width: 32px; height: 32px; border-radius: 50%; background: #fbbf24; color: #451a03; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 2px solid #fff; font-size: 14px;
+}
+.dm-manh { width: 100%; box-sizing: border-box; background: #0f172a; border-radius: 12px; padding: 12px; text-align: left; }
+.dm-manh-dau { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.dm-manh-dau span { font-size: 11px; color: #cbd5e1; font-weight: 500; }
+.dm-manh-dau b { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+.dm-manh-thanh { display: flex; gap: 4px; }
+.dm-manh-thanh i { height: 6px; flex: 1; border-radius: 999px; background: #334155; display: block; transition: background 0.2s; }
+.dm-pill-shield {
+  position: absolute; bottom: -16px; right: -16px; z-index: 20; background: #fff; border-radius: 12px; padding: 6px 12px; display: flex; align-items: center; gap: 6px;
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.1); border: 1px solid #f1f5f9;
+}
+.dm-pill-shield i { width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: block; animation: dm-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.dm-pill-shield span { font-size: 11px; font-weight: 700; color: #334155; }
+@keyframes dm-ping { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); } 100% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); } }
+.dm-mo-ta { width: 100%; max-width: 384px; margin-top: 16px; }
+.dm-mo-ta h3 { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.025em; margin: 0; }
+.dm-mo-ta p { font-size: 12px; color: #64748b; margin: 6px 0 0; line-height: 1.6; }
+.dm-cham-trang { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 20px; }
+.dm-cham-trang i { display: block; width: 6px; height: 6px; border-radius: 999px; background: #e2e8f0; }
+.dm-cham-trang i:first-child { width: 28px; background: #2563eb; }

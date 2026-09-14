@@ -604,6 +604,17 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   (không có luồng tự đặt lại), **không** "Ghi nhớ đăng nhập" (refresh token
   7 ngày đã ghi nhớ); font Inter tự phục vụ thay Plus Jakarta Sans của mẫu.
 
+- **Đổi mật khẩu — dựng lại theo mã HTML mẫu thẻ đôi (14/09):**
+  `ChangePasswordPage.tsx` + `doi-mat-khau.css` (`dm-*`, không antd Form):
+  ba ô có icon + nút hiện/ẩn, lỗi từng ô hiện sau lần bấm đầu, khung "Quy
+  tắc bảo mật bắt buộc" 2 cột; cột phải minh hoạ khiên/khoá và **thẻ "Độ
+  mạnh mật khẩu" chạy thật** theo ô mật khẩu mới (`danhGiaMatKhau`). Giữ
+  quyết định 11/09: chỉ hiện 2 quy tắc backend thật kiểm (mẫu ghi "có chữ
+  hoa & số" nhưng backend không ép); pill "Mã hóa 256-bit" → "Mã hóa argon2"
+  (nói đúng thứ đang dùng). Lần đầu bắt buộc: tiêu đề "Đặt mật khẩu mới",
+  đường lui duy nhất là "Đăng xuất, quay lại trang Đăng nhập"; tự vào từ
+  menu tài khoản: "Quay lại, không đổi nữa".
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 
