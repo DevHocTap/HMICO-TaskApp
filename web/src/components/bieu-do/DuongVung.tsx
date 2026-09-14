@@ -54,7 +54,11 @@ export function DuongVung({ diem, mau, chiTieu, cao: caoMacDinh = 150 }: Props) 
   const coSo = diem.map((d) => d.giaTri).filter((v): v is number => v !== null);
   const min = Math.max(0, Math.floor((Math.min(chiTieu.giaTri, ...coSo) - 15) / 10) * 10);
   const max = Math.min(120, Math.ceil((Math.max(chiTieu.giaTri, ...coSo) + 8) / 10) * 10);
-  const px = (i: number) => (diem.length === 1 ? rong / 2 : (i / (diem.length - 1)) * rong);
+  // Chừa lề bằng bán kính chấm ở hai mép — chấm đầu/cuối ở x = 0 hay x = rong
+  // bị cắt mất nửa (14/09).
+  const LE = 8;
+  const px = (i: number) =>
+    diem.length === 1 ? rong / 2 : LE + (i / (diem.length - 1)) * (rong - 2 * LE);
   const py = (v: number) => 10 + (day - 10) - ((v - min) / (max - min || 1)) * (day - 10);
 
   // Các đoạn liên tục có số; mỗi đoạn kèm vùng tô xuống đáy
