@@ -191,7 +191,7 @@
   background: rgba(255, 255, 255, 0.9);
 }
 
-/* Thẻ kỳ tháng dưới đáy sidebar */
+
 
 .thanh-tren {
   display: flex;
@@ -873,7 +873,6 @@
 }
 .sidebar .ant-menu-item-group-title {
   letter-spacing: 0.12em;
-}
 }
 .thanh-tren {
   justify-content: space-between;
