@@ -500,8 +500,9 @@
 .tq-bd {
   flex: 1;
   min-height: 0;
+  height: 190px;
+  overflow: hidden;
 }
-.tq-bd { min-height: 150px; }
 .tq-bd svg {
   overflow: visible;
   display: block;

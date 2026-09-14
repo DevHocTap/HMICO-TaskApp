@@ -321,7 +321,7 @@ export function TongQuanNhanVien() {
                 <div className="tq-rong">Chưa có kỳ nào chốt điểm</div>
               ) : (
                 <>
-                  <DuongVung diem={diemXuHuong} mau={XANH} chiTieu={{ giaTri: chiTieu, mau: '#f43f5e' }} />
+                  <DuongVung diem={diemXuHuong} mau={XANH} chiTieu={{ giaTri: chiTieu, mau: '#f43f5e' }} cao={190} />
                   <div className={`tq-truc${diemXuHuong.length === 1 ? ' tq-truc-mot' : ''}`}>
                     {diemXuHuong.map((d, i) => (
                       <span key={d.nhan} className={i === diemXuHuong.length - 1 ? 'tq-truc-cuoi' : ''}>

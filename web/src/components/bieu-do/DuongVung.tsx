@@ -26,19 +26,30 @@ export function DuongVung({ diem, mau, chiTieu, cao: caoMacDinh = 150 }: Props) 
   // kéo giãn SVG — kéo giãn là chấm tròn thành bầu dục trên màn rộng (13/09).
   const khung = useRef<HTMLDivElement>(null);
   const [rong, setRong] = useState(540);
-  const [cao, setCao] = useState(caoMacDinh);
+  const cao = caoMacDinh;
   useEffect(() => {
     const el = khung.current;
     if (!el) return;
+    // Chỉ đo BỀ RỘNG, làm tròn tới 8px và chỉ cập nhật khi đổi thật — đo cả
+    // chiều cao rồi đặt lại cho SVG từng gây vòng lặp ResizeObserver ↔ render
+    // (thanh cuộn xuất hiện làm khung hẹp đi vài px, render lại, khung đổi
+    // lại…) và treo cả trang (14/09).
+    let khungHinh = 0;
     const capNhat = () => {
-      setRong(Math.max(200, Math.round(el.clientWidth)));
-      setCao(Math.max(120, Math.round(el.clientHeight) || caoMacDinh));
+      cancelAnimationFrame(khungHinh);
+      khungHinh = requestAnimationFrame(() => {
+        const moi = Math.max(200, Math.round(el.clientWidth / 8) * 8);
+        setRong((cu) => (Math.abs(cu - moi) >= 8 ? moi : cu));
+      });
     };
     capNhat();
     const ro = new ResizeObserver(capNhat);
     ro.observe(el);
-    return () => ro.disconnect();
-  }, [caoMacDinh]);
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(khungHinh);
+    };
+  }, []);
   const day = cao - 25; // đường đáy lưới
   const coSo = diem.map((d) => d.giaTri).filter((v): v is number => v !== null);
   const min = Math.max(0, Math.floor((Math.min(chiTieu.giaTri, ...coSo) - 15) / 10) * 10);
@@ -78,7 +89,9 @@ export function DuongVung({ diem, mau, chiTieu, cao: caoMacDinh = 150 }: Props) 
           diem.forEach((_, i) => {
             if (Math.abs(px(i) - x) < Math.abs(px(gan) - x)) gan = i;
           });
-          setHover({ i: gan, x: e.clientX - hop.left, y: e.clientY - hop.top });
+          const x2 = e.clientX - hop.left;
+          const y2 = e.clientY - hop.top;
+          setHover((cu) => (cu && cu.i === gan && Math.abs(cu.x - x2) < 2 && Math.abs(cu.y - y2) < 2 ? cu : { i: gan, x: x2, y: y2 }));
         }}
       >
         <defs>

@@ -385,7 +385,7 @@ function KhungAdmin() {
           </div>
         </Layout.Header>
 
-        <Layout.Content style={{ padding: '20px 32px 32px', overflow: 'auto' }}>
+        <Layout.Content style={{ padding: '20px 32px 32px', overflow: 'auto', scrollbarGutter: 'stable' }}>
           <Outlet />
         </Layout.Content>
       </Layout>
