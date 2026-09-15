@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { EyeInvisibleOutlined, EyeOutlined, ExclamationCircleFilled, WarningFilled } from '@ant-design/icons';
+import { EyeInvisibleOutlined, EyeOutlined, ExclamationCircleFilled } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { layThongBaoLoi } from '../api/client';
@@ -49,24 +49,23 @@ export function LoginPage() {
             <div className="dn-logo">
               <img className="dn-logo-o" src={bieuTuong} alt="Hoàng Minh" />
               <div className="dn-logo-chu">
-                <b>HMICO KPI</b>
+                <b>HMICO APP</b>
                 <span>Công ty Cổ phần Đầu tư Công nghệ Hoàng Minh</span>
               </div>
             </div>
             <h1>Đăng nhập</h1>
-            <p className="dn-dan">Dùng email công ty do hành chính cấp để truy cập hệ thống KPI.</p>
 
             <form className="dn-form" onSubmit={onSubmit}>
               <div className="dn-nhom">
                 <label className="dn-nhan" htmlFor="dn-email">
-                  Email công ty
+                  Email
                 </label>
                 <div className="dn-o">
                   <input
                     id="dn-email"
                     className="dn-input"
                     type="email"
-                    placeholder="ten.ban@hmico.vn"
+                    placeholder="ten@hmico.vn"
                     autoComplete="username"
                     autoFocus
                     required
@@ -115,12 +114,6 @@ export function LoginPage() {
                 </div>
               )}
             </form>
-
-            {/* Khớp với LoginAttemptService ở backend: sai >10 lần / 15 phút */}
-            <div className="dn-chu-y">
-              <WarningFilled />
-              <p>Sai mật khẩu quá 10 lần trong 15 phút, tài khoản bị khoá tạm. Liên hệ Hành chính – Nhân sự để mở lại.</p>
-            </div>
           </div>
 
           <footer className="dn-chan">

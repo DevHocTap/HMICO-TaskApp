@@ -724,13 +724,6 @@ export function ScoringPage() {
                 )}
               </span>
             </div>
-            <p className="cd-mo-ta">
-              {cotSua === 'manager'
-                ? 'Thẩm định điểm tự chấm của nhân viên, ghi nhận xét và chốt điểm cấp phòng.'
-                : cotSua === 'self'
-                  ? 'Tự đánh giá từng tiêu chí rồi nộp để trưởng bộ phận thẩm định.'
-                  : 'Phiếu đang ở chế độ chỉ đọc.'}
-            </p>
           </div>
         </div>
         <div className="cd-thanh-phai">{nutHanhDong}</div>

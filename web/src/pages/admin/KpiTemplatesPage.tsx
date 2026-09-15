@@ -35,7 +35,6 @@ import { layCayPhongBan, layChucDanh } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { coTheGhiMau } from '../../auth/permissions';
-import { useTrongSo } from '../../auth/useTrongSo';
 import { ReadOnlyNotice } from '../../components/ReadOnlyNotice';
 import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { TemplatePreviewModal } from '../../components/TemplatePreviewModal';
@@ -94,7 +93,6 @@ export function KpiTemplatesPage() {
   const coQuyenGhi = coTheGhiMau(user?.role);
   const laAdmin = user?.role === 'ADMIN';
   const laTruongPhong = user?.role === 'MANAGER';
-  const trongSo = useTrongSo();
   const [form] = Form.useForm<FormValues>();
 
   const [locChucDanh, setLocChucDanh] = useState<string | undefined>();
@@ -239,7 +237,6 @@ export function KpiTemplatesPage() {
     <div>
       <TieuDeTrang
         tieuDe="Mẫu KPI"
-        moTa={`Trưởng bộ phận soạn mẫu cho chức danh của phòng mình; hành chính và ban giám đốc xem. Mẫu chức danh phải đủ ${trongSo.BSC_WORK}% mục BSC, mẫu hệ thống đủ ${trongSo.COMPLIANCE}% mục nội quy mới xuất bản được.`}
         phai={
           <>
             <Select

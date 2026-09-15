@@ -4,7 +4,7 @@
 > Đây là trí nhớ của Claude Code giữa các phiên — để lạc hậu là nó sẽ
 > làm lại thứ đã có hoặc bỏ sót thứ đang dở.
 
-Cập nhật lần cuối: 14/09/2026
+Cập nhật lần cuối: 15/09/2026
 
 **Mốc bàn giao: một phòng Kỹ thuật chạy thật tháng 11/2026.**
 Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
@@ -622,6 +622,13 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   `web/public/brand/hoang-minh.svg` (chưa chỗ nào dùng — chữ nhỏ dưới 120px
   không đọc được). Dòng phụ dưới "HMICO KPI" ở hai màn đăng nhập / đổi mật
   khẩu đổi thành tên công ty đầy đủ.
+
+- **15/09 — tên phần mềm "HMICO APP"** (sidebar, đăng nhập, đổi mật khẩu,
+  tiêu đề tab, `creator` file Excel) và **bỏ toàn bộ câu mô tả giải thích
+  dưới tiêu đề trang** (prop `moTa` của `TieuDeTrang` ở 9 màn, `pt-mo-ta` /
+  `bc-mo-ta` / `cd-mo-ta` ở Phiếu của tôi / Báo cáo kỳ / Chấm điểm; trang
+  đăng nhập bỏ câu dẫn và khung chú ý "sai 10 lần"). `TieuDeTrang` vẫn nhận
+  `moTa` nhưng không màn nào truyền nữa.
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.

@@ -229,7 +229,6 @@ export function DepartmentsPage() {
       <ThanhTab nhom="nhan-su" />
       <TieuDeTrang
         tieuDe="Cây phòng ban"
-        moTa="Bấm một phòng để sửa hoặc thêm phòng con. Phòng có nhân sự mà thiếu trưởng bộ phận thì không sinh được phiếu KPI."
         phai={
           coQuyenGhi && (
             <>

@@ -26,7 +26,6 @@ import {
   type BoLocNhatKy,
   type DongNhatKy,
 } from '../../types/audit';
-import { useAuth } from '../../auth/useAuth';
 
 const DINH_DANG_GIO: Intl.DateTimeFormatOptions = {
   day: '2-digit',
@@ -58,7 +57,6 @@ const nhan = (bang: Record<string, string>, ma: string) => bang[ma] ?? ma;
  * refresh token đang nằm ở localStorage nên một lỗ XSS là mất phiên 7 ngày.
  */
 export function AuditLogsPage() {
-  const { user } = useAuth();
   const { message } = App.useApp();
   const [loc, setLoc] = useState<BoLocNhatKy>({ page: 1, limit: 20 });
 
@@ -181,11 +179,6 @@ export function AuditLogsPage() {
       <ThanhTab nhom="he-thong" />
       <TieuDeTrang
         tieuDe="Nhật ký thao tác"
-        moTa={
-          user?.role === 'EXECUTIVE'
-            ? 'Chỉ đọc. Ban giám đốc chỉ thấy bản ghi liên quan tới phiếu KPI.'
-            : 'Chỉ đọc. Bấm vào một dòng để xem dữ liệu trước / sau và địa chỉ IP.'
-        }
         phai={
           <Button
             shape="round"

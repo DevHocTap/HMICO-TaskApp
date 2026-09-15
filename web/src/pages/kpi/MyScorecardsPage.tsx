@@ -258,7 +258,6 @@ export function MyScorecardsPage() {
             <h1>Phiếu đánh giá của tôi</h1>
             {user?.employeeCode && <span className="pt-ma-nv">{user.employeeCode}</span>}
           </div>
-          <p className="pt-mo-ta">Ký nhận KPI đầu kỳ, theo dõi hạn tự chấm và kết quả chốt điểm phòng ban.</p>
         </div>
         <div className="pt-dau-nut">
           <button type="button" className="pt-nut pt-nut-trang" onClick={() => setMoHuongDan(true)}>

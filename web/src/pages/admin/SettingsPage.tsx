@@ -114,7 +114,6 @@ export function SettingsPage() {
       <ThanhTab nhom="he-thong" />
       <TieuDeTrang
         tieuDe="Cài đặt"
-        moTa="Cấu hình dùng chung cho toàn công ty. Chỉ quản trị và hành chính sửa được."
         phai={
           suaDuoc && (
             <>

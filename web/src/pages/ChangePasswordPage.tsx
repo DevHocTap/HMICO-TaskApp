@@ -132,7 +132,7 @@ export function ChangePasswordPage() {
             <div className="dm-logo">
               <img className="dm-logo-o" src={bieuTuong} alt="Hoàng Minh" />
               <div className="dm-logo-chu">
-                <b>HMICO KPI</b>
+                <b>HMICO APP</b>
                 <span>Công ty Cổ phần Đầu tư Công nghệ Hoàng Minh</span>
               </div>
             </div>

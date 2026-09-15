@@ -170,7 +170,6 @@ export function SubmissionProgressPage() {
       <ThanhTab nhom="bao-cao" />
       <TieuDeTrang
         tieuDe="Tiến độ nộp KPI"
-        moTa="Mỗi phòng một dòng, bảy cột theo bước của phiếu; số của phòng cha đã cộng dồn từ phòng con."
         phai={
           <>
             <Select

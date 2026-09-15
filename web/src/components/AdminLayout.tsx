@@ -255,7 +255,7 @@ function KhungAdmin() {
           <Link to="/" className="sidebar-thuong-hieu">
             <img className="sidebar-logo" src={bieuTuong} alt="Hoàng Minh" />
             <span>
-              <strong>HMICO KPI</strong>
+              <strong>HMICO APP</strong>
               <small>Quản lý hiệu suất</small>
             </span>
           </Link>

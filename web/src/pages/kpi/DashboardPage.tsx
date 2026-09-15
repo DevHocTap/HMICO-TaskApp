@@ -219,7 +219,6 @@ export function DashboardPage() {
               {ky.isLocked ? 'Đã chốt sổ' : giaiDoan.so === 4 ? giaiDoan.ten : `Ngày ${ngayTrongThang(giaiDoan.han)} — ${giaiDoan.ten}`}
             </span>
           </div>
-          <p className="bc-mo-ta">Số liệu thẩm định chính thức cho hành chính và ban giám đốc trước khi chốt sổ tháng.</p>
         </div>
         <div className="bc-nut-nhom">
           <Select

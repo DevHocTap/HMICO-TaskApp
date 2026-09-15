@@ -91,7 +91,7 @@ export class ScorecardExcelService {
     const caiDat = this.settings.lay();
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'HMICO KPI';
+    wb.creator = 'HMICO APP';
     wb.created = new Date();
     this.sheetBieuMau(wb, {
       thang: phieu.period.code.slice(5, 7) + '/' + phieu.period.code.slice(0, 4),

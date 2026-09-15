@@ -196,7 +196,6 @@ export function PeriodsPage() {
       <ThanhTab nhom="he-thong" />
       <TieuDeTrang
         tieuDe="Kỳ đánh giá"
-        moTa="Kỳ tháng tự sinh kèm bốn mốc; chỉ kỳ tháng chốt sổ được. Kỳ quá khứ cần thì tạo tay."
         phai={
           taoDuoc && (
             <Button

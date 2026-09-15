@@ -128,7 +128,6 @@ export function JobTitlesPage() {
       <ThanhTab nhom="nhan-su" />
       <TieuDeTrang
         tieuDe="Chức danh"
-        moTa="Chức danh gắn phòng ban để trưởng bộ phận soạn mẫu KPI; chức danh dùng chung do quản trị viên quản lý."
         phai={
           <>
             <Select

@@ -393,7 +393,6 @@ export function AssignKpiPage() {
     <div>
       <TieuDeTrang
         tieuDe="Giao KPI"
-        moTa="Mỗi nhân viên một dòng — kể cả người chưa có phiếu. Thao tác hàng loạt làm theo phòng."
         phai={
           <>
             <Select

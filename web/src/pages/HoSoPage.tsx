@@ -31,7 +31,6 @@ export function HoSoPage() {
     <div className="hs">
       <TieuDeTrang
         tieuDe="Thông tin cá nhân"
-        moTa="Phần liên hệ do bạn tự cập nhật. Họ tên, mã nhân viên, phòng ban, chức danh và hồ sơ HCNS chỉ HCNS sửa được — sai thì báo HCNS."
       />
       {isLoading || !hoSo ? (
         <Skeleton active paragraph={{ rows: 8 }} />
