@@ -5,7 +5,6 @@ import {
   ClockCircleOutlined,
   DownloadOutlined,
   EyeOutlined,
-  InfoCircleOutlined,
   LockOutlined,
   RightOutlined,
   SafetyCertificateOutlined,
@@ -416,10 +415,6 @@ export function DashboardPage() {
                     })}
                   </div>
                 )}
-              </div>
-              <div className="bc-chu-thich">
-                <InfoCircleOutlined />
-                <span>Đỏ: dưới ngưỡng 80. KHÔNG cộng dồn lên phòng cha — trung bình của các trung bình không phải trung bình chung.</span>
               </div>
             </div>
           </section>
