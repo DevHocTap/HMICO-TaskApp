@@ -671,8 +671,17 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 
-**Việc tiếp: triển khai** (tuần 13+). Chưa có nginx, systemd, CI hay
-`.env.production.example` — xem `no-ky-thuat.md`. Một endpoint cũ vẫn chưa
+**Triển khai (15/09) — đã có bộ file, đổi hướng sang máy WINDOWS + Docker
+Desktop** (người dùng chốt 15/09, thay cho Ubuntu 24.04): `Dockerfile` (API,
+cài `postgresql-client-16`), `deploy/Dockerfile.web` (build web với
+`VITE_API_URL=/api` rồi phục vụ bằng **Caddy** — tự HTTPS Let's Encrypt, thay
+nginx + certbot), `deploy/Caddyfile`, `docker-compose.prod.yml` (postgres ·
+api · web; Postgres không mở cổng), `.env.production.example`,
+`deploy/api-entrypoint.sh` (đợi DB, `migrate deploy`, chạy),
+`deploy/cap-nhat.ps1` (dump → pull → build → up), `deploy/bootstrap-admin.ps1`.
+Hướng dẫn từng bước: `docs/trien-khai.md`. Tên miền `hmicodev.io.vn`. Chưa
+có CI. Việc ngoài code: A record, router mở 80/443, máy Windows tắt Sleep +
+tự đăng nhập. Một endpoint cũ vẫn chưa
 màn hình nào gọi: `GET /scorecards/readiness` (`GET /scorecards` đã có Tổng quan gọi từ 12/09).
 
 ## Kế hoạch — lát cắt dọc, mỗi tuần có thứ mở lên xem được

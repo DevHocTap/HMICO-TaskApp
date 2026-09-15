@@ -70,3 +70,6 @@ web/**/*.tsbuildinfo
 
 # Bản sao lưu database (BACKUP_DIR mặc định)
 backups/
+
+# Cấu hình máy chủ thật — KHÔNG commit
+.env.production

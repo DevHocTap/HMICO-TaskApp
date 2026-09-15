@@ -1,0 +1,29 @@
+# DOMAIN lấy từ docker-compose (biến DOMAIN trong .env.production).
+# Caddy tự lấy HTTPS: cần cổng 80 và 443 từ Internet tới được máy này.
+{$DOMAIN} {
+	encode gzip
+
+	# API: bỏ tiền tố /api rồi chuyển cho container api
+	handle_path /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Giao diện React: mọi đường dẫn không phải file thì trả index.html
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# Chặn file quá lớn (không có tính năng tải file lên; 2 MB dư cho mọi form)
+	request_body {
+		max_size 2MB
+	}
+}

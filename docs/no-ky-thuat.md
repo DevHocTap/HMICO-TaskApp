@@ -133,21 +133,20 @@
       chủ và đặt `BACKUP_MIRROR_DIR` — chưa đặt thì bản sao vẫn nằm cùng máy
       với database (trang Sao lưu hiện thẻ vàng "Bản thứ hai: Chưa cấu
       hình"). Cloud làm sau, cùng chỗ cắm.
-- [ ] **Image Docker của API phải cài `postgresql-client-16`** (chưa có
-      Dockerfile). Thiếu thì `BACKUP_MODE=local` báo "Không chạy được
-      pg_dump" ở mọi lần sao lưu — Tổng quan ADMIN sẽ đỏ sau 36 giờ.
 - [ ] Sao lưu chỉ có **database**; hệ thống chưa lưu file đính kèm nên đủ.
       Nếu sau này có avatar / minh chứng thì phải sao lưu thêm thư mục đó.
 
-- [ ] **Chưa cấu hình gì cho việc triển khai.** Repo mới chỉ có
-      `docker-compose.yml` cho PostgreSQL ở máy dev: chưa có nginx, chưa có
-      systemd/PM2, chưa có CI, chưa có `.env.production.example`.
-
-      Hướng đã trình bày 10/09, **chưa duyệt nên chưa viết**: Docker Compose
-      chạy `postgres` + `api`; nginx trên host làm reverse proxy kèm TLS
-      Let's Encrypt; frontend build tĩnh cho nginx phục vụ thẳng; backup
-      bằng systemd timer.
-
+- [x] ~~Chưa cấu hình gì cho việc triển khai~~ — **đã có 15/09**, theo hướng
+      **Windows + Docker Desktop + Caddy** (người dùng chốt máy Windows thay
+      Ubuntu). Xem `docs/trien-khai.md`. Còn thiếu: CI (build/test tự động
+      khi push) — làm khi có nhu cầu.
+- [ ] **Máy chủ là Windows — Docker Desktop chỉ chạy khi có người đăng nhập
+      Windows.** Đã ghi cách xử lý (tự đăng nhập, tắt Sleep, Active hours)
+      trong `trien-khai.md` mục 8. Đây là điểm yếu so với Ubuntu + systemd;
+      nếu về sau máy hay "tự tắt" thì chuyển sang Ubuntu — bộ compose dùng
+      lại nguyên, chỉ đổi đường dẫn `BACKUP_HOST_DIR`.
+- [x] ~~Image Docker của API phải cài `postgresql-client-16`~~ — có trong
+      `Dockerfile` (kho apt PGDG, đúng bản 16).
 - [ ] **Mở cổng 80/443 từ internet vào máy chủ công ty — CHƯA XÁC NHẬN.**
       Đây là việc của bộ phận IT/mạng, không phải của code, và là điều kiện
       bắt buộc để tên miền dùng được. Hỏi trước khi tới ngày triển khai.

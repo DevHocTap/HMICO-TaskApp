@@ -1,0 +1,65 @@
+# Chạy thật — ba container: postgres · api · web (Caddy + HTTPS).
+#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+# Postgres KHÔNG mở cổng ra ngoài; chỉ api nối được qua mạng nội bộ Docker.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kpi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kpi-api
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?schema=public
+      PORT: "3000"
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      CORS_ORIGINS: https://${DOMAIN}
+      BACKUP_MODE: local
+      BACKUP_DIR: /backups
+    volumes:
+      - ${BACKUP_HOST_DIR}:/backups
+      - ${BACKUP_MIRROR_HOST_DIR:-mirror_chua_dung}:/backups-mirror
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    container_name: kpi-web
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+  # Chỗ giữ chỗ khi CHƯA đặt BACKUP_MIRROR_HOST_DIR — không dùng tới
+  mirror_chua_dung:
