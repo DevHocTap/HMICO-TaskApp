@@ -36,8 +36,8 @@
 .bc-nut-xanh:hover:not(:disabled) { background: #1d4ed8; }
 
 /* ---------- lưới */
-.bc-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .bc-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.bc-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 1100px) { .bc-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .bc-4, .bc-2 { grid-template-columns: 1fr; } }
 
@@ -74,28 +74,6 @@
 .bc-the-chan-toi span { color: #fbbf24; font-weight: 600; }
 
 /* ---------- 4 thẻ hạng */
-.bc-hang {
-  background: #fff; border: 1px solid #e2e8f0; border-left-width: 4px; border-radius: 8px; padding: 16px;
-  display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.02);
-}
-.bc-hang-xanh { border-left-color: #3b82f6; }
-.bc-hang-sky { border-left-color: #0ea5e9; }
-.bc-hang-cam { border-left-color: #f59e0b; }
-.bc-hang-do { border-left-color: #f43f5e; }
-.bc-hang-ten { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 4px; }
-.bc-hang-ten-xanh { color: #1d4ed8; background: #eff6ff; }
-.bc-hang-ten-sky { color: #0369a1; background: #f0f9ff; }
-.bc-hang-ten-cam { color: #b45309; background: #fffbeb; }
-.bc-hang-ten-do { color: #be123c; background: #fff1f2; }
-.bc-hang-pt { font-size: 12px; font-weight: 600; color: #94a3b8; }
-.bc-hang-pt-dam { color: #334155; }
-.bc-hang-so { margin-top: 12px; display: flex; align-items: baseline; gap: 4px; }
-.bc-hang-so span { font-size: 20px; font-weight: 700; color: #0f172a; }
-.bc-hang-so small { font-size: 12px; color: #64748b; font-weight: 500; }
-.bc-hang-tb { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9; font-size: 11px; color: #94a3b8; display: flex; align-items: center; justify-content: space-between; }
-.bc-hang-tb strong { font-weight: 600; color: #1e293b; }
-.bc-hang-tb strong span { color: #94a3b8; font-weight: 400; }
-.bc-hang-tb-trong { color: #475569; font-weight: 500; }
 
 /* ---------- khối phân bố / phòng */
 .bc-khoi { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; justify-content: space-between; }

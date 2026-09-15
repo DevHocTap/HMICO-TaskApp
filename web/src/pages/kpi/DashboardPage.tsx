@@ -333,30 +333,6 @@ export function DashboardPage() {
             </div>
           </section>
 
-          {/* ===== 4 thẻ hạng */}
-          <section className="bc-4">
-            {THU_TU.map((xl) => {
-              const so = data.phanBoXepLoai[xl];
-              const tb = data.diemTrungBinhTheoXepLoai[xl];
-              return (
-                <div key={xl} className={`bc-hang bc-hang-${HANG[xl].lop}`}>
-                  <div className="bc-the-dau">
-                    <span className={`bc-hang-ten bc-hang-ten-${HANG[xl].lop}`}>{NHAN_XEP_LOAI[xl]}</span>
-                    <span className={`bc-hang-pt${so > 0 ? ' bc-hang-pt-dam' : ''}`}>{daChot > 0 ? `${phanTram(so, daChot)}%` : '—'}</span>
-                  </div>
-                  <div className="bc-hang-so">
-                    <span>{so}</span>
-                    <small>nhân sự</small>
-                  </div>
-                  <div className="bc-hang-tb">
-                    <span>Điểm trung bình</span>
-                    {tb === null ? <span className="bc-hang-tb-trong">—</span> : <strong>{diemTomTat(tb)} <span>/ 100</span></strong>}
-                  </div>
-                </div>
-              );
-            })}
-          </section>
-
           {/* ===== phân bố + hiệu suất phòng */}
           <section className="bc-2">
             <div className="bc-khoi">
@@ -388,11 +364,14 @@ export function DashboardPage() {
               <div className="bc-o-4">
                 {THU_TU.map((xl) => {
                   const so = data.phanBoXepLoai[xl];
+                  const tb = data.diemTrungBinhTheoXepLoai[xl];
                   return (
                     <div key={xl} className={`bc-o${so > 0 ? ` bc-o-${HANG[xl].lop}` : ''}`}>
                       <span className="bc-o-ten">{NHAN_XEP_LOAI[xl]}</span>
                       <span className="bc-o-so">{daChot > 0 ? phanTram(so, daChot) : 0}%</span>
-                      <span className="bc-o-nguoi">{so} người</span>
+                      <span className="bc-o-nguoi">
+                        {so} người{tb !== null && ` · TB ${diemTomTat(tb)}`}
+                      </span>
                     </div>
                   );
                 })}
