@@ -65,8 +65,15 @@ docker compose --env-file .env.production -f docker-compose.prod.yml logs web  #
 
 Caddy lấy chứng chỉ trong ~30 giây **nếu** cổng 80/443 đã tới được máy từ
 Internet. Nếu log web báo lỗi ACME liên tục → mục 0 chưa xong (DNS hoặc
-router); web vẫn chạy được trong mạng LAN bằng `http://<IP LAN>` nhưng chưa
-có HTTPS.
+router). **Muốn chạy thử trong mạng LAN trước khi có tên miền:** đặt
+`DOMAIN=http://<IP LAN của máy>` (có `http://` phía trước) — Caddy bỏ HTTPS,
+vào bằng `http://<IP LAN>`; xong thì đổi lại `DOMAIN=hmicodev.io.vn` và
+`up -d`.
+
+Đã chạy thử trọn bộ compose này trên máy dev (15/09): ba container lên, API
+tự migrate + tạo kỳ, bootstrap admin, đăng nhập qua `/api`, sao lưu chế độ
+`local` bằng pg_dump 16 trong image ra thư mục máy chủ, khôi phục qua API —
+đều đúng.
 
 ## 4. Tạo tài khoản quản trị đầu tiên
 
