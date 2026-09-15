@@ -389,7 +389,7 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   gọn còn 7 mục** một nhóm; năm màn phụ thành **tab trong màn cha**
   (`ThanhTab.tsx`): Báo cáo kỳ = Tổng quan · Tiến độ nộp; Quản lý nhân sự =
   Nhân viên · Phòng ban · Chức danh; Cài đặt hệ thống = Cài đặt · Kỳ đánh
-  giá · Nhật ký. Route giữ nguyên, tab ẩn theo quyền.
+  giá · Nhật ký (Kỳ đánh giá bỏ 15/09). Route giữ nguyên, tab ẩn theo quyền.
 - **Dashboard (`/kpi/dashboard`)** — stepper 3 giai đoạn có tiến độ từng
   bước; 4 thẻ có icon và **so với tháng trước** (từ `GET /reports/trend`,
   endpoint mới, 2 groupBy cho cả dãy, script 6 → **68**); thẻ đỏ "Cần chú ý"
@@ -629,6 +629,14 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   `bc-mo-ta` / `cd-mo-ta` ở Phiếu của tôi / Báo cáo kỳ / Chấm điểm; trang
   đăng nhập bỏ câu dẫn và khung chú ý "sai 10 lần"). `TieuDeTrang` vẫn nhận
   `moTa` nhưng không màn nào truyền nữa.
+
+- **15/09 — bỏ màn Kỳ đánh giá (`/kpi/periods`)** vì trùng: kỳ tự sinh, bốn
+  mốc đã có ở Cài đặt, khoá sổ đã có ở Báo cáo kỳ. Hai việc chỉ màn đó có
+  được chuyển đi: **"Mở lại kỳ đã chốt"** → nút đảo chiều với "Khoá sổ" ở
+  Báo cáo kỳ (kỳ đang khoá thì hiện nút mở); **"Tạo kỳ thủ công"** → nút
+  cạnh công tắc "Tự sinh kỳ hằng tháng" ở Cài đặt (`components/ModalTaoKy.tsx`).
+  Backend không đổi. Tab "Kỳ đánh giá" ở Cài đặt hệ thống chỉ còn Cài đặt ·
+  Nhật ký; chip kỳ trên header của vai nhân viên không còn là link.
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.

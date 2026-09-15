@@ -89,7 +89,6 @@ const TEN_TRANG: [string, string][] = [
   ['/kpi/scorecards', 'Phiếu KPI'],
   ['/kpi/progress', 'Tiến độ nộp'],
   ['/kpi/dashboard', 'Bảng điều hành KPI'],
-  ['/kpi/periods', 'Kỳ đánh giá'],
   ['/admin/departments', 'Phòng ban'],
   ['/admin/job-titles', 'Chức danh'],
   ['/admin/users', 'Nhân viên'],
@@ -297,7 +296,7 @@ function KhungAdmin() {
               </span>
             )}
             {!xemBaoCao && kyHienTai && giaiDoan && (
-              <Link to="/kpi/periods" className="chip-ky">
+              <span className="chip-ky">
                 <CalendarOutlined />
                 <span>Kỳ {kyHienTai.name.toLowerCase()}</span>
                 <span className="chip-ky-cach">·</span>
@@ -306,7 +305,7 @@ function KhungAdmin() {
                     ? giaiDoan.ten
                     : `Giai đoạn ${giaiDoan.so}: ${giaiDoan.ten}`}
                 </span>
-              </Link>
+              </span>
             )}
             {tienDoThamDinh !== null && (
               <Link to="/kpi/dashboard" className="chip-tham-dinh">

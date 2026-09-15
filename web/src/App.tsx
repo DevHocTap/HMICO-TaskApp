@@ -11,7 +11,6 @@ import { MyScorecardsPage } from './pages/kpi/MyScorecardsPage';
 import { AssignKpiPage } from './pages/kpi/AssignKpiPage';
 import { ScorecardDetailPage } from './pages/kpi/ScorecardDetailPage';
 import { ScoringPage } from './pages/kpi/ScoringPage';
-import { PeriodsPage } from './pages/kpi/PeriodsPage';
 import { SubmissionProgressPage } from './pages/kpi/SubmissionProgressPage';
 import { DashboardPage } from './pages/kpi/DashboardPage';
 import { DepartmentsPage } from './pages/admin/DepartmentsPage';
@@ -22,7 +21,6 @@ import { KpiTemplateEditorPage } from './pages/admin/KpiTemplateEditorPage';
 import { AuditLogsPage } from './pages/admin/AuditLogsPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import {
-  coTheChotSo,
   coTheGiaoKpi,
   coTheXemBaoCao,
   coTheXemNhanVien,
@@ -68,9 +66,6 @@ export function App() {
           </Route>
 
           {/* Kỳ đánh giá và chốt sổ — HCNS, ban giám đốc, quản trị. */}
-          <Route element={<RoleRoute duocPhep={coTheChotSo} />}>
-            <Route path="/kpi/periods" element={<PeriodsPage />} />
-          </Route>
 
           {/* Nhật ký thao tác — chỉ quản trị và ban giám đốc. */}
           <Route element={<RoleRoute duocPhep={coTheXemNhatKy} />}>

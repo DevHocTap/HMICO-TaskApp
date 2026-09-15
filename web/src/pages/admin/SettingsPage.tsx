@@ -8,6 +8,7 @@ import { useAuth } from '../../auth/useAuth';
 import { coTheSuaCaiDat } from '../../auth/permissions';
 import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { ReadOnlyNotice } from '../../components/ReadOnlyNotice';
+import { ModalTaoKy } from '../../components/ModalTaoKy';
 import { ngayGioVN } from '../../utils/format';
 import type { CaiDatHeThong, NhomCaiDat } from '../../types/settings';
 
@@ -31,6 +32,7 @@ export function SettingsPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const suaDuoc = coTheSuaCaiDat(user?.role);
+  const [moTaoKy, setMoTaoKy] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -455,6 +457,13 @@ export function SettingsPage() {
             <small>
               Chạy 01:00 mỗi ngày và lúc khởi động; tắt thì HCNS tạo kỳ tay
             </small>
+            {suaDuoc && (
+              <div style={{ marginTop: 10 }}>
+                <Button shape="round" onClick={() => setMoTaoKy(true)}>
+                  Tạo kỳ thủ công
+                </Button>
+              </div>
+            )}
             <div style={{ marginTop: 8 }}>{ghiChuNhom('kyDanhGia')}</div>
           </div>
 
@@ -480,6 +489,7 @@ export function SettingsPage() {
           </div>
         </div>
       </Card>
+      <ModalTaoKy open={moTaoKy} onClose={() => setMoTaoKy(false)} />
     </div>
   );
 }

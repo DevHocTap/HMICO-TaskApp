@@ -6,6 +6,7 @@ import {
   DownloadOutlined,
   EyeOutlined,
   LockOutlined,
+  UnlockOutlined,
   RightOutlined,
   SafetyCertificateOutlined,
   SyncOutlined,
@@ -20,7 +21,7 @@ import {
   layTienDoNop,
   taiExcelTongHop,
 } from '../../api/report';
-import { khoaKy, layDanhSachPhieu, taiPhieuExcel } from '../../api/scorecard';
+import { khoaKy, layDanhSachPhieu, moKy, taiPhieuExcel } from '../../api/scorecard';
 import { layCayPhongBan } from '../../api/org';
 import { layThongBaoLoi } from '../../api/client';
 import type { XepLoaiKpi } from '../../types/report';
@@ -145,6 +146,15 @@ export function DashboardPage() {
     },
     onError: (e) => message.error(layThongBaoLoi(e)),
   });
+  // Mở lại kỳ đã chốt — trước ở màn Kỳ đánh giá (đã bỏ 15/09)
+  const moLai = useMutation({
+    mutationFn: () => moKy(kyDangXem!),
+    onSuccess: () => {
+      message.success('Đã mở lại kỳ');
+      void queryClient.invalidateQueries({ queryKey: ['periods'] });
+    },
+    onError: (e) => message.error(layThongBaoLoi(e)),
+  });
 
   if (!ky) return null;
 
@@ -232,25 +242,43 @@ export function DashboardPage() {
           <button type="button" className="bc-nut bc-nut-trang" disabled={xuat.isPending} onClick={() => xuat.mutate()}>
             <DownloadOutlined /> Xuất dữ liệu (.xlsx)
           </button>
-          {coTheChotSo(user?.role) && !ky.isLocked && (
-            <button
-              type="button"
-              className="bc-nut bc-nut-xanh"
-              disabled={khoa.isPending}
-              onClick={() =>
-                modal.confirm({
-                  title: `Khoá sổ ${ky.name}?`,
-                  content: `Còn ${tong - daChot} phiếu chưa chốt điểm. Sau khi khoá, không ai chấm hay sửa điểm được nữa; muốn sửa phải mở lại kỳ ở màn Kỳ đánh giá.`,
-                  okText: 'Khoá sổ',
-                  okButtonProps: { danger: true },
-                  cancelText: 'Huỷ',
-                  onOk: () => khoa.mutateAsync(),
-                })
-              }
-            >
-              <LockOutlined /> Khoá sổ kỳ đánh giá
-            </button>
-          )}
+          {coTheChotSo(user?.role) &&
+            (ky.isLocked ? (
+              <button
+                type="button"
+                className="bc-nut bc-nut-trang"
+                disabled={moLai.isPending}
+                onClick={() =>
+                  modal.confirm({
+                    title: `Mở lại ${ky.name}?`,
+                    content: 'Điểm của kỳ này sẽ sửa được trở lại. Lần mở được ghi vào nhật ký kèm tên bạn.',
+                    okText: 'Mở lại',
+                    cancelText: 'Huỷ',
+                    onOk: () => moLai.mutateAsync(),
+                  })
+                }
+              >
+                <UnlockOutlined /> Mở lại kỳ đã chốt
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="bc-nut bc-nut-xanh"
+                disabled={khoa.isPending}
+                onClick={() =>
+                  modal.confirm({
+                    title: `Khoá sổ ${ky.name}?`,
+                    content: `Còn ${tong - daChot} phiếu chưa chốt điểm. Sau khi khoá, không ai chấm hay sửa điểm được nữa; muốn sửa thì bấm "Mở lại kỳ" ngay tại đây.`,
+                    okText: 'Khoá sổ',
+                    okButtonProps: { danger: true },
+                    cancelText: 'Huỷ',
+                    onOk: () => khoa.mutateAsync(),
+                  })
+                }
+              >
+                <LockOutlined /> Khoá sổ kỳ đánh giá
+              </button>
+            ))}
         </div>
       </div>
 

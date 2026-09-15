@@ -2,7 +2,6 @@ import { Tabs } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import {
-  coTheChotSo,
   coTheXemBaoCao,
   coTheXemCaiDat,
   coTheXemNhanVien,
@@ -35,7 +34,6 @@ export const NHOM_TAB: Record<NhomTab, MucTab[]> = {
   ],
   'he-thong': [
     { to: '/admin/settings', label: 'Cài đặt', duocPhep: coTheXemCaiDat },
-    { to: '/kpi/periods', label: 'Kỳ đánh giá', duocPhep: coTheChotSo },
     { to: '/admin/audit-logs', label: 'Nhật ký thao tác', duocPhep: coTheXemNhatKy },
   ],
 };
