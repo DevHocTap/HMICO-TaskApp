@@ -529,12 +529,12 @@ export function TongQuanQuanLy() {
             </div>
           )}
 
-          <PhieuCanXuLyGap ky={ky} />
         </div>
 
         {/* ===== Cột phải */}
         <div className="tq-phai">
           <MocTienDoThang ky={ky} kySau={kySau} />
+          <PhieuCanXuLyGap ky={ky} />
 
           <div className="tq-khoi">
             <div className="tq-khoi-dau tq-khoi-dau-ke-nho">

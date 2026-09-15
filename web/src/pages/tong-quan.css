@@ -858,3 +858,25 @@
 .tq-so-do { color: #e11d48; }
 /* Một kỳ duy nhất: chấm vẽ giữa khung nên nhãn cũng căn giữa */
 .tq-truc-mot { justify-content: center; }
+
+/* ---------- Phiếu cần chấm gấp — cột phải, một cột (15/09) */
+.tq-icon-do { color: #e11d48; }
+.tq-link-nho { font-size: 12px; font-weight: 600; color: #2563eb; }
+.tq-gap .tq-h3 { display: flex; align-items: center; gap: 8px; }
+.tq-gap-ds { display: flex; flex-direction: column; gap: 8px; }
+.tq-gap-dong {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid #e2e8f0; background: #fff; color: inherit; transition: background 0.15s, border-color 0.15s;
+}
+.tq-gap-dong:hover { background: #f8fafc; border-color: #cbd5e1; color: inherit; }
+.tq-gap-dong-do { border-color: #fecaca; background: #fff7f7; }
+.tq-gap-dong-do:hover { background: #fff1f2; border-color: #fca5a5; }
+.tq-gap-giua { flex: 1; min-width: 0; }
+.tq-gap-ten { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #0f172a; min-width: 0; }
+.tq-gap-ten b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tq-gap-phu { font-size: 11px; color: #64748b; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tq-gap-diem { text-align: right; flex: none; display: flex; flex-direction: column; line-height: 1.2; }
+.tq-gap-diem b { font-size: 16px; font-weight: 800; color: #0f172a; }
+.tq-gap-diem small { font-size: 10px; color: #64748b; white-space: nowrap; }
+.tq-gap-mui { color: #94a3b8; font-size: 12px; flex: none; }
+.tq-gap-dong:hover .tq-gap-mui { color: #2563eb; }

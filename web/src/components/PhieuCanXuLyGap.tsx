@@ -1,5 +1,5 @@
-import { Avatar, Button, Card, Empty, Tag, Typography } from 'antd';
-import { CheckCircleOutlined, EditOutlined } from '@ant-design/icons';
+import { Avatar, Skeleton } from 'antd';
+import { ArrowRightOutlined, EditOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -88,123 +88,79 @@ export function PhieuCanXuLyGap({ ky }: { ky: KyDanhGia }) {
       : null;
 
   return (
-    <Card
-      loading={isLoading}
-      title={
-        <span className="viec-tieu-de">
-          {tieuDe}
-          {tongSo > 0 && <Tag color="error">{tongSo} phiếu</Tag>}
-        </span>
-      }
-      extra={
-        tongSo > TOI_DA && (
-          <Link to={laNguoiCham ? '/kpi/assign' : '/kpi/progress'}>
-            Xem tất cả ({tongSo})
+    <div className="tq-khoi tq-gap">
+      <div className="tq-khoi-dau tq-khoi-dau-ke-nho">
+        <h3 className="tq-h3">
+          <EditOutlined className="tq-icon-do" /> {tieuDe}
+          {tongSo > 0 && <span className="tq-huy-hieu tq-huy-hieu-do">{tongSo} phiếu</span>}
+        </h3>
+        {tongSo > TOI_DA && (
+          <Link to={laNguoiCham ? '/kpi/assign' : '/kpi/progress'} className="tq-link-nho">
+            Xem tất cả ({tongSo}) →
           </Link>
-        )
-      }
-    >
-      {tongSo === 0 ? (
-        <Empty
-          image={
-            <CheckCircleOutlined style={{ fontSize: 36, color: '#16a34a' }} />
-          }
-          styles={{ image: { height: 44 } }}
-          description={
-            laNguoiCham
-              ? 'Không có phiếu nào chờ bạn chấm'
-              : 'Không có phiếu nào chờ tiếp nhận'
-          }
-        />
+        )}
+      </div>
+      {isLoading ? (
+        <Skeleton active paragraph={{ rows: 3 }} />
       ) : (
-        <div className="phieu-gap-luoi">
+        <div className="tq-gap-ds">
           {hien.map(({ phieu: p, loai }) => {
             const l = lech(p);
             const lechLon = l !== null && Math.abs(l) > LECH_DANG_CHU_Y;
             const canhBao = loai === 'tre' || lechLon;
             return (
-              <div
+              <Link
                 key={p.id}
-                className={`phieu-gap-the${canhBao ? ' phieu-gap-the-do' : ''}`}
+                to={`/kpi/scorecards/${p.id}/scoring`}
+                className={`tq-gap-dong${canhBao ? ' tq-gap-dong-do' : ''}`}
               >
-                <div className="phieu-gap-dau">
-                  <Avatar
-                    style={{
-                      background: '#dbe6ff',
-                      color: mauChuDao,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {chuVietTat(p.ownerName ?? '?')}
-                  </Avatar>
-                  <span className="ten-va-phu" style={{ flex: 1, minWidth: 0 }}>
-                    <Typography.Text strong ellipsis>
-                      {p.ownerName ?? '—'}
-                    </Typography.Text>
-                    <small>{p.jobTitleName}</small>
-                  </span>
-                  {loai === 'tre' ? (
-                    <Tag color="error">Trễ hạn nộp</Tag>
-                  ) : lechLon ? (
-                    <Tag color="error">
-                      Lệch {l! > 0 ? '+' : ''}
-                      {l}đ
-                    </Tag>
+                <Avatar size={34} style={{ background: '#dbe6ff', color: mauChuDao, fontWeight: 700, flex: 'none' }}>
+                  {chuVietTat(p.ownerName ?? '?')}
+                </Avatar>
+                <div className="tq-gap-giua">
+                  <div className="tq-gap-ten">
+                    <b>{p.ownerName ?? '—'}</b>
+                    {loai === 'tre' ? (
+                      <span className="tq-huy-hieu tq-huy-hieu-do">Trễ hạn nộp</span>
+                    ) : lechLon ? (
+                      <span className="tq-huy-hieu tq-huy-hieu-do">
+                        Lệch {l! > 0 ? '+' : ''}
+                        {l}đ
+                      </span>
+                    ) : (
+                      <span className="tq-huy-hieu tq-huy-hieu-xanh-la">{loai === 'nhan' ? 'Đã chốt' : 'Đã nộp'}</span>
+                    )}
+                  </div>
+                  <div className="tq-gap-phu">
+                    {p.jobTitleName}
+                    {loai === 'tre'
+                      ? ` · hạn tự chấm ${ngayVN(ky.selfScoreDeadline)} đã qua`
+                      : loai === 'nhan'
+                        ? ` · chốt ${ngayVN(p.managerScoredAt)}`
+                        : ` · nộp ${ngayVN(p.selfScoredAt)}`}
+                  </div>
+                </div>
+                <div className="tq-gap-diem">
+                  {loai === 'nhan' ? (
+                    <>
+                      <b>{diemTomTat(p.managerTotalScore)}</b>
+                      <small>{p.grade ? NHAN_XEP_LOAI[p.grade] : 'Trưởng BP'}</small>
+                    </>
                   ) : (
-                    <Tag color="success">
-                      {loai === 'nhan' ? 'Đã chốt' : 'Đã nộp'}
-                    </Tag>
+                    <>
+                      <b style={{ color: loai === 'tre' ? mauNhan : undefined }}>
+                        {p.selfTotalScore === null ? '—' : diemTomTat(p.selfTotalScore)}
+                      </b>
+                      <small>tự chấm · {p.itemCount} mục</small>
+                    </>
                   )}
                 </div>
-                <div className="phieu-gap-so">
-                  <span>
-                    <small>Tự chấm</small>
-                    <strong
-                      style={{ color: loai === 'tre' ? mauNhan : undefined }}
-                    >
-                      {p.selfTotalScore === null
-                        ? '—'
-                        : diemTomTat(p.selfTotalScore)}
-                      <em>/100</em>
-                    </strong>
-                  </span>
-                  <span>
-                    <small>
-                      {loai === 'nhan' ? 'Trưởng BP chốt' : 'Tiêu chí'}
-                    </small>
-                    <strong>
-                      {loai === 'nhan'
-                        ? `${diemTomTat(p.managerTotalScore)} · ${p.grade ? NHAN_XEP_LOAI[p.grade] : '—'}`
-                        : `${p.itemCount} mục`}
-                    </strong>
-                  </span>
-                </div>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {loai === 'tre'
-                    ? `Hạn tự chấm ${ngayVN(ky.selfScoreDeadline)} đã qua`
-                    : loai === 'nhan'
-                      ? `Chốt ${ngayVN(p.managerScoredAt)} · ${p.departmentName}`
-                      : `Nộp ${ngayVN(p.selfScoredAt)}`}
-                </Typography.Text>
-                <Link to={`/kpi/scorecards/${p.id}/scoring`}>
-                  <Button
-                    type={canhBao ? 'primary' : 'default'}
-                    danger={canhBao}
-                    block
-                    icon={<EditOutlined />}
-                  >
-                    {loai === 'tre'
-                      ? 'Mở phiếu'
-                      : loai === 'nhan'
-                        ? 'Soát & tiếp nhận'
-                        : 'Chấm điểm ngay'}
-                  </Button>
-                </Link>
-              </div>
+                <ArrowRightOutlined className="tq-gap-mui" />
+              </Link>
             );
           })}
         </div>
       )}
-    </Card>
+    </div>
   );
 }

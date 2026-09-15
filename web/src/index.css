@@ -1186,56 +1186,6 @@
   }
 }
 
-/* ---------- Phiếu cần xử lý gấp ---------- */
-.phieu-gap-luoi {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 12px;
-}
-.phieu-gap-the {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: #fff;
-}
-.phieu-gap-the-do {
-  border-color: #fecaca;
-  background: #fff7f7;
-}
-.phieu-gap-dau {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.phieu-gap-so {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-.phieu-gap-so > span {
-  display: flex;
-  flex-direction: column;
-}
-.phieu-gap-so small {
-  font-size: 11px;
-  color: #6b7280;
-}
-.phieu-gap-so strong {
-  font-size: 15px;
-}
-.phieu-gap-so em {
-  font-style: normal;
-  font-size: 11px;
-  color: #6b7280;
-  margin-left: 2px;
-}
-
 /* ---------- Chấm điểm: một bảng + thanh hành động dính đáy ---------- */
 .dong-muc > td {
   background: var(--mau-chu-dao-mo) !important;

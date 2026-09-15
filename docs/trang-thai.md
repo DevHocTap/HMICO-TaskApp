@@ -638,6 +638,13 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   Backend không đổi. Tab "Kỳ đánh giá" ở Cài đặt hệ thống chỉ còn Cài đặt ·
   Nhật ký; chip kỳ trên header của vai nhân viên không còn là link.
 
+- **15/09 — Tổng quan quản lý (BGĐ / trưởng phòng / HCNS):** "Phiếu cần
+  chấm gấp / chờ tiếp nhận" viết lại thành khối `tq-khoi` **một cột** (mỗi
+  phiếu một dòng: avatar · tên + chức danh + ngày nộp · điểm · mũi tên, cả
+  dòng là link sang Chấm điểm) và **chuyển sang cột phải** dưới Mốc tiến độ
+  — trước nằm cột trái dạng lưới thẻ antd Card, cột phải hụt để trống nửa
+  màn. Gỡ CSS `phieu-gap-*`.
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 
