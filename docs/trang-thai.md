@@ -645,6 +645,10 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   — trước nằm cột trái dạng lưới thẻ antd Card, cột phải hụt để trống nửa
   màn. Gỡ CSS `phieu-gap-*`.
 
+- **15/09 — màn Mẫu KPI ẩn với ban giám đốc:** `coTheXemMau()` (ADMIN, HR,
+  MANAGER) thay `coTheXemNhanVien` ở menu và `RoleRoute`. Chỉ giao diện;
+  backend `VAI_TRO_DOC` giữ EXECUTIVE (đọc mẫu không có gì để lộ).
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
 

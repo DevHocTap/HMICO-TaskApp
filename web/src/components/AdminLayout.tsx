@@ -31,7 +31,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import bieuTuong from '../assets/brand/bieu-tuong.svg';
-import { coTheGiaoKpi, coTheXemBaoCao, coTheXemNhanVien } from '../auth/permissions';
+import { coTheGiaoKpi, coTheXemBaoCao, coTheXemMau } from '../auth/permissions';
 import { layKyDanhGia, layViecCuaToi } from '../api/scorecard';
 import { laySoLieuDashboard } from '../api/report';
 import type { Role } from '../types/auth';
@@ -203,7 +203,7 @@ function KhungAdmin() {
       label: nhan(nhanSu, 'Quản lý nhân sự'),
     });
   }
-  if (coTheXemNhanVien(role)) {
+  if (coTheXemMau(role)) {
     mucKpi.push({
       key: '/admin/kpi-templates',
       icon: <FileTextOutlined />,

@@ -110,6 +110,15 @@ export function coTheSuaCaiDat(role: Role | undefined): boolean {
 }
 
 /**
+ * Xem màn Mẫu KPI — chốt 15/09/2026: ẩn với ban giám đốc. Mẫu là việc chuyên
+ * môn giữa trưởng bộ phận và HCNS; BGĐ chỉ cần thấy phiếu và kết quả.
+ * Backend vẫn cho EXECUTIVE đọc API mẫu (chỉ đọc, không có gì để lộ).
+ */
+export function coTheXemMau(role: Role | undefined): boolean {
+  return role === 'ADMIN' || role === 'HR' || role === 'MANAGER';
+}
+
+/**
  * Soạn mẫu KPI — chốt 12/09/2026: TRƯỞNG BỘ PHẬN (cho chức danh phòng mình)
  * và ADMIN. HCNS và ban giám đốc chỉ xem: mẫu là yêu cầu chuyên môn của
  * từng phòng, HCNS không nắm được. Backend chặn phạm vi độc lập.

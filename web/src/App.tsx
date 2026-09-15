@@ -23,6 +23,7 @@ import { SettingsPage } from './pages/admin/SettingsPage';
 import {
   coTheGiaoKpi,
   coTheXemBaoCao,
+  coTheXemMau,
   coTheXemNhanVien,
   coTheXemCaiDat,
   coTheXemNhatKy,
@@ -84,6 +85,9 @@ export function App() {
 
           <Route element={<RoleRoute duocPhep={coTheXemNhanVien} />}>
             <Route path="/admin/users" element={<UsersPage />} />
+          </Route>
+
+          <Route element={<RoleRoute duocPhep={coTheXemMau} />}>
             <Route path="/admin/kpi-templates" element={<KpiTemplatesPage />} />
             <Route
               path="/admin/kpi-templates/:id/edit"
