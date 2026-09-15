@@ -112,13 +112,8 @@ export function FormHoSo({ hoSo, cheDoHr, dangLuu, onLuu, nutPhu }: Props) {
         <Form.Item name="address" label="Địa chỉ liên hệ" className="hs-rong">
           <Input placeholder="Số nhà, đường, phường, quận, tỉnh/thành" maxLength={300} />
         </Form.Item>
-        <Form.Item
-          name="emergencyContact"
-          label="Liên hệ khẩn cấp"
-          className="hs-rong"
-          extra="Tên — quan hệ — số điện thoại. Ví dụ: Nguyễn Văn A — bố — 0903 000 000"
-        >
-          <Input maxLength={200} />
+        <Form.Item name="emergencyContact" label="Liên hệ khẩn cấp" className="hs-rong">
+          <Input maxLength={200} placeholder="Tên — quan hệ — số điện thoại" />
         </Form.Item>
       </div>
 
