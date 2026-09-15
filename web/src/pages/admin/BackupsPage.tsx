@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
-import { App, Button, InputNumber, Select, Skeleton, Switch, Tag, Tooltip } from 'antd';
+import { App, Button, Input, InputNumber, Modal, Select, Skeleton, Switch, Tag, Tooltip } from 'antd';
 import {
   CheckCircleFilled,
   CloseCircleFilled,
-  CloudDownloadOutlined,
   DatabaseOutlined,
   DownloadOutlined,
   ExclamationCircleFilled,
+  HistoryOutlined,
+  WarningFilled,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ThanhTab } from '../../components/ThanhTab';
 import { TieuDeTrang } from '../../components/TieuDeTrang';
-import { laySaoLuu, saoLuuNgay, taiBanSaoLuu } from '../../api/backup';
+import { khoiPhucSaoLuu, laySaoLuu, saoLuuNgay, taiBanSaoLuu } from '../../api/backup';
+import type { BanSaoLuu } from '../../types/backup';
 import { layCaiDat, luuCaiDat } from '../../api/settings';
 import { docLoiBlob } from '../../api/report';
 import { layThongBaoLoi } from '../../api/client';
@@ -42,6 +44,9 @@ export function BackupsPage() {
     if (caiDat) setS(caiDat.caiDat.saoLuu);
   }, [caiDat]);
   const daDoi = Boolean(s && caiDat && JSON.stringify(s) !== JSON.stringify(caiDat.caiDat.saoLuu));
+  // Khôi phục: chọn bản → gõ đúng tên file → xác nhận
+  const [banKhoiPhuc, setBanKhoiPhuc] = useState<BanSaoLuu | null>(null);
+  const [goXacNhan, setGoXacNhan] = useState('');
 
   const lamMoi = () => {
     void queryClient.invalidateQueries({ queryKey: ['backups'] });
@@ -62,6 +67,23 @@ export function BackupsPage() {
     mutationFn: taiBanSaoLuu,
     onSuccess: (ten) => message.success(`Đã tải ${ten}`),
     onError: async (e) => message.error((await docLoiBlob(e)) ?? layThongBaoLoi(e)),
+  });
+  const khoiPhuc = useMutation({
+    mutationFn: (tenFile: string) => khoiPhucSaoLuu(tenFile),
+    onSuccess: (kq) => {
+      setBanKhoiPhuc(null);
+      setGoXacNhan('');
+      Modal.success({
+        title: 'Đã khôi phục database',
+        content: `Dữ liệu hiện đúng như bản ${kq.tenFile}. Bản ngay trước khi khôi phục đã lưu thành ${kq.banTruocKhoiPhuc} — lỡ nhầm thì khôi phục lại từ bản đó. Mọi người có thể phải đăng nhập lại.`,
+        okText: 'Tải lại trang',
+        onOk: () => window.location.reload(),
+      });
+    },
+    onError: (e) => {
+      message.error(layThongBaoLoi(e));
+      lamMoi();
+    },
   });
   const luu = useMutation({
     mutationFn: () => luuCaiDat({ saoLuu: s! }),
@@ -139,117 +161,162 @@ export function BackupsPage() {
             </div>
           )}
 
-          <div className="sl-2">
-            {/* ===== lịch sử */}
-            <div className="sl-khoi">
-              <div className="sl-khoi-dau">
-                <h3>Lịch sử sao lưu</h3>
-                <span className="sl-mono sl-phu">{tt.thuMuc}</span>
-              </div>
-              {data!.danhSach.length === 0 ? (
-                <p className="sl-rong">Chưa có bản nào. Bấm "Sao lưu ngay" để tạo bản đầu tiên.</p>
-              ) : (
-                <div className="sl-cuon">
-                  <table className="sl-table">
-                    <thead>
-                      <tr>
-                        <th>Thời điểm</th>
-                        <th>Nguồn</th>
-                        <th style={{ textAlign: 'right' }}>Kích thước</th>
-                        <th>Kiểm tra</th>
-                        <th>Bản 2</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data!.danhSach.map((b) => (
-                        <tr key={b.tenFile}>
-                          <td>
-                            <b>{ngayGioVN(b.taoLuc)}</b>
-                            <div className="sl-mono sl-phu">{b.tenFile}</div>
-                          </td>
-                          <td>
-                            {b.nguon === 'TU_DONG' ? <Tag>Tự động</Tag> : <Tag color="blue">Thủ công</Tag>}
-                            {b.nguoiBamTen && <div className="sl-phu">{b.nguoiBamTen}</div>}
-                          </td>
-                          <td style={{ textAlign: 'right' }}>{dungLuong(b.kichThuoc)}</td>
-                          <td>
-                            {b.daKiemTra ? (
-                              <Tooltip title={`pg_restore đọc được · migration ${b.migrationMoiNhat ?? '?'}`}>
-                                <span className="sl-ok"><CheckCircleFilled /> Lành</span>
-                              </Tooltip>
-                            ) : (
-                              <span className="sl-phu">Chưa kiểm</span>
-                            )}
-                          </td>
-                          <td>{b.daChepSangMirror ? <span className="sl-ok"><CheckCircleFilled /></span> : <span className="sl-phu">—</span>}</td>
-                          <td style={{ textAlign: 'right' }}>
+          {/* ===== lịch — một dải ngang */}
+          {s && (
+            <div className="sl-lich">
+              <span className="sl-lich-ten">Lịch sao lưu</span>
+              <label className="sl-lich-o">
+                <span>Tự động hằng đêm</span>
+                <Switch checked={s.tuDongHangDem} onChange={(v) => setS({ ...s, tuDongHangDem: v })} />
+              </label>
+              <label className="sl-lich-o">
+                <span>Giờ chạy</span>
+                <Select size="small" style={{ width: 90 }} value={s.gioChay} options={GIO} disabled={!s.tuDongHangDem} onChange={(v) => setS({ ...s, gioChay: v })} />
+              </label>
+              <label className="sl-lich-o">
+                <span>Giữ bản ngày</span>
+                <InputNumber size="small" min={3} max={90} value={s.giuBanNgay} onChange={(v) => v !== null && setS({ ...s, giuBanNgay: v })} addonAfter="ngày" style={{ width: 118 }} />
+              </label>
+              <label className="sl-lich-o">
+                <span>Giữ bản cuối tháng</span>
+                <InputNumber size="small" min={0} max={120} value={s.giuBanThang} onChange={(v) => v !== null && setS({ ...s, giuBanThang: v })} addonAfter="tháng" style={{ width: 124 }} />
+              </label>
+              <span className="sl-lich-o sl-phu">
+                <span>Bản cuối năm</span>
+                <b>giữ vĩnh viễn</b>
+              </span>
+              <Button type="primary" shape="round" disabled={!daDoi} loading={luu.isPending} onClick={() => luu.mutate()} style={{ marginLeft: 'auto' }}>
+                Lưu lịch
+              </Button>
+            </div>
+          )}
+
+          {/* ===== lịch sử */}
+          <div className="sl-khoi">
+            <div className="sl-khoi-dau">
+              <h3>Lịch sử sao lưu</h3>
+              <Tooltip title={tt.thuMuc}>
+                <span className="sl-phu">{tt.soBan} bản · {dungLuong(tt.tongKichThuoc)}</span>
+              </Tooltip>
+            </div>
+            {data!.danhSach.length === 0 ? (
+              <p className="sl-rong">Chưa có bản nào. Bấm "Sao lưu ngay" để tạo bản đầu tiên.</p>
+            ) : (
+              <div className="sl-cuon">
+                <table className="sl-table">
+                  <colgroup>
+                    <col style={{ width: 260 }} />
+                    <col style={{ width: 170 }} />
+                    <col style={{ width: 110 }} />
+                    <col style={{ width: 110 }} />
+                    <col style={{ width: 80 }} />
+                    <col />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Thời điểm</th>
+                      <th>Nguồn</th>
+                      <th style={{ textAlign: 'right' }}>Kích thước</th>
+                      <th>Kiểm tra</th>
+                      <th>Bản 2</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data!.danhSach.map((b) => (
+                      <tr key={b.tenFile}>
+                        <td>
+                          <b>{ngayGioVN(b.taoLuc)}</b>
+                          <div className="sl-mono sl-phu">{b.tenFile}</div>
+                        </td>
+                        <td>
+                          {b.tenFile.startsWith('truoc-khoi-phuc_') ? (
+                            <Tag color="warning">Trước khôi phục</Tag>
+                          ) : b.nguon === 'TU_DONG' ? (
+                            <Tag>Tự động</Tag>
+                          ) : (
+                            <Tag color="blue">Thủ công</Tag>
+                          )}
+                          {b.nguoiBamTen && <div className="sl-phu">{b.nguoiBamTen}</div>}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>{dungLuong(b.kichThuoc)}</td>
+                        <td>
+                          {b.daKiemTra ? (
+                            <Tooltip title={`pg_restore đọc được · migration ${b.migrationMoiNhat ?? '?'}`}>
+                              <span className="sl-ok"><CheckCircleFilled /> Lành</span>
+                            </Tooltip>
+                          ) : (
+                            <span className="sl-phu">Chưa kiểm</span>
+                          )}
+                        </td>
+                        <td>{b.daChepSangMirror ? <span className="sl-ok"><CheckCircleFilled /></span> : <span className="sl-phu">—</span>}</td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <Button
+                            size="small"
+                            icon={<DownloadOutlined />}
+                            loading={tai.isPending && tai.variables === b.tenFile}
+                            onClick={() => tai.mutate(b.tenFile)}
+                          >
+                            Tải về
+                          </Button>{' '}
+                          <Tooltip title={b.daKiemTra ? 'Ghi đè database đang chạy bằng bản này' : 'Bản chép tay không có .json — khôi phục bằng script trên máy chủ'}>
                             <Button
                               size="small"
-                              icon={<DownloadOutlined />}
-                              loading={tai.isPending && tai.variables === b.tenFile}
-                              onClick={() => tai.mutate(b.tenFile)}
+                              danger
+                              icon={<HistoryOutlined />}
+                              disabled={!b.daKiemTra || tt.dangChay}
+                              onClick={() => {
+                                setGoXacNhan('');
+                                setBanKhoiPhuc(b);
+                              }}
                             >
-                              Tải về
+                              Khôi phục
                             </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* ===== lịch + cách khôi phục */}
-            <div className="sl-cot-phai">
-              <div className="sl-khoi">
-                <div className="sl-khoi-dau">
-                  <h3>Lịch sao lưu</h3>
-                </div>
-                {s && (
-                  <div className="sl-lich">
-                    <div className="sl-lich-dong">
-                      <span>Tự động hằng đêm</span>
-                      <Switch checked={s.tuDongHangDem} onChange={(v) => setS({ ...s, tuDongHangDem: v })} />
-                    </div>
-                    <div className="sl-lich-dong">
-                      <span>Giờ chạy</span>
-                      <Select size="small" style={{ width: 96 }} value={s.gioChay} options={GIO} disabled={!s.tuDongHangDem} onChange={(v) => setS({ ...s, gioChay: v })} />
-                    </div>
-                    <div className="sl-lich-dong">
-                      <span>Giữ bản ngày</span>
-                      <InputNumber size="small" min={3} max={90} value={s.giuBanNgay} onChange={(v) => v !== null && setS({ ...s, giuBanNgay: v })} addonAfter="ngày" style={{ width: 120 }} />
-                    </div>
-                    <div className="sl-lich-dong">
-                      <span>Giữ bản cuối tháng</span>
-                      <InputNumber size="small" min={0} max={120} value={s.giuBanThang} onChange={(v) => v !== null && setS({ ...s, giuBanThang: v })} addonAfter="tháng" style={{ width: 120 }} />
-                    </div>
-                    <div className="sl-lich-dong sl-phu">
-                      <span>Bản cuối năm</span>
-                      <span>giữ vĩnh viễn</span>
-                    </div>
-                    <Button type="primary" shape="round" block disabled={!daDoi} loading={luu.isPending} onClick={() => luu.mutate()}>
-                      Lưu lịch
-                    </Button>
-                  </div>
-                )}
+                          </Tooltip>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              <div className="sl-khoi sl-khoi-toi">
-                <div className="sl-khoi-dau">
-                  <h3><CloudDownloadOutlined /> Khôi phục</h3>
-                </div>
-                <p>
-                  Cố ý <b>không có nút</b> trên giao diện — khôi phục là ghi đè toàn bộ dữ liệu. Chạy trên máy chủ:
-                </p>
-                <pre>./scripts/khoi-phuc.sh &lt;file.dump&gt;{'\n'}./scripts/khoi-phuc.sh &lt;file.dump&gt; --vao kpi_dientap</pre>
-                <p className="sl-phu">Dòng hai khôi phục vào database riêng để diễn tập hoặc xem lại năm cũ, không đụng hệ thống đang chạy. Nên diễn tập mỗi quý.</p>
-              </div>
-            </div>
+            )}
           </div>
         </>
       )}
+
+      <Modal
+        open={banKhoiPhuc !== null}
+        title={
+          <span style={{ color: '#be123c' }}>
+            <WarningFilled /> Khôi phục database từ bản sao lưu
+          </span>
+        }
+        okText="Khôi phục — ghi đè dữ liệu"
+        okButtonProps={{ danger: true, disabled: goXacNhan !== banKhoiPhuc?.tenFile }}
+        cancelText="Huỷ"
+        confirmLoading={khoiPhuc.isPending}
+        onCancel={() => setBanKhoiPhuc(null)}
+        onOk={() => banKhoiPhuc && khoiPhuc.mutate(banKhoiPhuc.tenFile)}
+        destroyOnHidden
+      >
+        {banKhoiPhuc && (
+          <div className="sl-kp">
+            <p>
+              Toàn bộ dữ liệu hiện tại (phiếu, điểm, tài khoản, nhật ký) sẽ bị <b>thay bằng dữ liệu lúc {ngayGioVN(banKhoiPhuc.taoLuc)}</b>.
+              Mọi thứ nhập sau thời điểm đó sẽ mất.
+            </p>
+            <ul>
+              <li>Hệ thống tự lưu bản hiện tại thành <code>truoc-khoi-phuc_…</code> trước khi ghi đè — lỡ nhầm thì khôi phục lại từ bản đó.</li>
+              <li>Mọi người đang đăng nhập có thể phải đăng nhập lại.</li>
+              <li>Bản sao phải cùng phiên bản mã ({banKhoiPhuc.migrationMoiNhat ?? '?'}); khác thì hệ thống từ chối.</li>
+            </ul>
+            <p>
+              Gõ đúng tên file để xác nhận: <code>{banKhoiPhuc.tenFile}</code>
+            </p>
+            <Input value={goXacNhan} onChange={(e) => setGoXacNhan(e.target.value.trim())} placeholder={banKhoiPhuc.tenFile} autoFocus />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -238,6 +239,120 @@ export class BackupService {
     } finally {
       this.dangChay = false;
     }
+  }
+
+  // ----------------------------------------------------------- khôi phục
+
+  /**
+   * KHÔI PHỤC ĐÈ database đang chạy từ một bản trong thư mục (chốt 15/09:
+   * người dùng yêu cầu có nút cho ADMIN, dù đã cảnh báo). Bốn lớp chặn:
+   *  1. `xacNhan` phải gõ ĐÚNG tên file;
+   *  2. bản sao phải có `.json` và migration TRÙNG với mã đang chạy — bản cũ
+   *     hơn mã thì khôi phục xong app lỗi ngay, ca đó dùng script trên máy chủ;
+   *  3. dump bản hiện tại ra `truoc-khoi-phuc_*.dump` trước khi ghi đè — lỡ
+   *     nhầm còn đường lùi (bản này KHÔNG bị dọn tự động vì tên khác khuôn);
+   *  4. khoá cùng cửa với sao lưu — không chạy chồng.
+   * Sau khi đè: nối lại Prisma (bảng đã bị drop/tạo lại), nạp lại cache cài
+   * đặt, rồi mới ghi AuditLog (bảng AuditLog cũng vừa bị thay).
+   */
+  async khoiPhuc(
+    tenFile: string,
+    xacNhan: string,
+    actor: AuthenticatedUser,
+    ipAddress?: string,
+  ): Promise<{ tenFile: string; banTruocKhoiPhuc: string; giayChay: number }> {
+    if (basename(tenFile) !== tenFile || !tenFile.endsWith('.dump')) {
+      throw new NotFoundException('Không tìm thấy bản sao lưu');
+    }
+    if (xacNhan !== tenFile) {
+      throw new BadRequestException('Gõ đúng tên file sao lưu để xác nhận khôi phục');
+    }
+    const duongDan = join(this.thuMuc, tenFile);
+    let thongTin: ThongTinBanSao;
+    try {
+      thongTin = JSON.parse(await readFile(`${duongDan}.json`, 'utf8')) as ThongTinBanSao;
+    } catch {
+      throw new BadRequestException(
+        'Bản này không có file .json kèm theo (chép tay vào?) nên không biết nó thuộc phiên bản mã nào — khôi phục bằng scripts/khoi-phuc.sh trên máy chủ',
+      );
+    }
+    const migrationHienTai = await this.migrationMoiNhat();
+    if (!thongTin.migrationMoiNhat || thongTin.migrationMoiNhat !== migrationHienTai) {
+      throw new BadRequestException(
+        `Bản sao ở migration ${thongTin.migrationMoiNhat ?? '?'}, mã đang chạy ở ${migrationHienTai ?? '?'} — khôi phục xong app sẽ lỗi. Dùng scripts/khoi-phuc.sh rồi chạy prisma migrate deploy`,
+      );
+    }
+    if (this.dangChay) {
+      throw new ConflictException('Đang có sao lưu chạy dở, chờ xong rồi bấm lại');
+    }
+    this.dangChay = true;
+    const batDau = new Date();
+    const banTruoc = tenFileSaoLuu(batDau).replace(/^kpi_/, 'truoc-khoi-phuc_');
+    try {
+      // Lớp 3: đường lùi
+      await this.chayPgDump(join(this.thuMuc, banTruoc));
+      if (!(await this.kiemTraFile(join(this.thuMuc, banTruoc)))) {
+        throw new Error('Không dump được bản hiện tại để lùi — dừng, chưa đụng dữ liệu');
+      }
+      await writeFile(
+        join(this.thuMuc, `${banTruoc}.json`),
+        JSON.stringify(
+          {
+            tenFile: banTruoc,
+            taoLuc: batDau.toISOString(),
+            kichThuoc: (await stat(join(this.thuMuc, banTruoc))).size,
+            nguon: 'THU_CONG',
+            nguoiBamId: actor.id,
+            nguoiBamTen: null,
+            migrationMoiNhat: migrationHienTai,
+            giayChay: 0,
+            daKiemTra: true,
+            daChepSangMirror: false,
+          } satisfies ThongTinBanSao,
+          null,
+          2,
+        ),
+      );
+
+      // Ghi đè. `--clean --if-exists`: xoá bảng cũ rồi tạo lại từ bản sao.
+      await this.chayPgRestore(duongDan);
+
+      // Bảng vừa bị drop/tạo lại: nối lại pool để bỏ plan cũ, nạp lại cache cài đặt
+      await this.prisma.$disconnect();
+      await this.prisma.$connect();
+      await this.settings.napLai();
+
+      const giayChay = Math.round((Date.now() - batDau.getTime()) / 1000);
+      await this.audit.log({
+        actorId: actor.id,
+        entityType: 'Backup',
+        entityId: tenFile,
+        action: 'RESTORE',
+        after: { tenFile, banTruocKhoiPhuc: banTruoc, giayChay },
+        ipAddress,
+      });
+      this.logger.warn(`ĐÃ KHÔI PHỤC database từ ${tenFile} (bản lùi: ${banTruoc}, ${giayChay}s) — người bấm ${actor.id}`);
+      return { tenFile, banTruocKhoiPhuc: banTruoc, giayChay };
+    } catch (error) {
+      const thongDiep = error instanceof Error ? error.message : String(error);
+      this.loiGanNhat = { luc: new Date().toISOString(), thongDiep: `Khôi phục: ${thongDiep}` };
+      this.logger.error(`Khôi phục thất bại: ${thongDiep}`);
+      await this.audit
+        .log({ actorId: actor.id, entityType: 'Backup', entityId: tenFile, action: 'RESTORE_FAILED', after: { tenFile, loi: thongDiep }, ipAddress })
+        .catch(() => undefined);
+      throw new ServiceUnavailableException(`Khôi phục thất bại: ${thongDiep}`);
+    } finally {
+      this.dangChay = false;
+    }
+  }
+
+  private chayPgRestore(duongDan: string): Promise<void> {
+    const { host, port, user, pass, db } = this.db;
+    const chung = ['--clean', '--if-exists', '--no-owner', '--no-privileges', '-U', user, '-d', db];
+    if (this.cheDo === 'docker') {
+      return this.chayLenh('docker', ['exec', '-i', '-e', `PGPASSWORD=${pass}`, this.container, 'pg_restore', ...chung], {}, duongDan);
+    }
+    return this.chayLenh('pg_restore', ['-h', host, '-p', port, ...chung, duongDan], { PGPASSWORD: pass });
   }
 
   /** Xoá bản cũ theo ba bậc (file thuần quyết định), cả ở mirror. Trả tên các file đã xoá. */

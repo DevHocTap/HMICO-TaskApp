@@ -17,3 +17,12 @@ export async function taiBanSaoLuu(tenFile: string): Promise<string> {
   const res = await apiClient.get(`/backups/${encodeURIComponent(tenFile)}/download`, { responseType: 'blob' });
   return luuBlobXuongMay(res, tenFile);
 }
+
+/** Khôi phục ĐÈ database từ một bản — `xacNhan` phải gõ đúng tên file. */
+export async function khoiPhucSaoLuu(tenFile: string): Promise<{ tenFile: string; banTruocKhoiPhuc: string; giayChay: number }> {
+  const { data } = await apiClient.post<{ tenFile: string; banTruocKhoiPhuc: string; giayChay: number }>(
+    `/backups/${encodeURIComponent(tenFile)}/restore`,
+    { xacNhan: tenFile },
+  );
+  return data;
+}

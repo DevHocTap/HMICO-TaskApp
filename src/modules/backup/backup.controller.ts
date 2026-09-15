@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Post, Req, Res, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, Res, StreamableFile } from '@nestjs/common';
+import { IsString } from 'class-validator';
 import type { Response } from 'express';
 import { Role } from '@prisma/client';
 import { BackupService } from './backup.service.js';
@@ -8,6 +9,11 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user.js
 
 interface RequestInfo {
   ip?: string;
+}
+
+class RestoreDto {
+  /** Phải gõ đúng tên file — xác nhận có chủ ý, không phải bấm OK cho qua. */
+  @IsString() xacNhan!: string;
 }
 
 /** Chỉ ADMIN: file sao lưu chứa hash mật khẩu và điểm của mọi người. */
@@ -25,6 +31,17 @@ export class BackupController {
   @Post()
   run(@CurrentUser() user: AuthenticatedUser, @Req() req: RequestInfo) {
     return this.backup.saoLuu('THU_CONG', user, req.ip);
+  }
+
+  /** Khôi phục ĐÈ database đang chạy — xem điều kiện ở `BackupService.khoiPhuc`. */
+  @Post(':tenFile/restore')
+  restore(
+    @Param('tenFile') tenFile: string,
+    @Body() dto: RestoreDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestInfo,
+  ) {
+    return this.backup.khoiPhuc(tenFile, dto.xacNhan, user, req.ip);
   }
 
   @Get(':tenFile/download')

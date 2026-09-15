@@ -162,6 +162,46 @@ SO_KP_U=$(docker exec kpi-postgres psql -U kpi_dev -d kpi_kiemchung_saoluu -t -A
 [ "$SO_KP_U" = "$(sql "SELECT count(*) FROM \"User\";")" ] && pass "tài khoản khôi phục đủ, hash argon2 nguyên vẹn" || fail "user: $SO_KP_U"
 [ "$(sql "SELECT count(*) FROM \"Scorecard\";")" = "$SO_GOC" ] && pass "database đang chạy KHÔNG bị đụng" || fail "database gốc thay đổi!"
 
+# ================================================= 8 KHÔI PHỤC QUA API
+buoc "8  KHÔI PHỤC QUA API (POST /backups/:file/restore) — bốn lớp chặn rồi khôi phục thật"
+# Tạo một bản mới ngay bây giờ để khôi phục lại chính nó: dữ liệu người dùng
+# không đổi, chỉ mất đúng các dòng AuditLog script vừa ghi trong vài giây.
+TEN2=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" "$API/backups" | jq_ "d['tenFile']")
+MA=$(ma -X POST -H "Authorization: Bearer $AT_HR" -H 'Content-Type: application/json' -d "{\"xacNhan\":\"$TEN2\"}" "$API/backups/$TEN2/restore")
+[ "$MA" = "403" ] && pass "HR khôi phục -> 403" || fail "HR khôi phục -> $MA"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' -d '{"xacNhan":"sai-ten"}' "$API/backups/$TEN2/restore")
+[ "$MA" = "400" ] && pass "gõ sai tên file -> 400" || fail "sai tên -> $MA"
+# Bản chép tay không .json → 400 (không biết migration)
+cp "$DIR/$TEN2" "$DIR/kpi_2026-01-01_010101.dump"
+MA=$(ma -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' -d '{"xacNhan":"kpi_2026-01-01_010101.dump"}' "$API/backups/kpi_2026-01-01_010101.dump/restore")
+[ "$MA" = "400" ] && pass "bản không có .json -> 400" || fail "không .json -> $MA"
+# .json ghi migration cũ hơn → 400
+cp "$DIR/$TEN2.json" "$DIR/kpi_2026-01-01_010101.dump.json"
+python3 - "$DIR/kpi_2026-01-01_010101.dump.json" <<'PY'
+import json,sys
+p=sys.argv[1]; d=json.load(open(p)); d['migrationMoiNhat']='20250101000000_cu'; json.dump(d,open(p,'w'))
+PY
+R=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' -d '{"xacNhan":"kpi_2026-01-01_010101.dump"}' "$API/backups/kpi_2026-01-01_010101.dump/restore" -w '\n%{http_code}')
+[ "$(echo "$R" | tail -1)" = "400" ] && echo "$R" | grep -q "migrate deploy" && pass "bản lệch migration -> 400, chỉ sang script" || fail "lệch migration: $(echo "$R" | tail -2 | head -c 200)"
+rm -f "$DIR/kpi_2026-01-01_010101.dump" "$DIR/kpi_2026-01-01_010101.dump.json"
+
+# Khôi phục thật: ghi một dòng "dấu vết" vào AuditLog rồi khôi phục → dấu vết phải biến mất
+SO_PHIEU_TRUOC=$(sql "SELECT count(*) FROM \"Scorecard\";")
+sql "INSERT INTO \"AuditLog\" (id, \"actorId\", \"entityType\", \"entityId\", action, \"createdAt\") VALUES (gen_random_uuid()::text, NULL, 'ZTEST', 'dau-vet-sau-sao-luu', 'ZTEST', now());" >/dev/null
+[ "$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='ZTEST';")" = "1" ] && pass "đã cắm dấu vết sau thời điểm sao lưu" || fail "không cắm được dấu vết"
+R=$(curl -s -X POST -H "Authorization: Bearer $AT_ADMIN" -H 'Content-Type: application/json' -d "{\"xacNhan\":\"$TEN2\"}" "$API/backups/$TEN2/restore" -w '\n%{http_code}')
+MA=$(echo "$R" | tail -1); THAN=$(echo "$R" | sed '$d')
+[ "$MA" = "201" ] && pass "khôi phục thật -> 201 ($(echo "$THAN" | jq_ "d['giayChay']")s)" || fail "khôi phục -> $MA: ${THAN:0:200}"
+LUI=$(echo "$THAN" | jq_ "d['banTruocKhoiPhuc']")
+[ -s "$DIR/$LUI" ] && [ -s "$DIR/$LUI.json" ] && pass "có bản lùi $LUI (+ .json)" || fail "thiếu bản lùi $LUI"
+[ "$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='ZTEST';")" = "0" ] && pass "dấu vết cắm sau sao lưu ĐÃ MẤT → dữ liệu đúng là của bản sao" || fail "dấu vết vẫn còn — chưa khôi phục thật"
+[ "$(sql "SELECT count(*) FROM \"Scorecard\";")" = "$SO_PHIEU_TRUOC" ] && pass "số phiếu giữ nguyên ($SO_PHIEU_TRUOC)" || fail "số phiếu đổi"
+[ "$(sql "SELECT count(*) FROM \"AuditLog\" WHERE \"entityType\"='Backup' AND action='RESTORE' AND \"entityId\"='$TEN2';")" = "1" ] && pass "AuditLog Backup/RESTORE ghi SAU khi khôi phục" || fail "thiếu RESTORE log"
+# API vẫn sống sau khi bảng bị drop/tạo lại (Prisma nối lại)
+MA=$(ma -H "Authorization: Bearer $AT_ADMIN" "$API/users?limit=1"); [ "$MA" = "200" ] && pass "API vẫn truy vấn được sau khôi phục" || fail "API sau khôi phục -> $MA"
+MA=$(ma -H "Authorization: Bearer $AT_ADMIN" "$API/settings"); [ "$MA" = "200" ] && pass "cài đặt đọc lại được" || fail "settings -> $MA"
+ls "$DIR" | grep -q "^truoc-khoi-phuc_" && pass "bản lùi không bị dọn (tên ngoài khuôn kpi_*)" || fail "bản lùi bị dọn"
+
 # ================================================= TỔNG KẾT
 buoc "TỔNG KẾT"
 echo "  PASS: $SO_PASS    FAIL: $SO_FAIL"

@@ -165,7 +165,8 @@ export class SettingsService implements OnModuleInit {
     return cacKy.map((k) => k.code).sort();
   }
 
-  private async napLai(): Promise<void> {
+  /** Công khai từ 15/09: sau khi khôi phục database, cache trong bộ nhớ phải đọc lại. */
+  async napLai(): Promise<void> {
     const dong = await this.prisma.systemSetting.findMany();
     const moi = { ...CAI_DAT_MAC_DINH };
     for (const k of CAC_NHOM_CAI_DAT) {

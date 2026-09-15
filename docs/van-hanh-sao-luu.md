@@ -19,7 +19,26 @@
 Nguồn sự thật là **thư mục file**, không có bảng lịch sử trong database —
 database hỏng thì bảng cũng hỏng theo, file thì vẫn còn.
 
-## Khôi phục — CỐ Ý không có trên giao diện
+## Khôi phục
+
+**Hai đường, cùng một cơ chế** (`pg_restore --clean --if-exists`), đều tự
+dump bản hiện tại ra `truoc-khoi-phuc_<giờ>.dump` trước khi ghi đè — lỡ
+nhầm thì khôi phục lại từ bản đó. Bản lùi này KHÔNG bị dọn tự động (tên
+ngoài khuôn `kpi_*`), ADMIN xoá tay khi không cần.
+
+**1. Trên giao diện (ADMIN, chốt 15/09 theo yêu cầu người dùng):** nút
+"Khôi phục" trên từng dòng ở trang Sao lưu. Bốn lớp chặn:
+- phải **gõ đúng tên file** để bật nút xác nhận;
+- bản sao phải có `.json` và **cùng migration** với mã đang chạy — khác thì
+  từ chối (khôi phục xong app sẽ lỗi), chỉ sang script;
+- dump bản lùi trước, dump hỏng thì dừng, chưa đụng dữ liệu;
+- không chạy chồng với sao lưu.
+Sau khi đè, API tự nối lại Prisma và nạp lại cache cài đặt; AuditLog
+`Backup/RESTORE` ghi **sau** khi đè (bảng AuditLog cũng vừa bị thay). Mọi
+người có thể phải đăng nhập lại (bảng RefreshToken quay về bản sao).
+
+**2. Script trên máy chủ** — cho ca giao diện từ chối (bản cũ hơn mã, file
+chép tay không `.json`), hoặc khi API không lên được:
 
 ```bash
 # Xem lại / diễn tập: vào database RIÊNG, hệ thống đang chạy không bị đụng
@@ -34,12 +53,9 @@ npx prisma migrate deploy          # nếu bản sao cũ hơn mã đang chạy (
 systemctl start kpi-api
 ```
 
-Script tự dump bản hiện tại ra `truoc-khoi-phuc_<giờ>.dump` trước khi ghi
-đè — lỡ khôi phục nhầm thì khôi phục lại từ file đó.
-
-**Diễn tập mỗi quý** bằng lệnh `--vao`: bản sao chưa từng khôi phục thử thì
-chưa phải bản sao. `scripts/kiem-chung-sao-luu.sh` làm đúng việc này tự
-động (41 kiểm, gồm một lượt khôi phục thật vào DB riêng).
+**Diễn tập mỗi quý** bằng `--vao`: bản sao chưa từng khôi phục thử thì chưa
+phải bản sao. `scripts/kiem-chung-sao-luu.sh` làm tự động (54 kiểm, gồm
+khôi phục thật cả bằng script vào DB riêng lẫn bằng API vào DB đang chạy).
 
 ## Xem lại dữ liệu năm cũ
 

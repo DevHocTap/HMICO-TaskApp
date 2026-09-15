@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 79 + 76 + 82 + 159 + 104 + 76 + 42 + 41 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 79 + 76 + 82 + 159 + 104 + 76 + 42 + 54 kiểm tra curl.**
 
 ## Đang làm
 
@@ -660,10 +660,13 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   BACKUP_DOCKER_CONTAINER`. Chỉ ADMIN (`coTheSaoLuu`). Màn `/admin/backups`
   (tab Sao lưu trong Cài đặt hệ thống): 4 thẻ trạng thái, lịch sử + Tải về,
   lịch, khung "Khôi phục" chỉ hướng dẫn. Tổng quan ADMIN báo đỏ > 36 giờ
-  chưa có bản. **Khôi phục cố ý KHÔNG có trên giao diện:**
-  `scripts/khoi-phuc.sh <file> [--vao <db>]`, đòi biến đồng ý, tự dump bản
-  hiện tại trước khi ghi đè. `scripts/kiem-chung-sao-luu.sh` **41** (gồm
-  khôi phục thật vào DB riêng). Xem `docs/van-hanh-sao-luu.md`.
+  chưa có bản. **Khôi phục:** nút trên giao diện cho ADMIN (người dùng yêu
+  cầu 15/09 sau khi tôi khuyên không) — `POST /backups/:file/restore`, gõ
+  đúng tên file, bản phải cùng migration với mã, tự dump bản lùi
+  `truoc-khoi-phuc_*` trước, nối lại Prisma + nạp lại cache sau; và
+  `scripts/khoi-phuc.sh <file> [--vao <db>]` cho ca giao diện từ chối.
+  `scripts/kiem-chung-sao-luu.sh` **54** (khôi phục thật cả hai đường). Xem
+  `docs/van-hanh-sao-luu.md`.
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.

@@ -232,6 +232,10 @@ export function moTaBanGhi(r: BanGhiDeMoTa, tra: BangTra): string {
           return `Sao lưu THẤT BẠI ${r.entityId}${chuoi(sau.loi) ? ` — ${chuoi(sau.loi)}` : ''}`;
         case 'DOWNLOAD':
           return `Tải bản sao lưu ${r.entityId}${mb} về máy`;
+        case 'RESTORE':
+          return `KHÔI PHỤC database từ ${r.entityId}${chuoi(sau.banTruocKhoiPhuc) ? ` (bản lùi: ${chuoi(sau.banTruocKhoiPhuc)})` : ''}`;
+        case 'RESTORE_FAILED':
+          return `Khôi phục THẤT BẠI từ ${r.entityId}${chuoi(sau.loi) ? ` — ${chuoi(sau.loi)}` : ''}`;
         default:
           return `${r.action} sao lưu ${r.entityId}`;
       }
