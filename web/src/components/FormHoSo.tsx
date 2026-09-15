@@ -8,7 +8,6 @@ interface GiaTriForm {
   address?: string;
   dateOfBirth?: Dayjs | null;
   gender?: GioiTinh | null;
-  emergencyContact?: string;
   hireDate?: Dayjs | null;
   terminationDate?: Dayjs | null;
   nationalId?: string;
@@ -47,7 +46,6 @@ export function FormHoSo({ hoSo, cheDoHr, dangLuu, onLuu, nutPhu }: Props) {
       address: chuoi(v.address),
       dateOfBirth: ngay(v.dateOfBirth),
       gender: v.gender ?? null,
-      emergencyContact: chuoi(v.emergencyContact),
     };
     onLuu(
       cheDoHr
@@ -73,7 +71,6 @@ export function FormHoSo({ hoSo, cheDoHr, dangLuu, onLuu, nutPhu }: Props) {
         address: hoSo.address ?? '',
         dateOfBirth: dayjsHoac(hoSo.dateOfBirth),
         gender: hoSo.gender,
-        emergencyContact: hoSo.emergencyContact ?? '',
         hireDate: dayjsHoac(hoSo.hireDate),
         terminationDate: dayjsHoac(hoSo.terminationDate),
         nationalId: hoSo.nationalId ?? '',
@@ -111,9 +108,6 @@ export function FormHoSo({ hoSo, cheDoHr, dangLuu, onLuu, nutPhu }: Props) {
         </Form.Item>
         <Form.Item name="address" label="Địa chỉ liên hệ" className="hs-rong">
           <Input placeholder="Số nhà, đường, phường, quận, tỉnh/thành" maxLength={300} />
-        </Form.Item>
-        <Form.Item name="emergencyContact" label="Liên hệ khẩn cấp" className="hs-rong">
-          <Input maxLength={200} placeholder="Tên — quan hệ — số điện thoại" />
         </Form.Item>
       </div>
 

@@ -1663,7 +1663,7 @@ th, .tq-nut, .tq-nut-nho, .tq-tag, .tq-huy-hieu, .tq-vien, .tq-chip, .tq-gd-pill
 .qn-nut, .qn-nut-nho, .qn-chip, .qn-pill, .qn-tk, .qn-huy-hieu, .cd-quay-lai, .cd-tag, .sidebar-thuong-hieu { user-select: none; }
 
 /* ---------- Thông tin cá nhân (14/09) ---------- */
-.hs-luoi-trang { display: grid; grid-template-columns: minmax(280px, 5fr) minmax(320px, 7fr); gap: 20px; align-items: start; }
+.hs-luoi-trang { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; }
 @media (max-width: 900px) { .hs-luoi-trang { grid-template-columns: 1fr; } }
 .hs-the { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; }
 .hs-the-tieu-de { margin: 0 0 16px; font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
