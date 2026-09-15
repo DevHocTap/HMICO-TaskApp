@@ -661,6 +661,21 @@
   align-items: flex-start;
   gap: 12px;
 }
+/* Ghi chú "Sửa lần cuối / Đang dùng mặc định" ghim đáy thẻ để 4 thẻ đều nhau (15/09) */
+.cai-dat-cong-tac-chan {
+  margin-top: auto;
+  padding-top: 12px;
+}
+/* Ba thẻ hàng trên: thân thẻ kéo giãn để thanh / bảng bên trong căn theo đáy */
+.cai-dat-luoi > .ant-card { display: flex; flex-direction: column; }
+.cai-dat-luoi > .ant-card > .ant-card-body { flex: 1; display: flex; flex-direction: column; }
+.cai-dat-luoi .giai-doan-luoi { align-items: stretch; flex: 1; }
+.cai-dat-the-chan { margin-top: auto; padding-top: 14px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #64748b; }
+.cai-dat-the-chan:empty { display: none; }
+.cai-dat-nguong-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cai-dat-nguong-3 .cai-dat-o-so { width: 100%; }
+.cai-dat-nguong-3 small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trong-so-hai-muc { margin-top: 4px; }
 
 .dong-bam-duoc {
   cursor: pointer;

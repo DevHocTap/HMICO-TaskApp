@@ -149,14 +149,8 @@ export function SettingsPage() {
           title={
             <span className="ten-va-phu">
               <span>Trọng số hai mục của phiếu KPI</span>
-              <small>
-                Mẫu chức danh phải đủ Mục 1, mẫu hệ thống phải đủ Mục 2. Áp cho
-                lần xuất bản mẫu và gửi ký phiếu SAU khi đổi; phiếu đã ký giữ
-                nguyên.
-              </small>
             </span>
           }
-          extra={ghiChuNhom('trongSo')}
         >
           <div className="giai-doan-luoi">
             {[
@@ -204,48 +198,35 @@ export function SettingsPage() {
             <span style={{ width: `${t.bscWork}%` }} />
             <span style={{ width: `${t.compliance}%` }} />
           </div>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Hai mục luôn cộng đủ 100 — sửa một ô, ô kia tự bù. Mặc định 70/30
-            theo biểu mẫu BM.01.
-          </Typography.Text>
+          <div className="cai-dat-the-chan">{ghiChuNhom('trongSo')}</div>
         </Card>
 
         <Card
           title={
             <span className="ten-va-phu">
               <span>Lịch kỳ đánh giá</span>
-              <small>
-                Lưu là áp ngay cho kỳ tháng đang mở (từ tháng này trở đi, chưa
-                khoá sổ) và mọi kỳ sinh sau. Kỳ quá khứ và kỳ đã khoá giữ
-                nguyên.
-              </small>
             </span>
           }
-          extra={ghiChuNhom('lichKy')}
         >
           <div className="giai-doan-luoi">
             {[
               {
                 ten: 'Nhân viên tự chấm',
-                phu: 'Cửa tự chấm đóng cuối ngày này — giai đoạn 1',
                 v: l.ngayTuCham,
                 set: (v: number) => dat('lichKy', { ngayTuCham: v }),
               },
               {
                 ten: 'Trưởng bộ phận chấm',
-                phu: 'Chốt điểm cho nhân viên — giai đoạn 2',
                 v: l.ngayTruongCham,
                 set: (v: number) => dat('lichKy', { ngayTruongCham: v }),
               },
               {
                 ten: 'Gửi hành chính bản cuối',
-                phu: 'Hành chính tiếp nhận và chốt sổ — giai đoạn 3',
                 v: l.ngayGuiHcns,
                 set: (v: number) => dat('lichKy', { ngayGuiHcns: v }),
               },
               {
                 ten: 'Giao KPI tháng sau',
-                phu: 'Trưởng bộ phận lên chỉ tiêu cho tháng kế tiếp',
                 v: l.ngayLenKpiThangSau,
                 set: (v: number) => dat('lichKy', { ngayLenKpiThangSau: v }),
               },
@@ -257,28 +238,18 @@ export function SettingsPage() {
                 </div>
                 <div className="giai-doan-the-ten">Ngày {d.v} hằng tháng</div>
                 <Typography.Text strong>{d.ten}</Typography.Text>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {d.phu}
-                </Typography.Text>
               </div>
             ))}
           </div>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Ngày lớn hơn số ngày của tháng (29–31) tự lùi về ngày cuối tháng.
-          </Typography.Text>
+          <div className="cai-dat-the-chan">{ghiChuNhom('lichKy')}</div>
         </Card>
 
         <Card
           title={
             <span className="ten-va-phu">
               <span>Quy tắc chấm điểm</span>
-              <small>
-                Ngưỡng xếp loại, tính trên cột trưởng bộ phận. Chỉ áp cho lần
-                chốt SAU khi đổi.
-              </small>
             </span>
           }
-          extra={ghiChuNhom('nguongXepLoai')}
         >
           <table className="bang-xep-loai">
             <thead>
@@ -339,7 +310,7 @@ export function SettingsPage() {
               ))}
             </tbody>
           </table>
-          <div className="cai-dat-nguong">
+          <div className="cai-dat-nguong cai-dat-nguong-3">
             {[
               {
                 ten: 'Từ (cần cải thiện)',
@@ -372,18 +343,11 @@ export function SettingsPage() {
               </label>
             ))}
           </div>
+          <div className="cai-dat-the-chan">{ghiChuNhom('nguongXepLoai')}</div>
         </Card>
       </div>
 
-      <Card
-        title="Bảo mật & tài khoản"
-        style={{ marginTop: 20 }}
-        extra={
-          <span style={{ display: 'flex', gap: 16 }}>
-            {ghiChuNhom('baoMat')}
-          </span>
-        }
-      >
+      <Card title="Bảo mật & tài khoản" style={{ marginTop: 20 }}>
         <div className="cai-dat-cong-tac-luoi">
           <div className="cai-dat-cong-tac">
             <div className="cai-dat-cong-tac-dau">
@@ -397,6 +361,7 @@ export function SettingsPage() {
               />
             </div>
             <small>Mật khẩu tạm chỉ dùng được một lần</small>
+            <div className="cai-dat-cong-tac-chan">{ghiChuNhom('baoMat')}</div>
           </div>
 
           <div className="cai-dat-cong-tac">
@@ -441,6 +406,7 @@ export function SettingsPage() {
                 />
               </label>
             </div>
+            <div className="cai-dat-cong-tac-chan">{ghiChuNhom('baoMat')}</div>
           </div>
 
           <div className="cai-dat-cong-tac">
@@ -458,13 +424,13 @@ export function SettingsPage() {
               Chạy 01:00 mỗi ngày và lúc khởi động; tắt thì HCNS tạo kỳ tay
             </small>
             {suaDuoc && (
-              <div style={{ marginTop: 10 }}>
+              <div className="cai-dat-nguong" style={{ marginTop: 10 }}>
                 <Button shape="round" onClick={() => setMoTaoKy(true)}>
                   Tạo kỳ thủ công
                 </Button>
               </div>
             )}
-            <div style={{ marginTop: 8 }}>{ghiChuNhom('kyDanhGia')}</div>
+            <div className="cai-dat-cong-tac-chan">{ghiChuNhom('kyDanhGia')}</div>
           </div>
 
           <div className="cai-dat-cong-tac">
@@ -485,7 +451,7 @@ export function SettingsPage() {
               phiếu đã tiếp nhận. Vẫn qua bước trả lại, có ghi lịch sử; kỳ đã
               khoá sổ không đụng được.
             </small>
-            <div style={{ marginTop: 8 }}>{ghiChuNhom('chamDiem')}</div>
+            <div className="cai-dat-cong-tac-chan">{ghiChuNhom('chamDiem')}</div>
           </div>
         </div>
       </Card>
