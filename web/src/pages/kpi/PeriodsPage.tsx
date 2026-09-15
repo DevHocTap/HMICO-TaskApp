@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { TieuDeTrang } from '../../components/TieuDeTrang';
 import { ThanhTab } from '../../components/ThanhTab';
 import {
-  Alert,
   App,
   Button,
   Card,
@@ -208,20 +207,6 @@ export function PeriodsPage() {
               Tạo kỳ thủ công
             </Button>
           )
-        }
-      />
-
-      <Alert
-        type="info"
-        showIcon
-        message="Kỳ tháng được tạo tự động"
-        description={
-          <>
-            Hệ thống tự sinh kỳ của tháng này và tháng kế tiếp, kèm bốn mốc 25 /
-            25 / 29 / 30. <b>Không bù ngược quá khứ</b> — cần kỳ cũ thì tạo thủ
-            công. Chỉ kỳ THÁNG chốt sổ được: điểm quý là trung bình cộng ba
-            tháng, và khoá kỳ cha không khoá kỳ con.
-          </>
         }
       />
 
