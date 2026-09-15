@@ -70,6 +70,19 @@ export interface TrongSoHaiMuc {
   compliance: number;
 }
 
+/**
+ * Sao lưu database — chốt 15/09/2026. Bản ngày giữ N bản gần nhất, bản
+ * CUỐI THÁNG giữ M bản, bản CUỐI NĂM giữ vĩnh viễn (không có ô cài đặt).
+ * Thư mục và cách gọi pg_dump là biến môi trường (`BACKUP_*`), không ở đây.
+ */
+export interface CaiDatSaoLuu {
+  tuDongHangDem: boolean;
+  /** Giờ chạy theo giờ Việt Nam, 0–23. */
+  gioChay: number;
+  giuBanNgay: number;
+  giuBanThang: number;
+}
+
 export interface CaiDatHeThong {
   trongSo: TrongSoHaiMuc;
   lichKy: MocLichKy;
@@ -77,6 +90,7 @@ export interface CaiDatHeThong {
   baoMat: CaiDatBaoMat;
   kyDanhGia: CaiDatKyDanhGia;
   chamDiem: CaiDatChamDiem;
+  saoLuu: CaiDatSaoLuu;
 }
 
 export type NhomCaiDat = keyof CaiDatHeThong;
@@ -93,6 +107,7 @@ export const CAI_DAT_MAC_DINH: CaiDatHeThong = {
   },
   kyDanhGia: { tuSinhHangThang: true },
   chamDiem: { choPhepTraLaiPhieuDaChot: false },
+  saoLuu: { tuDongHangDem: true, gioChay: 2, giuBanNgay: 14, giuBanThang: 12 },
 };
 
 export const CAC_NHOM_CAI_DAT = Object.keys(CAI_DAT_MAC_DINH) as NhomCaiDat[];
@@ -104,7 +119,7 @@ export const CAC_NHOM_CAI_DAT = Object.keys(CAI_DAT_MAC_DINH) as NhomCaiDat[];
  */
 export function kiemTraCaiDat(caiDat: CaiDatHeThong): string[] {
   const loi: string[] = [];
-  const { lichKy: l, nguongXepLoai: n, baoMat: b, trongSo: t } = caiDat;
+  const { lichKy: l, nguongXepLoai: n, baoMat: b, trongSo: t, saoLuu: s } = caiDat;
 
   for (const [ten, v] of [
     ['Trọng số mục BSC công việc', t.bscWork],
@@ -146,6 +161,16 @@ export function kiemTraCaiDat(caiDat: CaiDatHeThong): string[] {
   }
   if (!Number.isInteger(b.phutKhoaTam) || b.phutKhoaTam < 1 || b.phutKhoaTam > 1440) {
     loi.push('Thời gian khoá tạm phải từ 1 đến 1440 phút');
+  }
+
+  if (!Number.isInteger(s.gioChay) || s.gioChay < 0 || s.gioChay > 23) {
+    loi.push('Giờ sao lưu phải từ 0 đến 23');
+  }
+  if (!Number.isInteger(s.giuBanNgay) || s.giuBanNgay < 3 || s.giuBanNgay > 90) {
+    loi.push('Số bản sao lưu ngày giữ lại phải từ 3 đến 90');
+  }
+  if (!Number.isInteger(s.giuBanThang) || s.giuBanThang < 0 || s.giuBanThang > 120) {
+    loi.push('Số bản sao lưu cuối tháng giữ lại phải từ 0 đến 120');
   }
   return loi;
 }

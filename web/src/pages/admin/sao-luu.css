@@ -1,0 +1,35 @@
+/* Sao lưu database (15/09) */
+.sl-the-luoi { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+@media (max-width: 1100px) { .sl-the-luoi { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .sl-the-luoi { grid-template-columns: 1fr; } }
+.sl-the { background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid #cbd5e1; border-radius: 12px; padding: 16px 18px; }
+.sl-the-xanh-la { border-left-color: #10b981; }
+.sl-the-do { border-left-color: #e11d48; background: #fff7f7; }
+.sl-the-vang { border-left-color: #f59e0b; background: #fffbeb; }
+.sl-nhan { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #64748b; }
+.sl-so { margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; }
+.sl-phu { font-size: 12px; color: #64748b; margin: 4px 0 0; }
+.sl-the-do .sl-phu { color: #be123c; font-weight: 600; }
+.sl-the-xanh-la .sl-phu .anticon { color: #10b981; }
+.sl-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; word-break: break-all; }
+.sl-loi { margin-bottom: 16px; padding: 10px 14px; border-radius: 10px; background: #fff1f2; border: 1px solid #fecdd3; color: #9f1239; font-size: 13px; }
+.sl-loi .anticon { margin-right: 6px; }
+.sl-2 { display: grid; grid-template-columns: minmax(0, 8fr) minmax(280px, 4fr); gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .sl-2 { grid-template-columns: 1fr; } }
+.sl-cot-phai { display: flex; flex-direction: column; gap: 16px; }
+.sl-khoi { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; }
+.sl-khoi-dau { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.sl-khoi-dau h3 { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+.sl-rong { color: #64748b; font-size: 13px; margin: 0; }
+.sl-cuon { overflow-x: auto; }
+.sl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sl-table th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #64748b; padding: 8px 10px; border-bottom: 1px solid #cbd5e1; background: #f8fafc; }
+.sl-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+.sl-ok { color: #059669; font-weight: 600; font-size: 12px; }
+.sl-lich { display: flex; flex-direction: column; gap: 10px; }
+.sl-lich-dong { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: #334155; }
+.sl-khoi-toi { background: #0f172a; color: #e2e8f0; border-color: #0f172a; }
+.sl-khoi-toi h3 { color: #fff; }
+.sl-khoi-toi p { margin: 0 0 8px; font-size: 13px; }
+.sl-khoi-toi .sl-phu { color: #94a3b8; }
+.sl-khoi-toi pre { margin: 8px 0; padding: 10px 12px; border-radius: 8px; background: #1e293b; color: #a5f3fc; font-size: 12px; overflow-x: auto; }

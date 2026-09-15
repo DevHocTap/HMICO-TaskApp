@@ -6,6 +6,7 @@ import { AdminLayout } from './components/AdminLayout';
 import { LoginPage } from './pages/LoginPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { HoSoPage } from './pages/HoSoPage';
+import { BackupsPage } from './pages/admin/BackupsPage';
 import { HomePage } from './pages/HomePage';
 import { MyScorecardsPage } from './pages/kpi/MyScorecardsPage';
 import { AssignKpiPage } from './pages/kpi/AssignKpiPage';
@@ -26,6 +27,7 @@ import {
   coTheXemMau,
   coTheXemNhanVien,
   coTheXemCaiDat,
+  coTheSaoLuu,
   coTheXemNhatKy,
   coTheXemToChuc,
 } from './auth/permissions';
@@ -71,6 +73,10 @@ export function App() {
           {/* Nhật ký thao tác — chỉ quản trị và ban giám đốc. */}
           <Route element={<RoleRoute duocPhep={coTheXemNhatKy} />}>
             <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
+          </Route>
+
+          <Route element={<RoleRoute duocPhep={coTheSaoLuu} />}>
+            <Route path="/admin/backups" element={<BackupsPage />} />
           </Route>
 
           {/* Cài đặt hệ thống — quản trị, HCNS, ban giám đốc xem; ADMIN/HR sửa. */}

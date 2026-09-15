@@ -47,6 +47,13 @@ export class ChamDiemDto {
   @IsBoolean() choPhepTraLaiPhieuDaChot!: boolean;
 }
 
+export class SaoLuuDto {
+  @IsBoolean() tuDongHangDem!: boolean;
+  @IsInt() @Min(0) @Max(23) gioChay!: number;
+  @IsInt() @Min(3) @Max(90) giuBanNgay!: number;
+  @IsInt() @Min(0) @Max(120) giuBanThang!: number;
+}
+
 export class UpdateSettingsDto {
   @IsOptional() @ValidateNested() @Type(() => TrongSoDto) trongSo?: TrongSoDto;
   @IsOptional() @ValidateNested() @Type(() => LichKyDto) lichKy?: LichKyDto;
@@ -54,4 +61,5 @@ export class UpdateSettingsDto {
   @IsOptional() @ValidateNested() @Type(() => BaoMatDto) baoMat?: BaoMatDto;
   @IsOptional() @ValidateNested() @Type(() => KyDanhGiaDto) kyDanhGia?: KyDanhGiaDto;
   @IsOptional() @ValidateNested() @Type(() => ChamDiemDto) chamDiem?: ChamDiemDto;
+  @IsOptional() @ValidateNested() @Type(() => SaoLuuDto) saoLuu?: SaoLuuDto;
 }

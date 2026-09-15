@@ -17,6 +17,16 @@ export interface AppEnv {
    * Sau một nginx thì đặt 1 — xem `src/main.ts`.
    */
   TRUST_PROXY: number;
+  /** Thư mục chứa bản sao lưu database (pg_dump). */
+  BACKUP_DIR: string;
+  /** Thư mục thứ hai để chép thêm một bản (ổ ngoài / NAS gắn vào máy); rỗng = không chép. */
+  BACKUP_MIRROR_DIR: string;
+  /**
+   * `local`: gọi `pg_dump` cài trên máy chạy API (image production).
+   * `docker`: gọi `docker exec <container> pg_dump` — máy dev, PostgreSQL trong Docker.
+   */
+  BACKUP_MODE: 'local' | 'docker';
+  BACKUP_DOCKER_CONTAINER: string;
 }
 
 const MIN_SECRET_LENGTH = 32;
@@ -58,6 +68,11 @@ export function validateEnv(raw: Record<string, unknown>): AppEnv {
     loi.push('TRUST_PROXY phải là số nguyên không âm (0 = không có proxy phía trước)');
   }
 
+  const backupMode = String(raw.BACKUP_MODE ?? 'local');
+  if (backupMode !== 'local' && backupMode !== 'docker') {
+    loi.push("BACKUP_MODE phải là 'local' hoặc 'docker'");
+  }
+
   const port = Number(raw.PORT ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     loi.push('PORT phải là số cổng hợp lệ');
@@ -79,5 +94,9 @@ export function validateEnv(raw: Record<string, unknown>): AppEnv {
     PORT: port,
     CORS_ORIGINS: corsOrigins,
     TRUST_PROXY: trustProxy,
+    BACKUP_DIR: String(raw.BACKUP_DIR ?? './backups'),
+    BACKUP_MIRROR_DIR: String(raw.BACKUP_MIRROR_DIR ?? ''),
+    BACKUP_MODE: backupMode as 'local' | 'docker',
+    BACKUP_DOCKER_CONTAINER: String(raw.BACKUP_DOCKER_CONTAINER ?? 'kpi-postgres'),
   };
 }

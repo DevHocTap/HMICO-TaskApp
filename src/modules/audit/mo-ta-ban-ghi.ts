@@ -36,6 +36,7 @@ export const NHAN_DOI_TUONG: Record<string, string> = {
   Period: 'Kỳ đánh giá',
   Report: 'Báo cáo',
   Setting: 'Cài đặt',
+  Backup: 'Sao lưu',
 };
 
 const NHAN_NHOM_CAI_DAT: Record<string, string> = {
@@ -45,6 +46,7 @@ const NHAN_NHOM_CAI_DAT: Record<string, string> = {
   baoMat: 'bảo mật & tài khoản',
   kyDanhGia: 'tự sinh kỳ đánh giá',
   chamDiem: 'trả lại phiếu đã chốt',
+  saoLuu: 'sao lưu database',
 };
 
 const NHAN_XEP_LOAI: Record<string, string> = {
@@ -218,6 +220,22 @@ export function moTaBanGhi(r: BanGhiDeMoTa, tra: BangTra): string {
 
     case 'Setting':
       return `Cập nhật cài đặt: ${NHAN_NHOM_CAI_DAT[r.entityId] ?? r.entityId}`;
+
+    case 'Backup': {
+      const mb = typeof sau.kichThuoc === 'number' ? ` (${(sau.kichThuoc / 1_048_576).toFixed(1)} MB)` : '';
+      switch (r.action) {
+        case 'BACKUP':
+          return `Sao lưu thủ công ${r.entityId}${mb}`;
+        case 'AUTO_BACKUP':
+          return `Sao lưu tự động ${r.entityId}${mb}`;
+        case 'BACKUP_FAILED':
+          return `Sao lưu THẤT BẠI ${r.entityId}${chuoi(sau.loi) ? ` — ${chuoi(sau.loi)}` : ''}`;
+        case 'DOWNLOAD':
+          return `Tải bản sao lưu ${r.entityId}${mb} về máy`;
+        default:
+          return `${r.action} sao lưu ${r.entityId}`;
+      }
+    }
 
     default:
       return `${r.action} ${r.entityType} ${r.entityId}`;

@@ -95,6 +95,7 @@ const TEN_TRANG: [string, string][] = [
   ['/admin/kpi-templates', 'Mẫu KPI'],
   ['/admin/audit-logs', 'Nhật ký thao tác'],
   ['/admin/settings', 'Cài đặt hệ thống'],
+  ['/admin/backups', 'Sao lưu'],
   ['/ho-so', 'Thông tin cá nhân'],
 ];
 

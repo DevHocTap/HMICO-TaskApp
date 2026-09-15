@@ -126,20 +126,18 @@
 - [ ] Khoá tạm theo email không kiểm được bằng curl từ một máy: hạn mức
       5 lần/phút theo IP chặn trước khi đủ 11 lần. Phủ bằng test unit
       (`login-attempt.service.spec.ts`).
-- [ ] **Sao lưu chỉ nằm TRÊN CHÍNH MÁY CHỦ ĐÓ — nợ CÓ CHỦ Ý (chốt 10/09).**
-
-      Kế hoạch: `pg_dump` hằng đêm bằng systemd timer, nén, giữ 14 bản ở
-      `/var/backups/kpi` trên chính máy chủ tại công ty. **Chưa đẩy ra
-      ngoài** — sẽ làm sau.
-
-      **Rủi ro phải nói thẳng:** bản sao nằm cùng ổ, cùng máy, cùng phòng
-      với database. Cháy, mất trộm, hỏng ổ, hay ransomware là mất CẢ dữ liệu
-      lẫn bản sao. Sao lưu cùng máy chỉ cứu được ba tình huống: xoá nhầm,
-      migration hỏng, và lỗi ứng dụng làm sai dữ liệu.
-
-      **Điều kiện xử lý: trước khi mở cho toàn công ty.** Chạy thử một phòng
-      tháng 11 thì chấp nhận được; 200 người với dữ liệu tính lương thì
-      không. Đích đẩy ra ngoài (NAS, ổ ngoài, cloud storage) chưa chọn.
+- [x] ~~Sao lưu chỉ nằm trên chính máy chủ~~ — **đã làm phần code 15/09**
+      (`src/modules/backup/`, `docs/van-hanh-sao-luu.md`): dump hằng đêm,
+      kiểm tra file, dọn ba bậc, và `BACKUP_MIRROR_DIR` chép thêm một bản
+      sang ổ ngoài / NAS. **Còn việc ngoài code:** IT gắn ổ / NAS vào máy
+      chủ và đặt `BACKUP_MIRROR_DIR` — chưa đặt thì bản sao vẫn nằm cùng máy
+      với database (trang Sao lưu hiện thẻ vàng "Bản thứ hai: Chưa cấu
+      hình"). Cloud làm sau, cùng chỗ cắm.
+- [ ] **Image Docker của API phải cài `postgresql-client-16`** (chưa có
+      Dockerfile). Thiếu thì `BACKUP_MODE=local` báo "Không chạy được
+      pg_dump" ở mọi lần sao lưu — Tổng quan ADMIN sẽ đỏ sau 36 giờ.
+- [ ] Sao lưu chỉ có **database**; hệ thống chưa lưu file đính kèm nên đủ.
+      Nếu sau này có avatar / minh chứng thì phải sao lưu thêm thư mục đó.
 
 - [ ] **Chưa cấu hình gì cho việc triển khai.** Repo mới chỉ có
       `docker-compose.yml` cho PostgreSQL ở máy dev: chưa có nginx, chưa có

@@ -5,6 +5,7 @@ import {
   coTheXemBaoCao,
   coTheXemCaiDat,
   coTheXemNhanVien,
+  coTheSaoLuu,
   coTheXemNhatKy,
   coTheXemToChuc,
 } from '../auth/permissions';
@@ -35,6 +36,7 @@ export const NHOM_TAB: Record<NhomTab, MucTab[]> = {
   'he-thong': [
     { to: '/admin/settings', label: 'Cài đặt', duocPhep: coTheXemCaiDat },
     { to: '/admin/audit-logs', label: 'Nhật ký thao tác', duocPhep: coTheXemNhatKy },
+    { to: '/admin/backups', label: 'Sao lưu', duocPhep: coTheSaoLuu },
   ],
 };
 

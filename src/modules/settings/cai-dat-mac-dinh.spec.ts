@@ -9,6 +9,7 @@ const sua = (phan: Partial<{ [K in keyof typeof CAI_DAT_MAC_DINH]: Partial<(type
     baoMat: { ...CAI_DAT_MAC_DINH.baoMat, ...phan.baoMat },
     kyDanhGia: { ...CAI_DAT_MAC_DINH.kyDanhGia, ...phan.kyDanhGia },
     chamDiem: { ...CAI_DAT_MAC_DINH.chamDiem, ...phan.chamDiem },
+    saoLuu: { ...CAI_DAT_MAC_DINH.saoLuu, ...phan.saoLuu },
   });
 
 describe('kiemTraCaiDat', () => {
@@ -61,5 +62,12 @@ describe('kiemTraCaiDat', () => {
     );
     expect(kiemTraCaiDat(sua({ trongSo: { bscWork: 100, compliance: 0 } }))).toEqual([]);
     expect(kiemTraCaiDat(sua({ trongSo: { bscWork: 70.5, compliance: 29.5 } })).length).toBeGreaterThan(0);
+  });
+
+  it('sao lưu: giờ 0–23, bản ngày 3–90, bản tháng 0–120', () => {
+    expect(kiemTraCaiDat(sua({ saoLuu: { gioChay: 24 } }))).toContain('Giờ sao lưu phải từ 0 đến 23');
+    expect(kiemTraCaiDat(sua({ saoLuu: { giuBanNgay: 2 } }))).toContain('Số bản sao lưu ngày giữ lại phải từ 3 đến 90');
+    expect(kiemTraCaiDat(sua({ saoLuu: { giuBanThang: 121 } }))).toContain('Số bản sao lưu cuối tháng giữ lại phải từ 0 đến 120');
+    expect(kiemTraCaiDat(sua({ saoLuu: { gioChay: 0, giuBanNgay: 3, giuBanThang: 0 } }))).toEqual([]);
   });
 });

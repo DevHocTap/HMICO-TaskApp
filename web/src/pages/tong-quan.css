@@ -880,3 +880,9 @@
 .tq-gap-diem small { font-size: 10px; color: #64748b; white-space: nowrap; }
 .tq-gap-mui { color: #94a3b8; font-size: 12px; flex: none; }
 .tq-gap-dong:hover .tq-gap-mui { color: #2563eb; }
+
+/* Cảnh báo sao lưu quá hạn — chỉ ADMIN (15/09) */
+.tq-canh-bao-sl { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding: 10px 14px; border-radius: 10px; background: #fff1f2; border: 1px solid #fecdd3; color: #9f1239; font-size: 13px; }
+.tq-canh-bao-sl:hover { background: #ffe4e6; color: #9f1239; }
+.tq-canh-bao-sl .anticon { color: #e11d48; font-size: 16px; }
+.tq-canh-bao-sl b { margin-left: auto; white-space: nowrap; color: #be123c; }

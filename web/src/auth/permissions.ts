@@ -87,6 +87,11 @@ export function coTheXemNhatKy(role: Role | undefined): boolean {
   return role === 'ADMIN' || role === 'EXECUTIVE';
 }
 
+/** Sao lưu database — chỉ ADMIN: file dump chứa hash mật khẩu và điểm của mọi người (chốt 15/09). */
+export function coTheSaoLuu(role: Role | undefined): boolean {
+  return role === 'ADMIN';
+}
+
 /**
  * Xem báo cáo tiến độ nộp và dashboard.
  *

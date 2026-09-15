@@ -56,6 +56,7 @@ export const NHAN_LOAI: Record<string, string> = {
   KpiTemplate: 'Mẫu KPI',
   Period: 'Kỳ đánh giá',
   Report: 'Báo cáo',
+  Backup: 'Sao lưu',
   Setting: 'Cài đặt',
 };
 

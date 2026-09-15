@@ -77,7 +77,7 @@ Nguồn sự thật nghiệp vụ: `docs/quy-tac-nghiep-vu.md`.
   có đuôi `.js`, Vitest + SWC (esbuild không hỗ trợ `emitDecoratorMetadata`
   nên DI của NestJS sẽ hỏng nếu thiếu SWC). Bỏ Jest, `ts-node`,
   `tsconfig-paths`. Seed chạy thẳng `node prisma/seed.ts` — Node 22 tự bóc
-  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 79 + 76 + 82 + 159 + 104 + 76 + 42 kiểm tra curl.**
+  kiểu TypeScript. **Hiện: 332 test backend + 41 test frontend + 3 e2e; 35 + 79 + 76 + 82 + 159 + 104 + 76 + 42 + 41 kiểm tra curl.**
 
 ## Đang làm
 
@@ -648,6 +648,22 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
 - **15/09 — màn Mẫu KPI ẩn với ban giám đốc:** `coTheXemMau()` (ADMIN, HR,
   MANAGER) thay `coTheXemNhanVien` ở menu và `RoleRoute`. Chỉ giao diện;
   backend `VAI_TRO_DOC` giữ EXECUTIVE (đọc mẫu không có gì để lộ).
+
+- **Sao lưu database — MODULE MỚI `backup/` (15/09):** `pg_dump -Fc` do
+  API chạy; tự động hằng đêm (cron mỗi giờ so với `saoLuu.gioChay`, bù lúc
+  khởi động) + `POST /backups` tay; mỗi bản kiểm bằng `pg_restore --list`,
+  có `.json` cạnh bên (thư mục file là nguồn sự thật, KHÔNG có bảng DB);
+  chép sang `BACKUP_MIRROR_DIR` nếu đặt; dọn ba bậc (14 ngày + 12 cuối tháng
+  + cuối năm vĩnh viễn — `backup-file.ts` thuần, 8 test); AuditLog
+  `Backup/BACKUP · AUTO_BACKUP · BACKUP_FAILED · DOWNLOAD`. Nhóm cài đặt mới
+  `saoLuu`. Env `BACKUP_DIR / BACKUP_MIRROR_DIR / BACKUP_MODE=local|docker /
+  BACKUP_DOCKER_CONTAINER`. Chỉ ADMIN (`coTheSaoLuu`). Màn `/admin/backups`
+  (tab Sao lưu trong Cài đặt hệ thống): 4 thẻ trạng thái, lịch sử + Tải về,
+  lịch, khung "Khôi phục" chỉ hướng dẫn. Tổng quan ADMIN báo đỏ > 36 giờ
+  chưa có bản. **Khôi phục cố ý KHÔNG có trên giao diện:**
+  `scripts/khoi-phuc.sh <file> [--vao <db>]`, đòi biến đồng ý, tự dump bản
+  hiện tại trước khi ghi đè. `scripts/kiem-chung-sao-luu.sh` **41** (gồm
+  khôi phục thật vào DB riêng). Xem `docs/van-hanh-sao-luu.md`.
 
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
 Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.

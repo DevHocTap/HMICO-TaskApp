@@ -36,6 +36,7 @@ import { useAuth } from '../auth/useAuth';
 import { useCaiDat } from '../auth/useTrongSo';
 import { useKyDangXem } from '../contexts/KyDangXem';
 import { PhieuCanXuLyGap } from '../components/PhieuCanXuLyGap';
+import { laySaoLuu } from '../api/backup';
 import { DuongVung } from '../components/bieu-do/DuongVung';
 import { MocTienDoThang } from '../components/MocTienDoThang';
 import { NHAN_XEP_LOAI } from '../types/scorecard';
@@ -69,6 +70,13 @@ const nhanMa = (code: string) => `T${code.slice(5, 7)}`;
  */
 export function TongQuanQuanLy() {
   const { user } = useAuth();
+  // Chỉ ADMIN: quá 36 giờ chưa có bản sao lưu lành thì báo đỏ ngay đầu trang (15/09)
+  const { data: saoLuu } = useQuery({
+    queryKey: ['backups'],
+    queryFn: laySaoLuu,
+    enabled: user?.role === 'ADMIN',
+    staleTime: 60_000,
+  });
   const { message } = App.useApp();
   const { cacKy, ky, datKyId } = useKyDangXem();
   const caiDat = useCaiDat();
@@ -156,6 +164,15 @@ export function TongQuanQuanLy() {
 
   return (
     <div className="tq">
+      {saoLuu?.trangThai.quaHan && (
+        <Link to="/admin/backups" className="tq-canh-bao-sl">
+          <WarningFilled />
+          {saoLuu.trangThai.banGanNhat
+            ? `Bản sao lưu database gần nhất từ ${ngayVN(saoLuu.trangThai.banGanNhat.taoLuc)} — quá 36 giờ chưa có bản mới.`
+            : 'Chưa có bản sao lưu database nào.'}
+          {saoLuu.trangThai.loiGanNhat ? ` Lần chạy gần nhất thất bại: ${saoLuu.trangThai.loiGanNhat.thongDiep}` : ''} <b>Mở trang Sao lưu →</b>
+        </Link>
+      )}
       {/* ===== Thanh tiêu đề + nút nhanh */}
       <div className="tq-bang-dau">
         <div>

@@ -67,3 +67,6 @@ web/dist
 web/.env
 web/*.tsbuildinfo
 web/**/*.tsbuildinfo
+
+# Bản sao lưu database (BACKUP_DIR mặc định)
+backups/

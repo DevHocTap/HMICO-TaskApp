@@ -32,6 +32,7 @@ export interface CaiDatHeThong {
   baoMat: CaiDatBaoMat;
   kyDanhGia: { tuSinhHangThang: boolean };
   chamDiem: { choPhepTraLaiPhieuDaChot: boolean };
+  saoLuu: { tuDongHangDem: boolean; gioChay: number; giuBanNgay: number; giuBanThang: number };
 }
 
 export type NhomCaiDat = keyof CaiDatHeThong;

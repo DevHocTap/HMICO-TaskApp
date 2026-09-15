@@ -11,6 +11,7 @@ import { OrgModule } from './modules/org/org.module.js';
 import { KpiTemplateModule } from './modules/kpi-template/kpi-template.module.js';
 import { PeriodModule } from './modules/period/period.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
+import { BackupModule } from './modules/backup/backup.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { ScorecardModule } from './modules/scorecard/scorecard.module.js';
 
@@ -24,6 +25,7 @@ import { ScorecardModule } from './modules/scorecard/scorecard.module.js';
     PrismaModule,
     AuditModule,
     SettingsModule,
+    BackupModule,
     AuthModule,
     OrgModule,
     KpiTemplateModule,
