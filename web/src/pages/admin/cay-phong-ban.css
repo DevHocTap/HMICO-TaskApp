@@ -67,13 +67,13 @@
 .cp-goc-them { margin-left: 8px; border-left: 1px solid #e2e8f0; padding-left: 8px; }
 .cp-goc-them button { padding: 2px 8px; border-radius: 4px; font-size: 11px; color: #2563eb; font-weight: 600; border: 0; background: none; cursor: pointer; font-family: inherit; }
 .cp-goc-them button:hover { background: #eff6ff; }
-.cp-noi { width: 2px; background: #93c5fd; }
-.cp-noi-4 { height: 16px; }
-.cp-noi-3 { height: 12px; }
-.cp-nut-tron { width: 16px; height: 16px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; margin-top: -8px; z-index: 20; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); border: 0; cursor: pointer; padding: 0; }
-.cp-nut-tron-nho { width: 16px; height: 16px; font-size: 9px; margin-top: -6px; z-index: 10; cursor: pointer; }
+.cp-noi { width: 2px; background: #93c5fd; flex: none; }
+.cp-noi-4 { height: 22px; }
+.cp-noi-3 { height: 18px; }
+.cp-nut-tron { width: 16px; height: 16px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; margin: -9px 0 -9px; z-index: 20; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); border: 0; cursor: pointer; padding: 0; position: relative; }
+.cp-nut-tron-nho { width: 16px; height: 16px; font-size: 9px; z-index: 10; cursor: pointer; }
 .cp-nut-tron-nho:hover { transform: scale(1.15); }
-.cp-ngang { position: relative; width: 100%; height: 2px; }
+.cp-ngang { position: relative; width: 100%; height: 2px; margin-bottom: -2px; }
 .cp-ngang i { position: absolute; top: 0; height: 2px; background: #93c5fd; }
 
 /* cấp 1 */
@@ -153,5 +153,5 @@
 /* khối đệ quy: thẻ + nối xuống + lưới con (phòng con nhỏ hơn một bậc) */
 .cp-khoi { display: flex; flex-direction: column; align-items: center; min-width: 0; }
 .cp-khoi > .cp-o { width: 100%; box-sizing: border-box; }
-.cp-luoi-con { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); padding: 6px; border: 1px dashed #cbd5e1; border-radius: 8px; background: rgba(248, 250, 252, 0.6); }
+.cp-luoi-con { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
 .cp-luoi-con .cp-o-ten { font-size: 11px; }

@@ -224,7 +224,7 @@ export function DepartmentsPage() {
     return (
       <div key={d.id} className="cp-khoi">
         {thePhong(d, thuTu)}
-        <div className="cp-noi cp-noi-3" style={{ background: '#93c5fd' }} />
+        <div className="cp-noi cp-noi-3" />
         <button
           type="button"
           className="cp-nut-tron cp-nut-tron-nho"
@@ -235,7 +235,7 @@ export function DepartmentsPage() {
         </button>
         {!gap && (
           <>
-            <div className="cp-noi cp-noi-3" style={{ background: '#cbd5e1' }} />
+            <div className="cp-noi cp-noi-3" />
             <div className="cp-luoi cp-luoi-con">{d.children.map((c, k) => oPhong(c, thuTu + k + 1))}</div>
           </>
         )}
@@ -243,8 +243,11 @@ export function DepartmentsPage() {
     );
   };
 
-  /** Bề rộng tương đối của cột cấp 1: theo số phòng con, chặn 2–6 để cột ít con không bị bóp. */
-  const rongCot = (g: DepartmentNode) => Math.max(2, Math.min(g.children.length, 6));
+  /**
+   * Bề rộng tương đối của cột cấp 1: nhánh ĐANG GẬP thì mọi cột bằng nhau;
+   * mở ra mới rộng theo số phòng con (chặn 2–6 để cột ít con không bị bóp).
+   */
+  const rongCot = (g: DepartmentNode) => (gapNhanh.has(g.id) || g.children.length === 0 ? 2 : Math.max(2, Math.min(g.children.length, 6)));
 
   /** Một đơn vị cấp 1 và hai nhóm phòng con của nó. */
   const cotCap1 = (g: DepartmentNode) => {
@@ -271,11 +274,10 @@ export function DepartmentsPage() {
         </div>
         {g.children.length > 0 && (
           <>
-            <div className="cp-noi cp-noi-3" style={{ background: xanhLa ? '#6ee7b7' : '#93c5fd' }} />
+            <div className="cp-noi cp-noi-3" />
             <button
               type="button"
               className="cp-nut-tron cp-nut-tron-nho"
-              style={{ background: xanhLa ? '#10b981' : '#2563eb' }}
               title={gapNhanh.has(g.id) ? `Mở ${g.children.length} phòng ban` : 'Thu gọn nhánh này'}
               onClick={() => doiGap(g.id)}
             >
@@ -285,7 +287,7 @@ export function DepartmentsPage() {
               <div className="cp-cap1-phu" style={{ marginTop: 6 }}>{g.children.length} phòng ban · {tong - g.userCount} NS (đang thu gọn)</div>
             ) : (
             <>
-            <div className="cp-noi cp-noi-3" style={{ background: '#cbd5e1' }} />
+            <div className="cp-noi cp-noi-3" />
             <div className="cp-nhom">
               {coNguoi.length > 0 && (
                 <div>
