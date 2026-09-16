@@ -16,7 +16,7 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   datLaiMatKhau,
   doiTrangThaiNhanVien,
@@ -128,9 +128,12 @@ export function UsersPage() {
 
   const coQuyenGhi = coTheGhiToChuc(nguoiDangDangNhap?.role);
 
+  // `?departmentId=` — nút "+ Gán NS" ở cây phòng ban dẫn thẳng tới phòng đó (16/09)
+  const [thamSoUrl] = useSearchParams();
   const [boLoc, setBoLoc] = useState<ListUsersParams>({
     page: 1,
     limit: SO_DONG_MAC_DINH,
+    departmentId: thamSoUrl.get('departmentId') ?? undefined,
   });
   const [oTimKiem, setOTimKiem] = useState('');
   const [locNhanh, setLocNhanh] = useState<LocNhanh>('tat-ca');

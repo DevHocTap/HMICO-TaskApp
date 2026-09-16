@@ -668,8 +668,25 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   `scripts/kiem-chung-sao-luu.sh` **54** (khôi phục thật cả hai đường). Xem
   `docs/van-hanh-sao-luu.md`.
 
+- **Phòng ban — dựng lại theo mã HTML mẫu sơ đồ tổ chức (16/09):**
+  `DepartmentsPage.tsx` + `cay-phong-ban.css` (`cp-*`). Tiêu đề + huy hiệu
+  "N đơn vị", ba chế độ xem **Cây phòng ban** (mới) · **Thẻ đơn vị** (lưới
+  phẳng kèm đường dẫn cha) · **Phân cấp** (cây antd cũ); 3 thẻ số liệu (tổng
+  nhân sự · đơn vị có người / tổng · đơn vị trống), chú giải, zoom 60–140%
+  (CSS `zoom`), ô tìm (làm mờ thẻ không khớp), Thu gọn/Mở rộng. Cây: gốc →
+  cột cấp 1 xếp ngang **rộng theo số phòng con** (vạch ngang nối tâm cột đầu
+  tới cột cuối tính theo flex) → phòng ban chia nhóm "Đang hoạt động" (thẻ
+  màu theo thứ tự, số NS cả nhánh, tên trưởng bộ phận / cảnh báo thiếu
+  trưởng) và "Chưa có nhân sự" (thẻ nét đứt, nút **+ Gán NS** → màn Nhân
+  viên lọc sẵn phòng qua `?departmentId=`). Bấm thẻ mở **Drawer chi tiết**
+  (mã, thuộc, trưởng bộ phận, NS trực tiếp / cả nhánh, phòng con) với Xem
+  nhân sự / Sửa / Thêm phòng con / Vô hiệu hoá — thay ba nút đầu trang cũ.
+  Modal thêm/sửa và cảnh báo thiếu trưởng (từ `readiness/company`) giữ
+  nguyên. Bỏ của mẫu: "Xuất PNG" (cần thư viện chụp DOM), "Kế hoạch 25 NS"
+  (không có định biên), "Dữ liệu đồng bộ theo thời gian thực" (vô nghĩa).
+
 **Mọi màn đã theo bộ mẫu thứ hai.** Chưa có mẫu riêng cho bảng Tiến độ nộp,
-Kỳ đánh giá, Phòng ban, Chức danh — chỉ đồng bộ đầu trang.
+Chức danh — chỉ đồng bộ đầu trang.
 
 **Triển khai (15/09) — đã có bộ file, đổi hướng sang máy WINDOWS + Docker
 Desktop** (người dùng chốt 15/09, thay cho Ubuntu 24.04): `Dockerfile` (API,
