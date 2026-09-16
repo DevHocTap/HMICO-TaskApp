@@ -1,5 +1,9 @@
 /* Cây phòng ban — dịch từ mẫu Tailwind 16/09 (cp-*). Màu slate/blue/emerald/amber/purple/indigo của mẫu. */
-.cp { display: flex; flex-direction: column; gap: 12px; }
+.cp { display: flex; flex-direction: column; gap: 12px; min-height: calc(100vh - 60px - 52px); }
+/* Khung vẽ lấp hết phần còn lại của màn hình, chân khung dính đáy (16/09) */
+.cp-khung { flex: 1; display: flex; flex-direction: column; }
+.cp-noi-dung { flex: 1; }
+.cp-chan { margin-top: auto; }
 
 /* ---------- đầu trang */
 .cp-dau { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
@@ -130,7 +134,7 @@
 .cp-mau-5 { background: #fce7f3; color: #be185d; }
 
 /* chân */
-.cp-chan { margin-top: 12px; padding: 6px 12px; border-radius: 8px; background: rgba(255, 255, 255, 0.7); font-size: 11px; color: #64748b; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.cp-chan { margin-top: 12px; margin-top: auto; padding-top: 12px; padding: 6px 12px; border-radius: 8px; background: rgba(255, 255, 255, 0.7); font-size: 11px; color: #64748b; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .cp-chan b { color: #334155; }
 .cp-chan .anticon { color: #2563eb; margin-right: 4px; }
 
@@ -145,3 +149,9 @@
 .cp-ct-dong span:first-child { color: #64748b; }
 .cp-ct-dong b { color: #0f172a; text-align: right; }
 .cp-ct-nut { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+/* khối đệ quy: thẻ + nối xuống + lưới con (phòng con nhỏ hơn một bậc) */
+.cp-khoi { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.cp-khoi > .cp-o { width: 100%; box-sizing: border-box; }
+.cp-luoi-con { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); padding: 6px; border: 1px dashed #cbd5e1; border-radius: 8px; background: rgba(248, 250, 252, 0.6); }
+.cp-luoi-con .cp-o-ten { font-size: 11px; }

@@ -681,6 +681,9 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   viên lọc sẵn phòng qua `?departmentId=`). Bấm thẻ mở **Drawer chi tiết**
   (mã, thuộc, trưởng bộ phận, NS trực tiếp / cả nhánh, phòng con) với Xem
   nhân sự / Sửa / Thêm phòng con / Vô hiệu hoá — thay ba nút đầu trang cũ.
+  Phòng có phòng con vẽ **đệ quy** kiểu sơ đồ khối (nối xuống + nút số bấm
+  gập/mở, lưới con nét đứt), sâu bao nhiêu tầng cũng được; "Thu gọn" = chỉ
+  còn tên các đơn vị cấp 1; khung vẽ lấp hết chiều cao màn hình.
   Modal thêm/sửa và cảnh báo thiếu trưởng (từ `readiness/company`) giữ
   nguyên. Bỏ của mẫu: "Xuất PNG" (cần thư viện chụp DOM), "Kế hoạch 25 NS"
   (không có định biên), "Dữ liệu đồng bộ theo thời gian thực" (vô nghĩa).

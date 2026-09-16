@@ -8,7 +8,6 @@ import {
   BankOutlined,
   DeleteOutlined,
   EditOutlined,
-  EnvironmentOutlined,
   InfoCircleOutlined,
   MinusOutlined,
   PlusOutlined,
@@ -93,6 +92,7 @@ export function DepartmentsPage() {
     });
   const cacNhanhCap1 = useMemo(() => cay.flatMap((g) => g.children.filter((c) => c.children.length > 0).map((c) => c.id)), [cay]);
   const gapHet = cacNhanhCap1.length > 0 && cacNhanhCap1.every((id) => gapNhanh.has(id));
+  /** Thu gọn tất cả = chỉ còn tên các đơn vị cấp 1; mở tất cả = mở mọi tầng. */
   const doiGapHet = () => setGapNhanh(gapHet ? new Set() : new Set(cacNhanhCap1));
   const idPhongDangSua = dangSua?.id;
   const { data: nguoiTrongPhong } = useQuery({
@@ -169,14 +169,17 @@ export function DepartmentsPage() {
   // ---------------------------------------------------------------- vẽ
 
   /** Ô phòng ban (cấp 2 trở xuống). Phòng có phòng con thì ghi thêm số con. */
-  const oPhong = (d: DepartmentNode, thuTu: number) => {
+  /** Riêng cái thẻ (không có phần con). */
+  const thePhong = (d: DepartmentNode, thuTu: number) => {
     const tong = tongNhanh(d);
     const con = demConChau(d);
     const thieuTruong = maPhongBiChan.has(d.code);
     const mau = `cp-mau-${thuTu % 6}`;
+    const chon = dangChon?.id === d.id ? ' cp-o-chon' : '';
+    const mo = !khop(d) ? ' cp-mo' : '';
     if (tong === 0) {
       return (
-        <div key={d.id} className={`cp-o cp-o-trong${dangChon?.id === d.id ? ' cp-o-chon' : ''}${!khop(d) ? ' cp-mo' : ''}`} onClick={() => setDangChon(d)}>
+        <div className={`cp-o cp-o-trong${chon}${mo}`} onClick={() => setDangChon(d)}>
           <div className="cp-o-ma">{maNgan(d.code)}</div>
           <div className="cp-o-ten" title={d.name}>{d.name}</div>
           <div className="cp-o-phu">0 người{con > 0 ? ` · ${con} phòng con` : ''}</div>
@@ -189,7 +192,7 @@ export function DepartmentsPage() {
       );
     }
     return (
-      <div key={d.id} className={`cp-o${dangChon?.id === d.id ? ' cp-o-chon' : ''}${!khop(d) ? ' cp-mo' : ''}`} onClick={() => setDangChon(d)}>
+      <div className={`cp-o${chon}${mo}`} onClick={() => setDangChon(d)}>
         <div className="cp-o-dau">
           <div className={`cp-o-ma ${mau}`}>{maNgan(d.code)}</div>
           <span className={`cp-o-so ${mau}`}>{tong} NS</span>
@@ -202,9 +205,40 @@ export function DepartmentsPage() {
           )}
           {d.name}
         </div>
-        <div className={`cp-o-phu${thieuTruong ? ' cp-o-phu-cam' : d.managerName ? '' : ''}`}>
-          {thieuTruong ? 'Chưa có trưởng bộ phận' : d.managerName ?? (con > 0 ? `${con} phòng con` : `${tongNhanSu > 0 ? Math.round((tong / tongNhanSu) * 100) : 0}% nhân sự`)}
+        <div className={`cp-o-phu${thieuTruong ? ' cp-o-phu-cam' : ''}`}>
+          {thieuTruong ? 'Chưa có trưởng bộ phận' : (d.managerName ?? `${tongNhanSu > 0 ? Math.round((tong / tongNhanSu) * 100) : 0}% nhân sự`)}
+          {con > 0 && ` · ${d.children.length} phòng con`}
         </div>
+      </div>
+    );
+  };
+
+  /**
+   * Khối phòng ban ĐỆ QUY: thẻ, và nếu có phòng con thì nối xuống + nút số
+   * (bấm để gập/mở nhánh) + lưới con — đúng kiểu sơ đồ khối, sâu bao nhiêu
+   * tầng cũng vẽ được.
+   */
+  const oPhong = (d: DepartmentNode, thuTu: number) => {
+    if (d.children.length === 0) return <div key={d.id}>{thePhong(d, thuTu)}</div>;
+    const gap = gapNhanh.has(d.id);
+    return (
+      <div key={d.id} className="cp-khoi">
+        {thePhong(d, thuTu)}
+        <div className="cp-noi cp-noi-3" style={{ background: '#93c5fd' }} />
+        <button
+          type="button"
+          className="cp-nut-tron cp-nut-tron-nho"
+          title={gap ? `Mở ${d.children.length} phòng con` : 'Thu gọn'}
+          onClick={() => doiGap(d.id)}
+        >
+          {gap ? '+' : d.children.length}
+        </button>
+        {!gap && (
+          <>
+            <div className="cp-noi cp-noi-3" style={{ background: '#cbd5e1' }} />
+            <div className="cp-luoi cp-luoi-con">{d.children.map((c, k) => oPhong(c, thuTu + k + 1))}</div>
+          </>
+        )}
       </div>
     );
   };
@@ -213,17 +247,17 @@ export function DepartmentsPage() {
   const rongCot = (g: DepartmentNode) => Math.max(2, Math.min(g.children.length, 6));
 
   /** Một đơn vị cấp 1 và hai nhóm phòng con của nó. */
-  const cotCap1 = (g: DepartmentNode, i: number) => {
+  const cotCap1 = (g: DepartmentNode) => {
     const tong = tongNhanh(g);
     const coNguoi = g.children.filter((c) => tongNhanh(c) > 0);
     const trong = g.children.filter((c) => tongNhanh(c) === 0);
-    const xanhLa = i % 2 === 0 && cay[0]?.children.length !== 1;
+    const xanhLa = false; // 16/09: mọi đơn vị cấp 1 cùng icon, cùng màu — trước đây cột chẵn xanh lá, cột lẻ xanh dương
     return (
       <div key={g.id} className="cp-cap1" style={{ flex: rongCot(g) }}>
         <div className="cp-noi cp-noi-3" />
         <div className={`cp-cap1-the${xanhLa ? ' cp-xanh-la' : ''}${dangChon?.id === g.id ? ' cp-o-chon' : ''}${!khop(g) ? ' cp-mo' : ''}`} onClick={() => setDangChon(g)}>
           <div className="cp-cap1-trai">
-            <div className={`cp-cap1-icon ${xanhLa ? 'cp-icon-xanh-la' : 'cp-icon-xanh'}`}>{xanhLa ? <EnvironmentOutlined /> : <BankOutlined />}</div>
+            <div className={`cp-cap1-icon ${xanhLa ? 'cp-icon-xanh-la' : 'cp-icon-xanh'}`}><ApartmentOutlined /></div>
             <div style={{ minWidth: 0 }}>
               <h3>
                 {maPhongBiChan.has(g.code) && <WarningOutlined className="cp-canh-bao" />} {g.name}
@@ -334,7 +368,7 @@ export function DepartmentsPage() {
                 </div>
               );
             })()}
-            <div className="cp-cap1-luoi">{goc.children.map((g, i) => cotCap1(g, i))}</div>
+            <div className="cp-cap1-luoi">{goc.children.map((g) => cotCap1(g))}</div>
           </>
         )}
       </div>
@@ -448,7 +482,7 @@ export function DepartmentsPage() {
         ) : cay.length === 0 ? (
           <div className="cp-chan">{coQuyenGhi ? 'Chưa có đơn vị nào. Bấm "Thêm đơn vị" để bắt đầu.' : 'Chưa có đơn vị nào.'}</div>
         ) : cheDo === 'cay' ? (
-          <div style={{ zoom: zoom / 100 }}>{cay.map(veCay)}</div>
+          <div className="cp-noi-dung" style={{ zoom: zoom / 100 }}>{cay.map(veCay)}</div>
         ) : cheDo === 'the' ? (
           <div className="cp-the-don-vi">
             {danhSachPhang.map((d, i) => (
