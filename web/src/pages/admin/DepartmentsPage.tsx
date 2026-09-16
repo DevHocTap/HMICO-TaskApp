@@ -75,7 +75,6 @@ export function DepartmentsPage() {
   const [cheDo, setCheDo] = useState<CheDo>('cay');
   const [zoom, setZoom] = useState(100);
   const [timKiem, setTimKiem] = useState('');
-  const [gapHet, setGapHet] = useState(false);
   const [dangChon, setDangChon] = useState<DepartmentNode | null>(null);
   const [modalMo, setModalMo] = useState(false);
   const [dangSua, setDangSua] = useState<DepartmentNode | null>(null);
@@ -83,6 +82,18 @@ export function DepartmentsPage() {
 
   const { data: cay = [], isLoading } = useQuery({ queryKey: ['departments', 'tree'], queryFn: layCayPhongBan });
   const danhSachPhang = useMemo(() => duyetPhang(cay), [cay]);
+  /** Nhánh cấp 1 đang GẬP (bấm vào nút số ở dưới thẻ). Nút chung "Thu gọn / Mở rộng" gập / mở tất cả. */
+  const [gapNhanh, setGapNhanh] = useState<Set<string>>(new Set());
+  const doiGap = (id: string) =>
+    setGapNhanh((cu) => {
+      const moi = new Set(cu);
+      if (moi.has(id)) moi.delete(id);
+      else moi.add(id);
+      return moi;
+    });
+  const cacNhanhCap1 = useMemo(() => cay.flatMap((g) => g.children.filter((c) => c.children.length > 0).map((c) => c.id)), [cay]);
+  const gapHet = cacNhanhCap1.length > 0 && cacNhanhCap1.every((id) => gapNhanh.has(id));
+  const doiGapHet = () => setGapNhanh(gapHet ? new Set() : new Set(cacNhanhCap1));
   const idPhongDangSua = dangSua?.id;
   const { data: nguoiTrongPhong } = useQuery({
     queryKey: ['users', 'cua-phong', idPhongDangSua],
@@ -224,10 +235,22 @@ export function DepartmentsPage() {
           </div>
           <span className={`cp-pill ${tong === 0 ? 'cp-pill-xam' : xanhLa ? 'cp-pill-xanh-la' : 'cp-pill-xanh'}`}>{tong} NS</span>
         </div>
-        {g.children.length > 0 && !gapHet && (
+        {g.children.length > 0 && (
           <>
             <div className="cp-noi cp-noi-3" style={{ background: xanhLa ? '#6ee7b7' : '#93c5fd' }} />
-            <div className="cp-nut-tron cp-nut-tron-nho" style={{ background: xanhLa ? '#10b981' : '#2563eb' }}>{g.children.length}</div>
+            <button
+              type="button"
+              className="cp-nut-tron cp-nut-tron-nho"
+              style={{ background: xanhLa ? '#10b981' : '#2563eb' }}
+              title={gapNhanh.has(g.id) ? `Mở ${g.children.length} phòng ban` : 'Thu gọn nhánh này'}
+              onClick={() => doiGap(g.id)}
+            >
+              {gapNhanh.has(g.id) ? '+' : g.children.length}
+            </button>
+            {gapNhanh.has(g.id) ? (
+              <div className="cp-cap1-phu" style={{ marginTop: 6 }}>{g.children.length} phòng ban · {tong - g.userCount} NS (đang thu gọn)</div>
+            ) : (
+            <>
             <div className="cp-noi cp-noi-3" style={{ background: '#cbd5e1' }} />
             <div className="cp-nhom">
               {coNguoi.length > 0 && (
@@ -248,10 +271,12 @@ export function DepartmentsPage() {
                       <small>Cần tuyển &amp; gán NS</small>
                     </div>
                   )}
-                  <div className="cp-luoi" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}>{trong.map((c, k) => oPhong(c, k))}</div>
+                  <div className="cp-luoi cp-luoi-trong">{trong.map((c, k) => oPhong(c, k))}</div>
                 </div>
               )}
             </div>
+            </>
+            )}
           </>
         )}
       </div>
@@ -288,7 +313,7 @@ export function DepartmentsPage() {
           {soCon > 0 && (
             <>
               <div className="cp-noi cp-noi-4" />
-              <button type="button" className="cp-nut-tron" title={gapHet ? 'Mở rộng' : 'Thu gọn'} onClick={() => setGapHet((v) => !v)}>
+              <button type="button" className="cp-nut-tron" title={gapHet ? 'Mở rộng tất cả' : 'Thu gọn tất cả'} onClick={doiGapHet}>
                 {gapHet ? '+' : '−'}
               </button>
               <div className="cp-noi cp-noi-3" />
@@ -412,7 +437,7 @@ export function DepartmentsPage() {
             <input value={timKiem} onChange={(e) => setTimKiem(e.target.value)} placeholder="Tìm phòng ban..." />
           </div>
           {cheDo === 'cay' && (
-            <button type="button" className="cp-nut-nho" onClick={() => setGapHet((v) => !v)}>
+            <button type="button" className="cp-nut-nho" onClick={doiGapHet}>
               {gapHet ? 'Mở rộng (+)' : 'Thu gọn (−)'}
             </button>
           )}
