@@ -250,13 +250,19 @@ export function DepartmentsPage() {
   const rongCot = (g: DepartmentNode) => (gapNhanh.has(g.id) || g.children.length === 0 ? 2 : Math.max(2, Math.min(g.children.length, 6)));
 
   /** Một đơn vị cấp 1 và hai nhóm phòng con của nó. */
-  const cotCap1 = (g: DepartmentNode) => {
+  const cotCap1 = (g: DepartmentNode, viTri: 'dau' | 'giua' | 'cuoi' | 'mot') => {
     const tong = tongNhanh(g);
     const coNguoi = g.children.filter((c) => tongNhanh(c) > 0);
     const trong = g.children.filter((c) => tongNhanh(c) === 0);
     const xanhLa = false; // 16/09: mọi đơn vị cấp 1 cùng icon, cùng màu — trước đây cột chẵn xanh lá, cột lẻ xanh dương
     return (
       <div key={g.id} className="cp-cap1" style={{ flex: rongCot(g) }}>
+        {/* Đoạn ngang của "xương cá" nằm trong chính cột nên luôn nối đúng tâm, kể cả khi cột rộng không đều */}
+        {viTri !== 'mot' && (
+          <div className="cp-cap1-tren">
+            <i className={`cp-tren-${viTri}`} />
+          </div>
+        )}
         <div className="cp-noi cp-noi-3" />
         <div className={`cp-cap1-the${xanhLa ? ' cp-xanh-la' : ''}${dangChon?.id === g.id ? ' cp-o-chon' : ''}${!khop(g) ? ' cp-mo' : ''}`} onClick={() => setDangChon(g)}>
           <div className="cp-cap1-trai">
@@ -358,19 +364,11 @@ export function DepartmentsPage() {
         </div>
         {soCon > 0 && (
           <>
-            {soCon > 1 && (() => {
-              // Vạch ngang nối TÂM cột đầu tới TÂM cột cuối — cột rộng không đều nên phải tính theo flex
-              const cacRong = goc.children.map(rongCot);
-              const tong = cacRong.reduce((t, r) => t + r, 0);
-              const trai = (cacRong[0]! / 2 / tong) * 100;
-              const phai = (cacRong[cacRong.length - 1]! / 2 / tong) * 100;
-              return (
-                <div className="cp-ngang">
-                  <i style={{ left: `${trai}%`, right: `${phai}%` }} />
-                </div>
-              );
-            })()}
-            <div className="cp-cap1-luoi">{goc.children.map((g) => cotCap1(g))}</div>
+            <div className="cp-cap1-luoi">
+              {goc.children.map((g, i, arr) =>
+                cotCap1(g, arr.length === 1 ? 'mot' : i === 0 ? 'dau' : i === arr.length - 1 ? 'cuoi' : 'giua'),
+              )}
+            </div>
           </>
         )}
       </div>
