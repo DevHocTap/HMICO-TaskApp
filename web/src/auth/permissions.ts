@@ -115,12 +115,12 @@ export function coTheSuaCaiDat(role: Role | undefined): boolean {
 }
 
 /**
- * Xem màn Mẫu KPI — chốt 15/09/2026: ẩn với ban giám đốc. Mẫu là việc chuyên
- * môn giữa trưởng bộ phận và HCNS; BGĐ chỉ cần thấy phiếu và kết quả.
- * Backend vẫn cho EXECUTIVE đọc API mẫu (chỉ đọc, không có gì để lộ).
+ * Xem màn Mẫu KPI — chốt 16/09/2026: chỉ ADMIN và TRƯỞNG BỘ PHẬN (người soạn
+ * mẫu). Ban giám đốc ẩn từ 15/09, HCNS ẩn từ 16/09 — mẫu là việc chuyên môn
+ * của từng phòng. Backend vẫn cho HR / EXECUTIVE đọc API (chỉ đọc).
  */
 export function coTheXemMau(role: Role | undefined): boolean {
-  return role === 'ADMIN' || role === 'HR' || role === 'MANAGER';
+  return role === 'ADMIN' || role === 'MANAGER';
 }
 
 /**

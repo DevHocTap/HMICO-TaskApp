@@ -698,7 +698,7 @@ còn — đó chính là lúc cần tra cứu nhất.
 |---|---|
 | `ADMIN` | Toàn quyền, khoá/mở kỳ, mẫu hệ thống và mẫu dùng chung, chức danh |
 | `EXECUTIVE` | **Xem toàn công ty ở mọi màn hình, bao gồm cả màn quản trị. Không có quyền ghi ở module `org`.** Không chấm điểm. Chấm trưởng bộ phận. **Màn Mẫu KPI ẩn với BGĐ (chốt 15/09)** — chỉ ẩn giao diện, API đọc mẫu vẫn mở |
-| `HR` | Xem toàn công ty + quản lý nhân sự, chức danh, tiếp nhận kết quả, xuất Excel. **Chỉ XEM mẫu KPI** |
+| `HR` | Xem toàn công ty + quản lý nhân sự, chức danh, tiếp nhận kết quả, xuất Excel. **Màn Mẫu KPI ẩn với HCNS (chốt 16/09)** — chỉ ẩn giao diện, API đọc mẫu vẫn mở |
 | `MANAGER` | Giao KPI, chấm điểm, **soạn mẫu KPI cho chức danh phòng mình**, xem trong phạm vi phòng mình |
 | `STAFF` | Chỉ KPI bản thân, tự chấm |
 

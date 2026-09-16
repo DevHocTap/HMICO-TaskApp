@@ -645,9 +645,9 @@ CSS đi qua biến `--mau-*` ở `:root` của `index.css`.
   — trước nằm cột trái dạng lưới thẻ antd Card, cột phải hụt để trống nửa
   màn. Gỡ CSS `phieu-gap-*`.
 
-- **15/09 — màn Mẫu KPI ẩn với ban giám đốc:** `coTheXemMau()` (ADMIN, HR,
-  MANAGER) thay `coTheXemNhanVien` ở menu và `RoleRoute`. Chỉ giao diện;
-  backend `VAI_TRO_DOC` giữ EXECUTIVE (đọc mẫu không có gì để lộ).
+- **15/09 — màn Mẫu KPI ẩn với ban giám đốc**, **16/09 ẩn thêm với HCNS:**
+  `coTheXemMau()` = ADMIN, MANAGER — menu và `RoleRoute`. Chỉ giao diện;
+  backend `VAI_TRO_DOC` giữ HR/EXECUTIVE (đọc mẫu không có gì để lộ).
 
 - **Sao lưu database — MODULE MỚI `backup/` (15/09):** `pg_dump -Fc` do
   API chạy; tự động hằng đêm (cron mỗi giờ so với `saoLuu.gioChay`, bù lúc
