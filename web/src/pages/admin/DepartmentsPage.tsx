@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ThanhTab } from '../../components/ThanhTab';
-import { Alert, App, Button, Drawer, Form, Input, Modal, Select, Skeleton, Tag, Tooltip, Tree } from 'antd';
-import type { DataNode } from 'antd/es/tree';
+import { Alert, App, Button, Drawer, Form, Input, Modal, Select, Skeleton, Tag, Tooltip } from 'antd';
 import {
   ApartmentOutlined,
   BankOutlined,
@@ -53,7 +52,7 @@ function demConChau(node: DepartmentNode): number {
 /** Chữ viết tắt ngắn gọn cho ô mã: bỏ tiền tố chung, tối đa 4 ký tự. */
 function maNgan(code: string): string {
   const phan = code.split('-');
-  return (phan[phan.length - 1] ?? code).slice(0, 4);
+  return (phan[phan.length - 1] ?? code).slice(0, 5);
 }
 
 /**
@@ -372,17 +371,51 @@ export function DepartmentsPage() {
     );
   };
 
-  const chuyenSangDataNode = (nodes: DepartmentNode[]): DataNode[] =>
-    nodes.map((n) => ({
-      key: n.id,
-      title: (
-        <span>
-          {maPhongBiChan.has(n.code) && <WarningOutlined className="cp-canh-bao" />} {n.name}{' '}
-          <span style={{ color: '#94a3b8', fontSize: 12 }}>{n.code}</span> <Tag style={{ marginInlineEnd: 0 }}>{n.userCount} người</Tag>
-        </span>
-      ),
-      children: n.children.length > 0 ? chuyenSangDataNode(n.children) : undefined,
-    }));
+  /** Một dòng của bảng Phân cấp, đệ quy theo độ sâu; gập/mở dùng chung `gapNhanh`. */
+  const dongPhanCap = (d: DepartmentNode, sau: number): React.ReactNode => {
+    const tong = tongNhanh(d);
+    const thieuTruong = maPhongBiChan.has(d.code);
+    const gap = gapNhanh.has(d.id);
+    const trangThai = thieuTruong
+      ? { lop: 'cp-pill-cam', chu: 'Thiếu trưởng BP' }
+      : tong === 0
+        ? { lop: 'cp-pill-xam', chu: 'Chưa có NS' }
+        : { lop: 'cp-pill-xanh-la', chu: 'Đang hoạt động' };
+    return (
+      <div key={d.id}>
+        <div
+          className={`cp-pc-hang${dangChon?.id === d.id ? ' cp-pc-chon' : ''}${!khop(d) ? ' cp-mo' : ''}`}
+          onClick={() => setDangChon(d)}
+        >
+          <span className="cp-pc-ten" style={{ paddingLeft: 8 + sau * 26 }}>
+            {d.children.length > 0 ? (
+              <button type="button" className="cp-pc-mui" onClick={(e) => { e.stopPropagation(); doiGap(d.id); }} title={gap ? 'Mở' : 'Gập'}>
+                {gap ? '▸' : '▾'}
+              </button>
+            ) : (
+              <span className="cp-pc-mui cp-pc-mui-trong">•</span>
+            )}
+            <span className={`cp-o-ma cp-mau-${sau % 6}`}>{maNgan(d.code)}</span>
+            <b>{d.name}</b>
+            {d.children.length > 0 && <small>{d.children.length} đơn vị con</small>}
+          </span>
+          <span className={thieuTruong ? 'cp-o-phu-cam' : d.managerName ? '' : 'cp-pc-mo'}>{d.managerName ?? '—'}</span>
+          <span className="cp-pc-so">{d.userCount}</span>
+          <span className="cp-pc-so"><b>{tong}</b></span>
+          <span><span className={`cp-pill ${trangThai.lop}`}>{trangThai.chu}</span></span>
+          <span className="cp-pc-nut">
+            {coQuyenGhi && (
+              <>
+                <button type="button" onClick={(e) => { e.stopPropagation(); moSua(d); }}><EditOutlined /> Sửa</button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); moThemMoi(d); }}><PlusOutlined /> Con</button>
+              </>
+            )}
+          </span>
+        </div>
+        {!gap && d.children.map((c) => dongPhanCap(c, sau + 1))}
+      </div>
+    );
+  };
 
   return (
     <div className="cp">
@@ -450,13 +483,16 @@ export function DepartmentsPage() {
         ) : cheDo === 'cay' ? (
           <div className="cp-noi-dung" style={{ zoom: zoom / 100 }}>{cay.map(veCay)}</div>
         ) : (
-          <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: 8, padding: 8 }}>
-            <Tree
-              treeData={chuyenSangDataNode(cay)}
-              defaultExpandedKeys={danhSachPhang.map((d) => d.id)}
-              selectedKeys={dangChon ? [dangChon.id] : []}
-              onSelect={(keys) => setDangChon(danhSachPhang.find((d) => d.id === keys[0]) ?? null)}
-            />
+          <div className="cp-pc">
+            <div className="cp-pc-hang cp-pc-dau">
+              <span>Đơn vị</span>
+              <span>Trưởng bộ phận</span>
+              <span className="cp-pc-so">NS trực tiếp</span>
+              <span className="cp-pc-so">Cả nhánh</span>
+              <span>Trạng thái</span>
+              <span />
+            </div>
+            {cay.map((n) => dongPhanCap(n, 0))}
           </div>
         )}
 

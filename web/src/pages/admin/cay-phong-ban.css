@@ -158,3 +158,26 @@
 .cp-khoi > .cp-o { width: 100%; box-sizing: border-box; }
 .cp-luoi-con { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
 .cp-luoi-con .cp-o-ten { font-size: 11px; }
+
+/* ---------- chế độ Phân cấp: bảng có thụt lề (16/09) */
+.cp-pc { border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; background: #fff; }
+.cp-pc-hang { display: grid; grid-template-columns: minmax(280px, 2.2fr) minmax(160px, 1.2fr) 100px 90px 140px 130px; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; cursor: pointer; }
+.cp-pc-hang:last-child, .cp-pc > div:last-child > .cp-pc-hang:last-of-type { border-bottom: 0; }
+.cp-pc-hang:hover { background: #f8fafc; }
+.cp-pc-chon { background: #eff6ff; }
+.cp-pc-dau { background: #f1f5f9; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; cursor: default; border-bottom: 1px solid #cbd5e1; }
+.cp-pc-dau:hover { background: #f1f5f9; }
+.cp-pc-ten { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cp-pc-ten b { color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-pc-ten small { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+.cp-pc-mui { width: 18px; height: 18px; border: 0; background: none; color: #64748b; font-size: 12px; cursor: pointer; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; flex: none; }
+.cp-pc-mui:hover { background: #e2e8f0; color: #0f172a; }
+.cp-pc-mui-trong { color: #cbd5e1; cursor: default; }
+.cp-pc-so { text-align: right; font-variant-numeric: tabular-nums; }
+.cp-pc-mo { color: #cbd5e1; }
+.cp-pc-nut { display: flex; justify-content: flex-end; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.cp-pc-hang:hover .cp-pc-nut { opacity: 1; }
+.cp-pc-nut button { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; color: #334155; font: inherit; font-size: 11px; cursor: pointer; }
+.cp-pc-nut button:hover { border-color: #60a5fa; color: #1d4ed8; }
+.cp-pill-cam { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+@media (max-width: 1100px) { .cp-pc-hang { grid-template-columns: minmax(220px, 2fr) minmax(120px, 1fr) 80px 80px 120px 0; } .cp-pc-nut { display: none; } }
