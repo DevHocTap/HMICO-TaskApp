@@ -4,7 +4,6 @@ import { Alert, App, Button, Drawer, Form, Input, Modal, Select, Skeleton, Tag, 
 import type { DataNode } from 'antd/es/tree';
 import {
   ApartmentOutlined,
-  AppstoreOutlined,
   BankOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -34,7 +33,7 @@ interface FormValues {
   managerId?: string | null;
 }
 
-type CheDo = 'cay' | 'the' | 'phan-cap';
+type CheDo = 'cay' | 'phan-cap';
 
 /** Duyệt cây, trả về danh sách phẳng. */
 function duyetPhang(nodes: DepartmentNode[]): DepartmentNode[] {
@@ -107,8 +106,6 @@ export function DepartmentsPage() {
 
   // Số liệu đầu trang
   const tongNhanSu = danhSachPhang.reduce((t, d) => t + d.userCount, 0);
-  const soCoNguoi = danhSachPhang.filter((d) => d.userCount > 0).length;
-  const soTrong = danhSachPhang.length - soCoNguoi;
   const soCap1 = cay.reduce((t, g) => t + g.children.length, 0);
   const soPhongBan = danhSachPhang.length - cay.length - soCap1;
 
@@ -375,11 +372,6 @@ export function DepartmentsPage() {
     );
   };
 
-  const duongDan = (d: DepartmentNode): string => {
-    const cha = d.parentId ? danhSachPhang.find((x) => x.id === d.parentId) : null;
-    return cha ? `${duongDan(cha)} › ${cha.name}`.replace(/^ › /, '') : '';
-  };
-
   const chuyenSangDataNode = (nodes: DepartmentNode[]): DataNode[] =>
     nodes.map((n) => ({
       key: n.id,
@@ -403,7 +395,6 @@ export function DepartmentsPage() {
         <div className="cp-dau-phai">
           <div className="cp-che-do">
             <button type="button" className={cheDo === 'cay' ? 'cp-chon' : ''} onClick={() => setCheDo('cay')}><ApartmentOutlined /> Cây phòng ban</button>
-            <button type="button" className={cheDo === 'the' ? 'cp-chon' : ''} onClick={() => setCheDo('the')}><AppstoreOutlined /> Thẻ đơn vị</button>
             <button type="button" className={cheDo === 'phan-cap' ? 'cp-chon' : ''} onClick={() => setCheDo('phan-cap')}><UnorderedListOutlined /> Phân cấp</button>
           </div>
           {coQuyenGhi && (
@@ -425,43 +416,18 @@ export function DepartmentsPage() {
         />
       )}
 
-      <div className="cp-so-lieu">
-        <div className="cp-the-3">
-          <div className="cp-the">
-            <div className="cp-the-so cp-the-so-xanh">{tongNhanSu}</div>
-            <div style={{ minWidth: 0 }}>
-              <div className="cp-the-ten">Tổng nhân sự</div>
-              <div className="cp-the-phu">Đang làm việc, có phòng ban</div>
-            </div>
-          </div>
-          <div className="cp-the">
-            <div className="cp-the-so cp-the-so-xanh-la">{soCoNguoi}/{danhSachPhang.length}</div>
-            <div style={{ minWidth: 0 }}>
-              <div className="cp-the-ten">Đang hoạt động</div>
-              <div className="cp-the-phu cp-the-phu-xanh-la">Đơn vị có nhân sự trực tiếp</div>
-            </div>
-          </div>
-          <div className="cp-the">
-            <div className="cp-the-so cp-the-so-cam">{soTrong}/{danhSachPhang.length}</div>
-            <div style={{ minWidth: 0 }}>
-              <div className="cp-the-ten">Đang chờ NS</div>
-              <div className="cp-the-phu cp-the-phu-cam">Chưa có ai (khối / đang tuyển)</div>
-            </div>
-          </div>
+      <div className="cp-so-lieu-phai">
+        <div className="cp-chu-giai">
+          <span><i className="cp-cham-day" /> Có NS</span>
+          <span style={{ color: '#94a3b8' }}><i className="cp-cham-trong" /> Trống</span>
         </div>
-        <div className="cp-so-lieu-phai">
-          <div className="cp-chu-giai">
-            <span><i className="cp-cham-day" /> Có NS</span>
-            <span style={{ color: '#94a3b8' }}><i className="cp-cham-trong" /> Trống</span>
+        {cheDo === 'cay' && (
+          <div className="cp-zoom">
+            <button type="button" title="Thu nhỏ" onClick={() => setZoom((z) => Math.max(60, z - 10))}><MinusOutlined /></button>
+            <span>{zoom}%</span>
+            <button type="button" title="Phóng to" onClick={() => setZoom((z) => Math.min(140, z + 10))}><PlusOutlined /></button>
           </div>
-          {cheDo === 'cay' && (
-            <div className="cp-zoom">
-              <button type="button" title="Thu nhỏ" onClick={() => setZoom((z) => Math.max(60, z - 10))}><MinusOutlined /></button>
-              <span>{zoom}%</span>
-              <button type="button" title="Phóng to" onClick={() => setZoom((z) => Math.min(140, z + 10))}><PlusOutlined /></button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       <div className="cp-khung">
@@ -483,20 +449,6 @@ export function DepartmentsPage() {
           <div className="cp-chan">{coQuyenGhi ? 'Chưa có đơn vị nào. Bấm "Thêm đơn vị" để bắt đầu.' : 'Chưa có đơn vị nào.'}</div>
         ) : cheDo === 'cay' ? (
           <div className="cp-noi-dung" style={{ zoom: zoom / 100 }}>{cay.map(veCay)}</div>
-        ) : cheDo === 'the' ? (
-          <div className="cp-the-don-vi">
-            {danhSachPhang.map((d, i) => (
-              <div key={d.id} className={`cp-o${dangChon?.id === d.id ? ' cp-o-chon' : ''}${!khop(d) ? ' cp-mo' : ''}`} onClick={() => setDangChon(d)}>
-                <div className="cp-o-dau">
-                  <div className={`cp-o-ma cp-mau-${i % 6}`}>{maNgan(d.code)}</div>
-                  <span className={`cp-o-so ${tongNhanh(d) > 0 ? `cp-mau-${i % 6}` : 'cp-pill-xam'}`}>{tongNhanh(d)} NS</span>
-                </div>
-                <div className="cp-o-ten">{maPhongBiChan.has(d.code) && <WarningOutlined className="cp-canh-bao" />} {d.name}</div>
-                <div className="cp-o-phu">{d.managerName ?? (d.userCount > 0 ? 'Chưa có trưởng bộ phận' : 'Chưa có nhân sự')}</div>
-                <div className="cp-duong-dan">{duongDan(d) || 'Cấp cao nhất'}</div>
-              </div>
-            ))}
-          </div>
         ) : (
           <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: 8, padding: 8 }}>
             <Tree
