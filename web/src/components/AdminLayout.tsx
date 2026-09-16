@@ -175,52 +175,35 @@ function KhungAdmin() {
   const baoCao = loiVaoNhom('bao-cao', role);
   const heThong = loiVaoNhom('he-thong', role);
 
-  const mucKpi = [
+  // Ba nhóm (16/09): CÔNG VIỆC KPI (việc hằng tháng của mọi người) ·
+  // TỔ CHỨC (nhân sự, mẫu — nhập một lần) · HỆ THỐNG (cài đặt, nhật ký, sao lưu).
+  type MucMenu = { key: string; icon: React.ReactNode; label: React.ReactNode };
+  const nhomKpi: MucMenu[] = [
     { key: '/', icon: <AppstoreOutlined />, label: nhan('/', 'Tổng quan') },
-    {
-      key: '/kpi/my',
-      icon: <SolutionOutlined />,
-      label: nhan('/kpi/my', 'Phiếu đánh giá'),
-    },
+    { key: '/kpi/my', icon: <SolutionOutlined />, label: nhan('/kpi/my', 'Phiếu đánh giá') },
   ];
   if (coTheGiaoKpi(role)) {
-    mucKpi.push({
-      key: '/kpi/assign',
-      icon: <ScheduleOutlined />,
-      label: nhan('/kpi/assign', 'Giao KPI'),
-    });
+    nhomKpi.push({ key: '/kpi/assign', icon: <ScheduleOutlined />, label: nhan('/kpi/assign', 'Giao KPI') });
   }
   if (baoCao) {
-    mucKpi.push({
-      key: baoCao,
-      icon: <BarChartOutlined />,
-      label: nhan(baoCao, 'Báo cáo kỳ'),
-    });
+    nhomKpi.push({ key: baoCao, icon: <BarChartOutlined />, label: nhan(baoCao, 'Báo cáo kỳ') });
   }
+  const nhomToChuc: MucMenu[] = [];
   if (nhanSu) {
-    mucKpi.push({
-      key: nhanSu,
-      icon: <TeamOutlined />,
-      label: nhan(nhanSu, 'Quản lý nhân sự'),
-    });
+    nhomToChuc.push({ key: nhanSu, icon: <TeamOutlined />, label: nhan(nhanSu, 'Quản lý nhân sự') });
   }
   if (coTheXemMau(role)) {
-    mucKpi.push({
-      key: '/admin/kpi-templates',
-      icon: <FileTextOutlined />,
-      label: nhan('/admin/kpi-templates', 'Mẫu KPI'),
-    });
+    nhomToChuc.push({ key: '/admin/kpi-templates', icon: <FileTextOutlined />, label: nhan('/admin/kpi-templates', 'Mẫu KPI') });
   }
+  const nhomHeThong: MucMenu[] = [];
   if (heThong) {
-    mucKpi.push({
-      key: heThong,
-      icon: <SettingOutlined />,
-      label: nhan(heThong, 'Cài đặt hệ thống'),
-    });
+    nhomHeThong.push({ key: heThong, icon: <SettingOutlined />, label: nhan(heThong, 'Cài đặt hệ thống') });
   }
 
   const mucMenu = [
-    { key: 'kpi', label: 'Phân hệ điều hành', type: 'group' as const, children: mucKpi },
+    { key: 'kpi', label: 'Công việc KPI', type: 'group' as const, children: nhomKpi },
+    ...(nhomToChuc.length > 0 ? [{ key: 'to-chuc', label: 'Tổ chức', type: 'group' as const, children: nhomToChuc }] : []),
+    ...(nhomHeThong.length > 0 ? [{ key: 'he-thong', label: 'Hệ thống', type: 'group' as const, children: nhomHeThong }] : []),
   ];
 
   // Mục đang chọn: màn phụ (tab) sáng mục cha của nó; còn lại khớp tiền tố.
@@ -237,7 +220,7 @@ function KhungAdmin() {
           ? baoCao
           : heThong)) ??
     (location.pathname.startsWith('/kpi/scorecards') ? '/kpi/assign' : null) ??
-    mucKpi
+    [...nhomKpi, ...nhomToChuc, ...nhomHeThong]
       .map((m) => m.key)
       .filter((k) => k !== '/' && location.pathname.startsWith(k))
       .sort((a, b) => b.length - a.length)[0] ??
